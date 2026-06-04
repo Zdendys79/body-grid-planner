@@ -168,6 +168,156 @@ function saRelocateMove(placements, grid) {
   return null;
 }
 
+// ── Chain moves — Spinner+Repeater chains as atomic groups ─────────────────
+//
+// SA's per-component moves can drift a chain apart one move at a time, and
+// re-assembling it requires a long chain of accepted moves at decreasing T.
+// Chain moves treat a connected S-R subgraph as a single object and translate
+// or rotate the whole thing in one accepted step. Critical for tight layouts
+// where a chain needs to land against a specific edge of the grid.
+
+const _CHAIN_IDS = new Set(['spinner', 'repeater_2s', 'repeater_4s']);
+
+// Build adjacency over port-touching Spinners and Repeaters; return list of
+// connected components, each as an array of placement indices.
+function _saFindChains(placements) {
+  const cellOwner = new Map();
+  placements.forEach((p, idx) => {
+    if (!_CHAIN_IDS.has(p.componentId)) return;
+    for (const [r, c] of p.rotatedShape) cellOwner.set(`${p.row + r},${p.col + c}`, idx);
+  });
+
+  const neighbors = new Map();
+  placements.forEach((p, idx) => {
+    if (!_CHAIN_IDS.has(p.componentId)) return;
+    if (!neighbors.has(idx)) neighbors.set(idx, new Set());
+    for (const port of (p.rotatedPorts || [])) {
+      const gr = p.row + port.cell[0];
+      const gc = p.col + port.cell[1];
+      const d = SIDE_DELTA[port.side];
+      const k = `${gr + d.dr},${gc + d.dc}`;
+      const adj = cellOwner.get(k);
+      if (adj !== undefined && adj !== idx) {
+        neighbors.get(idx).add(adj);
+        if (!neighbors.has(adj)) neighbors.set(adj, new Set());
+        neighbors.get(adj).add(idx);
+      }
+    }
+  });
+
+  const visited = new Set();
+  const chains = [];
+  for (const start of neighbors.keys()) {
+    if (visited.has(start)) continue;
+    const stack = [start];
+    const comp = [];
+    while (stack.length > 0) {
+      const j = stack.pop();
+      if (visited.has(j)) continue;
+      visited.add(j);
+      comp.push(j);
+      for (const n of (neighbors.get(j) || [])) if (!visited.has(n)) stack.push(n);
+    }
+    if (comp.length >= 2) chains.push(comp);
+  }
+  return chains;
+}
+
+// Compute the chain's bounding box from its placements' shape cells.
+function _saChainBbox(placements, chain) {
+  let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+  for (const idx of chain) {
+    const p = placements[idx];
+    for (const [r, c] of p.rotatedShape) {
+      const gr = p.row + r, gc = p.col + c;
+      if (gr < minR) minR = gr;
+      if (gr > maxR) maxR = gr;
+      if (gc < minC) minC = gc;
+      if (gc > maxC) maxC = gc;
+    }
+  }
+  return { minR, maxR, minC, maxC };
+}
+
+// TRANSLATE — shift the entire chain by (dr, dc).
+function saChainTranslate(placements, grid) {
+  const chains = _saFindChains(placements);
+  if (chains.length === 0) return null;
+  const chain = chains[_saRandomInt(chains.length)];
+  const chainSet = new Set(chain);
+
+  // Try shifts of magnitudes 1..4 in random directions
+  const deltas = [];
+  for (let mag = 1; mag <= 4; mag++) {
+    deltas.push([-mag, 0], [mag, 0], [0, -mag], [0, mag]);
+  }
+  // Shuffle so the order of attempted directions is random per call
+  for (let i = deltas.length - 1; i > 0; i--) {
+    const j = _saRandomInt(i + 1);
+    [deltas[i], deltas[j]] = [deltas[j], deltas[i]];
+  }
+
+  for (const [dr, dc] of deltas) {
+    const next = placements.slice();
+    let ok = true;
+    for (const idx of chain) {
+      const p = placements[idx];
+      const moved = { ...p, row: p.row + dr, col: p.col + dc };
+      if (!_saFitsInGrid(moved, grid)) { ok = false; break; }
+      next[idx] = moved;
+    }
+    if (!ok) continue;
+    if (_saHasOverlap(next)) continue;
+    return next;
+  }
+  return null;
+}
+
+// ROTATE — rotate the entire chain by 90/180/270 around its bbox top-left.
+// Each component's anchor and rotation update so the rotated-shape cells
+// match the cells produced by rotating the chain as a unit.
+function saChainRotate(placements, grid) {
+  const chains = _saFindChains(placements);
+  if (chains.length === 0) return null;
+  const chain = chains[_saRandomInt(chains.length)];
+  const { minR, maxR, minC, maxC } = _saChainBbox(placements, chain);
+
+  const angle = [90, 180, 270][_saRandomInt(3)];
+  // Rotation around bbox top-left so output stays in non-negative offsets.
+  // After the transform, we shift the result to keep the chain inside the grid.
+  const transform = (gr, gc) => {
+    if (angle === 90)  return [minR + (gc - minC),     minC + (maxR - gr)];
+    if (angle === 180) return [minR + (maxR - gr),     minC + (maxC - gc)];
+    return                  [minR + (maxC - gc),       minC + (gr - minR)];
+  };
+
+  const next = placements.slice();
+  for (const idx of chain) {
+    const p = placements[idx];
+    const def = componentLib.find(d => d.id === p.componentId);
+    if (!def) return null;
+    const transformed = p.rotatedShape.map(([r, c]) => transform(p.row + r, p.col + c));
+    const newAnchorR = Math.min(...transformed.map(([r]) => r));
+    const newAnchorC = Math.min(...transformed.map(([, c]) => c));
+    const newRot = (p.rotation + angle) % 360;
+    const rotated = rotateComponent(def, newRot);
+    const movedP = {
+      ...p,
+      row: newAnchorR,
+      col: newAnchorC,
+      rotation: newRot,
+      rotatedShape: rotated.shape,
+      rotatedPorts: rotated.energyPorts,
+      rotatedBioPorts: rotated.bioPorts,
+      rotatedPeripheral: buildRotatedPeri(def, newRot)
+    };
+    if (!_saFitsInGrid(movedP, grid)) return null;
+    next[idx] = movedP;
+  }
+  if (_saHasOverlap(next)) return null;
+  return next;
+}
+
 // Per-worker move bias — settable global. Each worker sets its own profile
 // to encourage strategic diversity:
 //   - balanced  (default):  even mix of all moves
@@ -175,16 +325,16 @@ function saRelocateMove(placements, grid) {
 //   - rotate:   heavy rotate (explore orientations)
 //   - swap:     heavy swap (re-pair components)
 //   - jump:     heavy relocate (escape local minima)
-let saMoveBias = { shift: 0.25, rotate: 0.30, swap: 0.30, relocate: 0.15 };
+let saMoveBias = { shift: 0.22, rotate: 0.27, swap: 0.27, relocate: 0.14, chain: 0.10 };
 
 function setSaMoveBias(profile) {
   switch (profile) {
-    case 'local':   saMoveBias = { shift: 0.50, rotate: 0.30, swap: 0.15, relocate: 0.05 }; break;
-    case 'rotate':  saMoveBias = { shift: 0.15, rotate: 0.55, swap: 0.20, relocate: 0.10 }; break;
-    case 'swap':    saMoveBias = { shift: 0.15, rotate: 0.20, swap: 0.55, relocate: 0.10 }; break;
-    case 'jump':    saMoveBias = { shift: 0.10, rotate: 0.15, swap: 0.15, relocate: 0.60 }; break;
+    case 'local':   saMoveBias = { shift: 0.45, rotate: 0.27, swap: 0.13, relocate: 0.05, chain: 0.10 }; break;
+    case 'rotate':  saMoveBias = { shift: 0.13, rotate: 0.50, swap: 0.17, relocate: 0.10, chain: 0.10 }; break;
+    case 'swap':    saMoveBias = { shift: 0.13, rotate: 0.17, swap: 0.50, relocate: 0.10, chain: 0.10 }; break;
+    case 'jump':    saMoveBias = { shift: 0.07, rotate: 0.13, swap: 0.13, relocate: 0.47, chain: 0.20 }; break;
     case 'balanced':
-    default:        saMoveBias = { shift: 0.25, rotate: 0.30, swap: 0.30, relocate: 0.15 }; break;
+    default:        saMoveBias = { shift: 0.22, rotate: 0.27, swap: 0.27, relocate: 0.14, chain: 0.10 }; break;
   }
 }
 
@@ -197,5 +347,8 @@ function saGenerateMove(placements, grid) {
   if (r < cum) return saRotateMove(placements, grid);
   cum += saMoveBias.swap;
   if (r < cum) return saSwapMove(placements, grid);
-  return saRelocateMove(placements, grid);
+  cum += saMoveBias.relocate;
+  if (r < cum) return saRelocateMove(placements, grid);
+  // Chain moves — half translate, half rotate
+  return Math.random() < 0.5 ? saChainTranslate(placements, grid) : saChainRotate(placements, grid);
 }

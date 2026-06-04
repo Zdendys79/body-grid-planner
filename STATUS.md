@@ -7,7 +7,13 @@
 
 ---
 
-## Nápady na vylepšení (zatím neimplementováno)
+## Nápady na vylepšení
+
+### ✅ saChainMove (v=89) — chain translate + rotate jako atomic skupina
+
+Implementováno v `src/sa/moves.js`. `_saFindChains` detekuje connected component-y port-touching Spinnerů a Repeaterů (BFS přes adjacency). `saChainTranslate` posouvá celý chain o 1–4 buňky v náhodném směru. `saChainRotate` rotuje chain o 90/180/270° kolem bbox top-left (každá komponenta + svůj anchor rotuje konzistentně). Začleněno do `saGenerateMove` jako `chain` kategorie s váhou 0.10 (balanced/swap/rotate/local), 0.20 (jump). Pro chain-rotation využívá factu, že component-rotation logic shape-wise odpovídá chain-rotation transform (90 CW na bbox = 90 CW na každý shape s posunutým anchorem).
+
+### Nápady na vylepšení (zatím neimplementováno)
 
 ### 1. Bent/diagonal cluster varianty pro Spinner-Repeater chainy
 
