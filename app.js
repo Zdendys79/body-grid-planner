@@ -68,11 +68,27 @@ async function init() {
     console.log(`[init] ${bfResults.length} SA výsledků nahráno z paměti.`);
   }
 
+  // Dump current layout to console on startup (saveState dumps on every later change)
+  console.log('[Layout dump]', JSON.stringify({
+    grid: state.grid,
+    nextId: state.nextId,
+    placements: state.placements.map(p => ({
+      id: p.id, componentId: p.componentId,
+      row: p.row, col: p.col, rotation: p.rotation,
+      autoPlaced: p.autoPlaced || false
+    }))
+  }));
+
   // Global keyboard listener for R-key rotation of selected component
   document.addEventListener('keydown', onGlobalKeydown);
 
   renderAll();
   renderBfResults();
+
+  // Verify drag handlers attached
+  const dragHandlerCount = document.querySelectorAll('#body-grid [data-comp]').length;
+  console.log(`[init] ${dragHandlerCount} komponent v gridu, drag handlery připojené.`);
+
   showStatus('Ready · Drag = posun, R nebo prostřední tlačítko = rotace', 'ok');
 
   // Auto-resume brute force if a saved snapshot matches the current layout
@@ -344,6 +360,7 @@ let dragState = null; // { idx, startMouseX, startMouseY, lastRow, lastCol, drag
 const DRAG_THRESHOLD = 5; // px before mousedown becomes drag
 
 function onComponentMouseDown(idx, e) {
+  console.log(`[drag] mousedown na komponentě #${idx} (${state.placements[idx]?.componentId}), button=${e.button}`);
   // Middle click → rotate the component in place (no drag)
   if (e.button === 1) {
     e.preventDefault();
@@ -352,6 +369,7 @@ function onComponentMouseDown(idx, e) {
   }
   if (e.button !== 0) return; // only left button initiates drag
   e.preventDefault();
+  e.stopPropagation();
 
   dragState = {
     idx,
