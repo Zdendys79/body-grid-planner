@@ -1,59 +1,59 @@
 # Idle Directive – Body Optimizer – STATUS
 
-**Datum:** 2026-06-04
-**Verze:** v=88
+**Date:** 2026-06-04
+**Version:** v=90
 **URL:** https://idle-directive.zdendys79.website
 **GitHub:** https://github.com/Zdendys/idle-directive
 
 ---
 
-## Nápady na vylepšení
+## Enhancement ideas
 
-### ✅ saChainMove (v=89) — chain translate + rotate jako atomic skupina
+### ✅ saChainMove (v=89) — chain translate + rotate as an atomic group
 
-Implementováno v `src/sa/moves.js`. `_saFindChains` detekuje connected component-y port-touching Spinnerů a Repeaterů (BFS přes adjacency). `saChainTranslate` posouvá celý chain o 1–4 buňky v náhodném směru. `saChainRotate` rotuje chain o 90/180/270° kolem bbox top-left (každá komponenta + svůj anchor rotuje konzistentně). Začleněno do `saGenerateMove` jako `chain` kategorie s váhou 0.10 (balanced/swap/rotate/local), 0.20 (jump). Pro chain-rotation využívá factu, že component-rotation logic shape-wise odpovídá chain-rotation transform (90 CW na bbox = 90 CW na každý shape s posunutým anchorem).
+Implemented in `src/sa/moves.js`. `_saFindChains` detects connected components of port-touching Spinners and Repeaters (BFS over adjacency). `saChainTranslate` shifts the whole chain by 1–4 cells in a random direction. `saChainRotate` rotates the chain by 90/180/270° around the bbox top-left (each component + its anchor rotate consistently). Wired into `saGenerateMove` as the `chain` category with weight 0.10 (balanced/swap/rotate/local), 0.20 (jump). Chain rotation leverages the fact that the component rotation logic is shape-wise equivalent to the chain rotation transform (90 CW on the bbox = 90 CW on each shape with the anchor shifted).
 
-### Nápady na vylepšení (zatím neimplementováno)
+### Enhancement ideas (not implemented yet)
 
-### 1. Bent/diagonal cluster varianty pro Spinner-Repeater chainy
+### 1. Bent/diagonal cluster variants for Spinner-Repeater chains
 
-Aktuálně `src/sa/clusters.js` definuje jen **lineární** I-shape chain (`buildClusterDef('A', n)` = horizontální `S-R₂-S-R₂-…`, ve 4 rotacích přes `_precomputeRotationVariants`). SA s těmito atomickými clustery zvládne jen "narovnané" tvary; ohnuté/diagonální musí skládat z jednotlivých součástek přes `shift/swap/relocate` moves — řádově pomalejší.
+`src/sa/clusters.js` currently defines only the **linear** I-shape chain (`buildClusterDef('A', n)` = horizontal `S-R₂-S-R₂-…`, in 4 rotations via `_precomputeRotationVariants`). With these atomic clusters SA can only place "straight" shapes; bent/diagonal arrangements have to be assembled from individual components via `shift/swap/relocate` moves — orders of magnitude slower.
 
-Návrh: přidat další `buildClusterDef` varianty s identickými outer porty `(2,0) W` + `(2,4) E` ale jinou vnitřní geometrií:
+Proposal: add more `buildClusterDef` variants with identical outer ports `(2,0) W` + `(2,4) E` but different inner geometry:
 
-- `A_L_n` — L-shape (R₂ vystupuje kolmo o 1 řádek dolů → 4h × 5w)
-- `A_diag_up_n` — diagonální vzestup (S vlevo dole, S vpravo nahoře → 5h × 5w)
-- `A_diag_down_n` — diagonální sestup (mirror diag_up)
+- `A_L_n` — L-shape (R₂ extends perpendicularly one row down → 4h × 5w)
+- `A_diag_up_n` — diagonal step-up (S bottom-left, S top-right → 5h × 5w)
+- `A_diag_down_n` — diagonal step-down (mirror of diag_up)
 
-Každá nová varianta vyžaduje vlastní `_internalPlacements` array + projde stejným `_precomputeRotationVariants` → 4 rotace na variantu. Celkem +12 cluster variant pro `n=2`.
+Each new variant requires its own `_internalPlacements` array and goes through `_precomputeRotationVariants` → 4 rotations per variant. Total +12 cluster variants for `n=2`.
 
-Přínos: SA dokáže atomicky umístit "L u horní hrany + I uvnitř" nebo "dva diagonály do rohů" místo aby k těmto konfiguracím konvergovala přes desítky individuálních moves.
+Benefit: SA can atomically place "L at the top edge + I inside" or "two diagonals in the corners" instead of converging on these configurations via dozens of individual moves.
 
-### 2. Island migration — cross-worker sync nejlepšího layoutu
+### 2. Island migration — cross-worker sync of the best layout
 
-Aktuálně jsou SA workery nezávislé ostrovy: `bestValidLayout` je per-worker, main thread leafy sbírá ale nevysílá je zpět. Zaseknutý worker (např. na score 75k zatímco jiný má 100k) pokračuje od svého lokálního maxima.
+Currently SA workers are independent islands: `bestValidLayout` is per-worker, the main thread collects leaves but does not broadcast them back. A stuck worker (e.g., at score 75k while another is at 100k) keeps going from its local maximum.
 
-Návrh: každých N iterací (např. 1000) main thread broadcastne aktuální `bfResults[0].layout` všem workerům jako `{type:'migrate', layout, score}`. Worker pokud má `bestValidCost > globalCost`, přepne svůj `current` + `best` na globální nejlepší a rozhřeje T zpátky na ~50 % `tStart`. Stále si nese svůj per-worker `WORKER_PROFILES` (move bias + perturb), takže od stejného startu jde **jinou cestou**.
+Proposal: every N iterations (e.g., 1000) the main thread broadcasts the current `bfResults[0].layout` to all workers as `{type:'migrate', layout, score}`. If a worker has `bestValidCost > globalCost`, it swaps its `current` + `best` for the global best and reheats T back to ~50% of `tStart`. Each worker still carries its per-worker `WORKER_PROFILES` (move bias + perturb), so it explores a **different path** from the same start.
 
 Trade-off:
-- ✅ Rychlejší konvergence k globálnímu optimu
-- ⚠️ Riziko premature convergence (všichni v jednom basinu)
-- ⚠️ Vyžaduje broadcast logiku v `scheduleAnnealOpt` + `migrate` handler v sa-worker
+- ✅ Faster convergence to the global optimum
+- ⚠️ Risk of premature convergence (everyone in one basin)
+- ⚠️ Requires broadcast logic in `scheduleAnnealOpt` + a `migrate` handler in sa-worker
 
-Implementační rozsah: ~80 LOC, low-risk (žádná změna scoringu).
+Implementation size: ~80 LOC, low-risk (no scoring changes).
 
 ---
 
-## v=53–62 — Multi-worker brute force + modularizace
+## v=53–62 — Multi-worker brute force + modularization
 
 ### v=53 — Phase 2 Multi-worker
-- `scheduleBruteForceOpt` spawnuje `N = getThreadCount()` workerů, každý přebírá `[branchStart, branchEnd)` slice z `totalBranches`
-- `bfSaveStateV2` formát zachycuje per-worker stav pro resume
-- Reset přesunut do Settings modalu jako "System reset" (danger style)
-- Glassmorphism styl modalů
+- `scheduleBruteForceOpt` spawns `N = getThreadCount()` workers, each takes a `[branchStart, branchEnd)` slice of `totalBranches`
+- `bfSaveStateV2` format captures per-worker state for resume
+- Reset moved into the Settings modal as "System reset" (danger style)
+- Glassmorphism modal styling
 
-### v=54–62 — Modularizace (refactor steps 1–9)
-Kompletně rozdělený monolitní app.js (~1900 řádků) + duplicitní worker (~600 řádků) do logické struktury:
+### v=54–62 — Modularization (refactor steps 1–9)
+Completely broke up the monolithic app.js (~1900 lines) + duplicate worker (~600 lines) into a logical layout:
 
 ```
 src/
@@ -68,166 +68,166 @@ src/
     score.js                   — computeFreeSpaceQuality, computeWorkingSet, scoreLayout
     validate.js                — isLayoutValid, tryAddWires
   bruteforce/
-    generator.js               — bruteForcePlacements (sdílený main + worker)
+    generator.js               — bruteForcePlacements (shared between main + worker)
     save.js                    — bfSaveState, bfSaveStateV2, bfLoadSave, bfClearSave
                                  export/import bundle, _bfEncode/Decode, _computeBranchRanges
   ui/
     settings.js                — loadSettings/saveSettings/getThreadCount/openSettings…
 ```
 
-**Výhody:**
-- Žádná duplicita kódu mezi main a worker (sdílí `src/`)
-- Jasné API granice
-- Easy unit-testing (každý modul samostatně)
-- IDE navigace + jump-to-definition
+**Benefits:**
+- No code duplication between main and worker (they share `src/`)
+- Clear API boundaries
+- Easy unit-testing (each module on its own)
+- IDE navigation + jump-to-definition
 
-**Velký refaktor commit:** krok 7 (`generator.js`) — −862/+438 řádků (sdílený generátor odstranil dvě kopie).
+**Big refactor commit:** step 7 (`generator.js`) — −862/+438 lines (the shared generator removed two copies).
 
-### Pravidla závislostí (script load order)
-1. `src/constants.js` (žádné závislosti)
-2. `src/optimizer/rotation.js` (žádné závislosti)
-3. `src/optimizer/bus.js` (žádné závislosti — definuje SIDE_DELTA, OPPOSITE)
-4. `src/optimizer/placement.js` (závisí na bus.js: SIDE_DELTA pro addPeripheralReserved)
-5. `src/optimizer/score.js` (závisí na bus.js, placement.js)
-6. `src/optimizer/validate.js` (závisí na bus.js, score.js)
-7. `src/bruteforce/generator.js` (závisí na všech optimizer/* + constants)
-8. `src/bruteforce/save.js` (žádné optimizer závislosti, ale potřebuje state.js objekt)
-9. `src/ui/settings.js` (potřebuje SETTINGS_KEY, MAX_THREADS)
-10. `optimizer.js`, `renderer.js` (legacy — zbylé non-extracted funkce: scorePositionAndCompact, buildRotatedPeri, findBestPlacement, atd.)
+### Dependency rules (script load order)
+1. `src/constants.js` (no dependencies)
+2. `src/optimizer/rotation.js` (no dependencies)
+3. `src/optimizer/bus.js` (no dependencies — defines SIDE_DELTA, OPPOSITE)
+4. `src/optimizer/placement.js` (depends on bus.js: SIDE_DELTA for addPeripheralReserved)
+5. `src/optimizer/score.js` (depends on bus.js, placement.js)
+6. `src/optimizer/validate.js` (depends on bus.js, score.js)
+7. `src/bruteforce/generator.js` (depends on all optimizer/* + constants)
+8. `src/bruteforce/save.js` (no optimizer dependencies, but needs the state.js object)
+9. `src/ui/settings.js` (needs SETTINGS_KEY, MAX_THREADS)
+10. `optimizer.js`, `renderer.js` (legacy — remaining non-extracted functions: scorePositionAndCompact, buildRotatedPeri, findBestPlacement, etc.)
 11. `app.js` (entry point + state, init, scheduleBruteForceOpt)
 
-## v=52 — Settings překryvka
+## v=52 — Settings overlay
 
-- **⚙ ikona** vedle nadpisu "BODY OPTIMIZER" → otevírá modal s nastavením
-- **Počet threadů** pro brute force (slider 1–6, default `min(hardwareConcurrency, 6)`)
-- **Max je 6** i kdyby HW mělo víc — nezahltí cílový stroj
-- Hodnota persistována v `localStorage['app_settings']`, čteno přes `getThreadCount()` — připravené pro Phase 2 (multi-worker dispatcher)
-- **Export/Import přesunut** z hlavního panelu do settings modalu
-- **Glassmorphism modal**: `backdrop-filter: blur(10px) saturate(140%)`, semi-transparentní pozadí, fade-in animace, lehký scale-up content
+- **⚙ icon** next to the "BODY OPTIMIZER" title → opens a settings modal
+- **Thread count** for brute force (slider 1–6, default `min(hardwareConcurrency, 6)`)
+- **Max is 6** even if the HW has more — to not overload the target machine
+- Value persisted in `localStorage['app_settings']`, read via `getThreadCount()` — ready for Phase 2 (multi-worker dispatcher)
+- **Export/Import moved** from the main panel into the settings modal
+- **Glassmorphism modal**: `backdrop-filter: blur(10px) saturate(140%)`, semi-transparent background, fade-in animation, slight scale-up of content
 
 ## v=51 — Export bundle = layout + BF save
 
-Export vždy obsahuje layout; BF save se přidá, pokud existuje. Import přepíše layout a optionally obnoví BF save (auto-restart workera). Backward-compatible s v=49/50 legacy formátem (jen BF save).
+Export always includes the layout; the BF save is added if it exists. Import overwrites the layout and optionally restores the BF save (auto-restart of the worker). Backward-compatible with the v=49/50 legacy format (BF save only).
 
-## v=50 — Repeater musí mít cíl (Spinner nebo Pulser)
+## v=50 — Repeater must have a target (Spinner or Pulser)
 
-- **Nová validační podmínka** v `isLayoutValid` (app.js i worker): každý umístěný Repeater musí mít port-match s alespoň jedním Spinnerem nebo Pulserem
-- **Placement-time pruning**: `targetCoverKeyCount: Map<int, count>` udržuje union Spinner + Pulser cover keys; Repeater bez match je odmítnut bezprostředně po pushPlacement (před canReachBus)
-- **Pulser tracking**: nový `pushPulserTracking` / `popPulserTracking` aktualizují `targetCoverKeyCount`
-- **Helper `computeCoverKeys`** sdílen Spinnerem i Pulserem
-- Spinner-Rep coverage counter (Opt #2) zůstává beze změny
+- **New validation rule** in `isLayoutValid` (app.js and worker): every placed Repeater must have a port match with at least one Spinner or Pulser
+- **Placement-time pruning**: `targetCoverKeyCount: Map<int, count>` keeps the union of Spinner + Pulser cover keys; a Repeater without a match is rejected immediately after pushPlacement (before canReachBus)
+- **Pulser tracking**: new `pushPulserTracking` / `popPulserTracking` update `targetCoverKeyCount`
+- **Helper `computeCoverKeys`** shared by Spinner and Pulser
+- The Spinner-Rep coverage counter (Opt #2) is unchanged
 
 ## v=49 — Save state export/import
 
-- **Export tlačítko** v levém panelu → modal s base64 zakódovaným save state
-- **Import tlačítko** → vložit řetězec → validace → resume na cílovém stroji
-- Použití: server (4 jádra) → desktop (24 threadů) bez ztráty progressu
-- Při mismatchi layoutu nabízí přepsat aktuální layout layoutem ze saveu
-- Formát stringu: `base64(utf8(JSON))` — typicky ~10-15 KB pro 35-componentní search
+- **Export button** in the left panel → modal with base64-encoded save state
+- **Import button** → paste a string → validation → resume on the target machine
+- Use case: server (4 cores) → desktop (24 threads) without losing progress
+- On layout mismatch the dialog offers to overwrite the current layout with the layout from the save
+- String format: `base64(utf8(JSON))` — typically ~10-15 KB for a 35-component search
 
 ---
 
-## TODO: Paralelizace brute force (Web Workers)
+## TODO: Brute force parallelization (Web Workers)
 
-**Motivace:** Brute force pro 35-40 součástek běží dny. Search prostor větví hloubky 1 je 800-3000 nezávislých větví — ideální kandidát pro paralelizaci.
+**Motivation:** Brute force for 35-40 components runs for days. The depth-1 branch search space is 800-3000 independent branches — an ideal candidate for parallelization.
 
-**Plán implementace ve fázích:**
+**Implementation plan in phases:**
 
-### Fáze 1 — Refactor do worker (1 vlákno, kontrolní) ✅ DOKONČENO (v=48)
-- ✅ `bruteforce-worker.js` vytvořen s `importScripts('optimizer.js?v=48')`
-- ✅ Worker obsahuje vlastní kopii `bruteForcePlacements`, `isLayoutValid`, `tryAddWires`, `scoreLayout`, `getUniqueDegs`
-- ✅ Main thread: `scheduleBruteForceOpt` vytváří `Worker`, posílá `{type:'init', componentLib}` → `{type:'start', nonWireIds, grid, resumePath, resumeStats}`
-- ✅ Worker posílá: `progress` (každou sekundu), `leaf` (lepší layout), `done`, `stopped`
-- ✅ `currentBfWorker` module-level state pro terminate při změně layoutu nebo nové scheduleBruteForceOpt
-- ✅ Resume funguje přes worker — main předá `resumePath` v `start` message
-- ✅ Save funguje — main na 60s ticku v `progress` message uloží `path` + stats
-- ✅ `bfClearSave()` zabíjí běžící worker při změně layoutu/gridu
-- ✅ Auto-resume na page load (init detekuje saved stav, volá scheduleBruteForceOpt)
-- **Bonus speedup ~2×** — worker má 50ms batch deadline (vs. main 8ms s UI sync), vyšší CPU využití.
+### Phase 1 — Refactor into worker (1 thread, control case) ✅ DONE (v=48)
+- ✅ `bruteforce-worker.js` created with `importScripts('optimizer.js?v=48')`
+- ✅ Worker carries its own copy of `bruteForcePlacements`, `isLayoutValid`, `tryAddWires`, `scoreLayout`, `getUniqueDegs`
+- ✅ Main thread: `scheduleBruteForceOpt` creates a `Worker`, sends `{type:'init', componentLib}` → `{type:'start', nonWireIds, grid, resumePath, resumeStats}`
+- ✅ Worker sends: `progress` (every second), `leaf` (better layout), `done`, `stopped`
+- ✅ `currentBfWorker` module-level state for terminate on layout change or new scheduleBruteForceOpt
+- ✅ Resume works through the worker — main passes `resumePath` in the `start` message
+- ✅ Save works — main on a 60s tick in the `progress` message saves `path` + stats
+- ✅ `bfClearSave()` kills the running worker on layout/grid change
+- ✅ Auto-resume on page load (init detects a saved state, calls scheduleBruteForceOpt)
+- **Bonus speedup ~2×** — worker has a 50ms batch deadline (vs. 8ms in main with UI sync), higher CPU utilization.
 
-### Fáze 2 — N workerů, naivní partition
-- `navigator.hardwareConcurrency` udává počet jader (typicky 4-16)
-- Main rozdělí `totalBranches` (depth-1) rovnoměrně: každý worker dostane `[start, end)` rozsah
-- Workeři běží nezávisle, posílají best-found layout
-- Main agreguje, ukáže globálně nejlepší
-- **Očekávaný speedup: 5-7× na 8 jádrech** (lineární s režií messaging).
+### Phase 2 — N workers, naive partitioning
+- `navigator.hardwareConcurrency` reports the core count (typically 4-16)
+- Main splits `totalBranches` (depth-1) evenly: each worker gets a `[start, end)` range
+- Workers run independently, send the best-found layout
+- Main aggregates and shows the globally best result
+- **Expected speedup: 5-7× on 8 cores** (linear with messaging overhead).
 
-### Fáze 3 — Sdílený bestScore (volitelné, pokročilé)
-- `SharedArrayBuffer + Atomics` pro globální bestScore mezi workery
-- Workeři používají sdílené best pro pruning větví, které nemohou překonat
-- Vyžaduje COOP+COEP HTTP hlavičky a `crossOriginIsolated` (nutná konfigurace Apache)
+### Phase 3 — Shared bestScore (optional, advanced)
+- `SharedArrayBuffer + Atomics` for a global bestScore across workers
+- Workers use the shared best to prune branches they cannot beat
+- Requires COOP+COEP HTTP headers and `crossOriginIsolated` (Apache configuration needed)
 
-### Co se přizpůsobí
-- **Resume** — per-worker stav nebo agregovaný snapshot. Save formát musí obsahovat per-worker path.
-- **UI progress** — sečíst progress všech workerů.
-- **Timings** — agregovat z workerů přes message.
+### What adapts
+- **Resume** — per-worker state or aggregated snapshot. The save format must contain a per-worker path.
+- **UI progress** — sum the progress across all workers.
+- **Timings** — aggregate from workers via messages.
 
-### Co se zachová
-- Pruningy #1-#5 fungují per-worker (state je lokální).
-- Bus reachability funguje per-worker.
-- Cell-budget funguje per-worker.
+### What stays
+- Prunings #1-#5 work per-worker (state is local).
+- Bus reachability works per-worker.
+- Cell-budget works per-worker.
 
 ---
 
-## Aktuální stav: FUNKČNÍ
+## Current state: WORKING
 
-### Co bylo nasazeno ve v=22
+### What shipped in v=22
 
-**Velká refaktorizace optimizeru** — odstraněn umělý cluster systém, přidány hard constraints.
+**Major optimizer refactor** — artificial cluster system removed, hard constraints added.
 
-#### Odstraněno (bylo zbytečně komplexní)
-- `buildSpinnerClusters` — generátor šablon pro clustery
-- `placeClusterAt` — umísťovač cluster šablon
-- `runClusterOptimization` — cluster fáze background optimizeru
-- `removeUsed` + `greedyFillRemaining` — pomocné funkce cluster fáze
+#### Removed (was unnecessarily complex)
+- `buildSpinnerClusters` — template generator for clusters
+- `placeClusterAt` — placer of cluster templates
+- `runClusterOptimization` — cluster phase of the background optimizer
+- `removeUsed` + `greedyFillRemaining` — cluster-phase helpers
 
-#### Přidáno / opraveno
+#### Added / fixed
 
 **optimizer.js:**
-- Hard constraint #1 — Spinner musí mít volné sousední buňky pro pending Repeatery
-- Hard constraint #2 — Repeater MUSÍ se připojit k nefunkčnímu Spinneru (pokud existuje)
-- Rezervace peripheral slotů v `occupiedMap` (sentinel -1) — oprava biocell bug
+- Hard constraint #1 — Spinner must have free adjacent cells for pending Repeaters
+- Hard constraint #2 — Repeater MUST connect to a non-working Spinner (if one exists)
+- Reservation of peripheral slots in `occupiedMap` (sentinel -1) — fix for the biocell bug
 
 **app.js:**
-- `isLayoutValid` — validuje kompletní layout (napájení + funkčnost Spinnerů)
-- `scheduleBackgroundOpt` — zjednodušen: pouze sampling pořadí + `isLayoutValid` filtr
-- `ensureComponentOrder` — opraveno pořadí: Rep PŘED Spin (bylo opačně)
-- `generateClusterOrdering` — opraveno: Repeatery tlačeny PŘED jejich Spinner
-- `debugLayoutStatus` — debug helper s console.group výstupem
-- Opravena reference `generateRepFirstOrdering` → `generateClusterOrdering`
+- `isLayoutValid` — validates the full layout (powering + Spinner working state)
+- `scheduleBackgroundOpt` — simplified: only ordering sampling + `isLayoutValid` filter
+- `ensureComponentOrder` — order fixed: Rep BEFORE Spin (used to be reversed)
+- `generateClusterOrdering` — fixed: Repeaters pushed BEFORE their Spinner
+- `debugLayoutStatus` — debug helper with console.group output
+- Reference `generateRepFirstOrdering` → `generateClusterOrdering` fixed
 
 ---
 
-## Architektura optimizeru (po refaktorizaci)
+## Optimizer architecture (after the refactor)
 
 ```
 addComponent / optimizeAll
     └── findBestPlacement (greedy, hard constraints)
-            ├── Hard: Spinner musí mít místo pro Repeatery
-            └── Hard: Repeater musí jít k nefunkčnímu Spinneru
+            ├── Hard: Spinner must have room for Repeaters
+            └── Hard: Repeater must go to a non-working Spinner
 
 scheduleBackgroundOpt (async batched)
     ├── N ≤ 7: allPermutations (N!)
     └── N > 7: 800× generateClusterOrdering + ensureComponentOrder
             └── runOptimizationOnCopy
-                    └── isLayoutValid → zahazuje neplatné
-                            └── scoreLayout → ukládá nejlepší
+                    └── isLayoutValid → discards invalid
+                            └── scoreLayout → stores the best
 ```
 
 ---
 
-## Známé limitace
+## Known limitations
 
-- Background optimizer může nenajít platný layout pokud je grid příliš malý
-  (správná zpráva: "nenalezeno místo — rozbal body")
-- Pro N > 7 komponent: 800 vzorků nemusí pokrýt optimální pořadí (stochastické)
+- Background optimizer may not find a valid layout if the grid is too small
+  (proper message: "no room found — expand body")
+- For N > 7 components: 800 samples may not cover the optimal order (stochastic)
 
 ---
 
-## Historie verzí (poslední)
+## Version history (recent)
 
-| Verze | Datum | Změna |
+| Version | Date | Change |
 |---|---|---|
-| v=22 | 2026-06-03 | Odstraněn cluster systém, hard constraints, oprava Rep→Spin pořadí |
+| v=22 | 2026-06-03 | Cluster system removed, hard constraints, Rep→Spin order fix |
 | v=21 | 2026-06-03 | Debug logging, biocell reservation fix, Repeater hard constraint |
-| v=20 | předchozí | Cluster template systém (nahrazen) |
+| v=20 | earlier | Cluster template system (replaced) |

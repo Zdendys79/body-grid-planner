@@ -24,12 +24,12 @@ async function init() {
     const nav = performance.getEntriesByType('navigation')[0];
     const resources = performance.getEntriesByType('resource').filter(r => r.name.match(/\.(js|css)\?v=/));
     const fromCache = nav && nav.transferSize === 0;
-    console.log(`[Cache] Stránka: ${fromCache ? 'Z CACHE' : 'čerstvě ze sítě'} (type=${nav?.type || '?'})`);
+    console.log(`[Cache] Page: ${fromCache ? 'FROM CACHE' : 'fresh from network'} (type=${nav?.type || '?'})`);
     resources.forEach(r => {
       const name = r.name.split('/').pop();
-      console.log(`[Cache]   ${r.transferSize === 0 ? 'CACHE' : 'SÍŤ  '} ${name}`);
+      console.log(`[Cache]   ${r.transferSize === 0 ? 'CACHE' : 'NET  '} ${name}`);
     });
-  } catch (e) { /* Performance API nedostupné */ }
+  } catch (e) { /* Performance API unavailable */ }
 
   const listEl = document.getElementById('component-list');
 
@@ -41,8 +41,8 @@ async function init() {
     console.log('[init] Loaded', componentLib.length, 'components:', componentLib.map(c => c.id).join(', '));
   } catch (e) {
     console.error('[init] Failed to load components.json:', e);
-    if (listEl) listEl.innerHTML = `<div class="empty-hint" style="color:#f05050">Chyba načítání: ${e.message}</div>`;
-    showStatus('Chyba: components.json', 'error');
+    if (listEl) listEl.innerHTML = `<div class="empty-hint" style="color:#f05050">Loading error: ${e.message}</div>`;
+    showStatus('Error: components.json', 'error');
     return;
   }
 
@@ -56,7 +56,7 @@ async function init() {
       const summary = {};
       state.placements.forEach(p => { summary[p.componentId] = (summary[p.componentId] || 0) + 1; });
       const parts = Object.entries(summary).map(([id, n]) => `${id}×${n}`).join(', ');
-      console.log(`[Load] ${state.placements.length} součástek z paměti: ${parts || '—'} | grid ${state.grid.rows}×${state.grid.cols}`);
+      console.log(`[Load] ${state.placements.length} components from memory: ${parts || '—'} | grid ${state.grid.rows}×${state.grid.cols}`);
     } catch (e) {
       console.warn('[init] State parse error, using fresh state');
     }
@@ -71,11 +71,11 @@ async function init() {
     const before = bfResults.length;
     bfResults = bfResults.filter(r => _componentSetKey(r.layout) === currentKey);
     if (bfResults.length !== before) {
-      console.log(`[init] ${before - bfResults.length} SA výsledků zahozeno (jiná sada součástek), ponecháno ${bfResults.length}.`);
+      console.log(`[init] ${before - bfResults.length} SA results discarded (different component set), kept ${bfResults.length}.`);
       bfResultsSave();
     }
     if (bfResults.length > 0) {
-      console.log(`[init] ${bfResults.length} SA výsledků nahráno z paměti.`);
+      console.log(`[init] ${bfResults.length} SA results loaded from memory.`);
     }
   }
 
@@ -98,9 +98,9 @@ async function init() {
 
   // Verify drag handlers attached
   const dragHandlerCount = document.querySelectorAll('#body-grid [data-comp]').length;
-  console.log(`[init] ${dragHandlerCount} komponent v gridu, carry handlery připojené.`);
+  console.log(`[init] ${dragHandlerCount} components in grid, carry handlers attached.`);
 
-  showStatus('Ready · Klik = vzít/položit · R = otoč · Esc = zruš', 'ok');
+  showStatus('Ready · Click = pick up/drop · R = rotate · Esc = cancel', 'ok');
 
   // Auto-resume brute force if a saved snapshot matches the current layout
   try {
@@ -115,11 +115,11 @@ async function init() {
           bfSaved.rows === state.grid.rows &&
           bfSaved.cols === state.grid.cols &&
           currentIds.length > 1) {
-        console.log('[init] Nalezeno uložené prohledávání pro aktuální layout — STOP! Optimalizace se spouští jen ručně.');
-        showStatus('Uložený BF stav nalezen. Spusť ho ručně tlačítkem BRUTE.', 'ok');
+        console.log('[init] Saved search found for current layout — STOP! Optimization runs only manually.');
+        showStatus('Saved BF state found. Start it manually via the BRUTE button.', 'ok');
         // Note: do NOT auto-resume. User triggers via the BRUTE button.
       } else {
-        console.log('[init] Uložené prohledávání neodpovídá layoutu — zahodím.');
+        console.log('[init] Saved search does not match layout — discarding.');
         bfClearSave();
       }
     }
@@ -156,7 +156,7 @@ function renderComponentList() {
   const categories = [...new Set(visible.map(c => c.category))];
 
   if (visible.length === 0) {
-    container.innerHTML = '<div class="empty-hint" style="color:#f05050">Žádné komponenty (zkontroluj konzoli)</div>';
+    container.innerHTML = '<div class="empty-hint" style="color:#f05050">No components (check console)</div>';
     return;
   }
 
@@ -190,7 +190,7 @@ function renderPlacedList() {
   count.textContent = state.placements.length;
 
   if (state.placements.length === 0) {
-    container.innerHTML = '<div class="empty-hint">Přidej součástky z nabídky výše.</div>';
+    container.innerHTML = '<div class="empty-hint">Add components from the menu above.</div>';
     return;
   }
 
@@ -261,7 +261,7 @@ async function addComponent(componentId) {
   // Biocell / disposable_biocell are automatically handled as bio_generator peripherals
   if ((componentId === 'biocell' || componentId === 'disposable_biocell') &&
       state.placements.some(p => p.componentId === 'bio_generator')) {
-    showStatus(`${def.icon} ${def.name}: Bio Generator již obsahuje Biocell automaticky.`, 'warn');
+    showStatus(`${def.icon} ${def.name}: Bio Generator already includes Biocell automatically.`, 'warn');
     return;
   }
 
@@ -272,7 +272,7 @@ async function addComponent(componentId) {
       ...state.placements.filter(p => p.componentId !== 'wire').map(p => p.componentId),
       componentId
     ]);
-    showStatus(`Přeskládávám ${allIds.length} součástek…`, 'ok');
+    showStatus(`Rearranging ${allIds.length} components…`, 'ok');
     const rearranged = await runOptimizationAsync(allIds, state.grid);
     const expectedCount = allIds.filter(id => id === componentId).length;
     const actualCount   = rearranged.filter(p => p.componentId === componentId).length;
@@ -280,7 +280,7 @@ async function addComponent(componentId) {
       // Last resort: place anywhere that fits geometrically, ignoring power connections
       const anyResult = findAnyPlacement(def, state);
       if (!anyResult) {
-        showStatus(`${def.icon} ${def.name}: nenalezeno místo ani po přeskládání. Rozbal body.`, 'error');
+        showStatus(`${def.icon} ${def.name}: no room even after rearrangement. Expand body.`, 'error');
         return;
       }
       const rotPeri = buildRotatedPeri(def, anyResult.rotation);
@@ -297,7 +297,7 @@ async function addComponent(componentId) {
       state.nextId = state.placements.length + 1;
       saveState();
       renderAll();
-      showStatus(`${def.icon} ${def.name} přidán (nezapojen – použij Re-Optimize nebo Brute).`, 'warn');
+      showStatus(`${def.icon} ${def.name} added (not connected – use Re-Optimize or Brute).`, 'warn');
       return;
     }
     state.placements = rearranged;
@@ -305,7 +305,7 @@ async function addComponent(componentId) {
     selectedPlacementIdx = null;
     saveState();
     renderAll();
-    showStatus(`${def.icon} ${def.name} přidán – komponenty přeskládány.`, 'ok');
+    showStatus(`${def.icon} ${def.name} added – components rearranged.`, 'ok');
     return;
   }
 
@@ -339,7 +339,7 @@ async function addComponent(componentId) {
   const wc = (result.wirePath || []).length;
   const wireMsg = wc > 0 ? ` (+ ${wc} wire${wc > 1 ? 's' : ''})` : '';
   console.log(`[Add] ${def.name} → [${result.row},${result.col}] r${result.rotation}°${wireMsg}`);
-  debugLayoutStatus(state.placements, state.grid, `po přidání ${def.name}`);
+  debugLayoutStatus(state.placements, state.grid, `after adding ${def.name}`);
 
   bfClearSave(); // component set changed → discard resume snapshot
   bfResultsClear(); // component set changed → discard SA result history
@@ -357,7 +357,7 @@ function removePlacement(event, idx) {
   bfResultsClear(); // component set changed → discard SA result history
   saveState();
   renderAll();
-  showStatus('Součástka odebrána.', 'ok');
+  showStatus('Component removed.', 'ok');
 }
 
 function selectPlacement(idx) {
@@ -445,8 +445,8 @@ function pickUpComponent(idx, e) {
   document.body.classList.add('carry-mode');
 
   const def = componentLib.find(d => d.id === p.componentId);
-  showStatus(`Neseš: ${def?.name || p.componentId}. Pohni myší, R = otoč, klik = polož, Esc = zruš.`, 'ok');
-  console.log(`[carry] pick up #${newIdx} (${p.componentId}) z [${p.origRow},${p.origCol}]`);
+  showStatus(`Carrying: ${def?.name || p.componentId}. Move mouse, R = rotate, click = drop, Esc = cancel.`, 'ok');
+  console.log(`[carry] pick up #${newIdx} (${p.componentId}) from [${p.origRow},${p.origCol}]`);
 
   renderAll();
   onCarryMove(e); // position ghost immediately
@@ -516,7 +516,7 @@ function _rotateCarried() {
   if (!def) return;
   const degs = getUniqueDegs(def);
   if (degs.length < 2) {
-    showStatus(`${def.name}: rotace nemá smysl (porty symetrické).`, 'warn');
+    showStatus(`${def.name}: rotation makes no sense (ports symmetric).`, 'warn');
     return;
   }
   const i = degs.indexOf(p.rotation);
@@ -547,7 +547,7 @@ function _tryDropCarry() {
   for (const [r, c] of p.rotatedShape) {
     const gr = p.row + r, gc = p.col + c;
     if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
-      showStatus('Mimo grid — zkus jiné místo.', 'warn');
+      showStatus('Outside grid — try another spot.', 'warn');
       return;
     }
   }
@@ -560,7 +560,7 @@ function _tryDropCarry() {
     for (const [r, c] of peri.shape) {
       const gr = sR + r, gc = sC + c;
       if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
-        showStatus('Peripheral by byl mimo grid.', 'warn');
+        showStatus('Peripheral would be outside grid.', 'warn');
         return;
       }
     }
@@ -582,7 +582,7 @@ function _tryDropCarry() {
   }
   for (const [r, c] of p.rotatedShape) {
     if (occupied.has(`${p.row + r},${p.col + c}`)) {
-      showStatus('Kolize — tady něco stojí.', 'warn');
+      showStatus('Collision — something is here.', 'warn');
       return;
     }
   }
@@ -593,7 +593,7 @@ function _tryDropCarry() {
     const sC = p.col + peri.port.cell[1] + d.dc;
     for (const [r, c] of peri.shape) {
       if (occupied.has(`${sR + r},${sC + c}`)) {
-        showStatus('Peripheral koliduje.', 'warn');
+        showStatus('Peripheral collides.', 'warn');
         return;
       }
     }
@@ -601,16 +601,16 @@ function _tryDropCarry() {
 
   // Commit drop
   delete p._carrying;
-  console.log(`[carry] drop #${carryState.idx} (${p.componentId}) na [${p.row},${p.col}] r${p.rotation}°`);
+  console.log(`[carry] drop #${carryState.idx} (${p.componentId}) at [${p.row},${p.col}] r${p.rotation}°`);
 
   // Recompute wires for the new layout
   const wired = tryAddWires(state.placements, state.grid);
   if (wired) {
     state.placements = wired;
     const newWireCount = wired.filter(pp => pp.componentId === 'wire').length;
-    console.log(`[carry] po dropu ${newWireCount} wires přepočítáno`);
+    console.log(`[carry] after drop ${newWireCount} wires recomputed`);
   } else {
-    showStatus('Položeno, ale nelze napájet — možná chybí cesta ke sběrnici.', 'warn');
+    showStatus('Placed, but cannot power — wire route to bus may be missing.', 'warn');
   }
 
   _endCarry();
@@ -635,7 +635,7 @@ function _cancelCarry() {
   state.placements = [...state.placements, ...carryState.savedWires];
   _endCarry();
   renderAll();
-  showStatus('Zrušeno — komponenta vrácena na původní místo.', 'ok');
+  showStatus('Cancelled — component returned to original spot.', 'ok');
 }
 
 function _endCarry() {
@@ -681,7 +681,7 @@ function tryRotatePlacement(idx, deltaRotation) {
   for (const [r, c] of rotated.shape) {
     const gr = p.row + r, gc = p.col + c;
     if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
-      showStatus('Rotace nemožná — komponenta by se nevešla do gridu.', 'warn');
+      showStatus('Rotation not possible — component would not fit in grid.', 'warn');
       return false;
     }
   }
@@ -693,7 +693,7 @@ function tryRotatePlacement(idx, deltaRotation) {
     for (const [r, c] of newPeri.shape) {
       const gr = sR + r, gc = sC + c;
       if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
-        showStatus('Rotace nemožná — peripheral mimo grid.', 'warn');
+        showStatus('Rotation not possible — peripheral outside grid.', 'warn');
         return false;
       }
     }
@@ -720,7 +720,7 @@ function tryRotatePlacement(idx, deltaRotation) {
   }
   for (const [r, c] of rotated.shape) {
     if (occupied.has(`${p.row + r},${p.col + c}`)) {
-      showStatus('Rotace nemožná — kolize s jinou součástkou.', 'warn');
+      showStatus('Rotation not possible — collision with another component.', 'warn');
       return false;
     }
   }
@@ -730,7 +730,7 @@ function tryRotatePlacement(idx, deltaRotation) {
     const sC = p.col + newPeri.port.cell[1] + d.dc;
     for (const [r, c] of newPeri.shape) {
       if (occupied.has(`${sR + r},${sC + c}`)) {
-        showStatus('Rotace nemožná — peripheral koliduje.', 'warn');
+        showStatus('Rotation not possible — peripheral collides.', 'warn');
         return false;
       }
     }
@@ -750,7 +750,7 @@ function tryRotatePlacement(idx, deltaRotation) {
   if (wired) {
     state.placements = wired;
   } else {
-    showStatus('Komponenta otočena, ale nelze ji napájet — zkus jiné místo.', 'warn');
+    showStatus('Component rotated, but cannot be powered — try another spot.', 'warn');
   }
 
   bfClearSave();
@@ -779,11 +779,11 @@ function expandBody() {
   bfResultsClear(); // grid dims changed → saved layouts may not fit anymore
   saveState();
   renderAll();
-  showStatus(`Body rozšířeno na ${grid.rows}×${grid.cols}.`, 'ok');
+  showStatus(`Body expanded to ${grid.rows}×${grid.cols}.`, 'ok');
 }
 
 function resetLayout() {
-  if (!confirm('Odebrat všechny součástky a resetovat rozložení na výchozí rozměry?')) return;
+  if (!confirm('Remove all components and reset layout to default size?')) return;
   state.placements = [];
   state.nextId = 1;
   state.grid.rows = 3;
@@ -795,7 +795,7 @@ function resetLayout() {
   bfResultsClear(); // layout cleared → no saved layouts are relevant
   saveState();
   renderAll();
-  showStatus('Rozložení resetováno na výchozí rozměry (3×4).', 'ok');
+  showStatus('Layout reset to default size (3×4).', 'ok');
 }
 
 async function optimizeAll() {
@@ -816,8 +816,8 @@ async function optimizeAll() {
       .map(p => p.componentId)
   );
 
-  console.log('[Optimize] Pořadí:', ids.join(' → '));
-  showStatus(`Optimalizuji ${ids.length} součástek…`, 'ok');
+  console.log('[Optimize] Order:', ids.join(' → '));
+  showStatus(`Optimizing ${ids.length} components…`, 'ok');
 
   // Save original for rollback — non-wire components must NEVER disappear
   const savedPlacements = state.placements.slice();
@@ -837,7 +837,7 @@ async function optimizeAll() {
     if (!def) continue;
     const result = findBestPlacement(def, state, ids.slice(i + 1));
     if (!result) {
-      console.warn(`[Optimize] ✗ ${def.name}: žádná platná pozice`);
+      console.warn(`[Optimize] ✗ ${def.name}: no valid position`);
       skipped.push(def.name);
       continue;
     }
@@ -871,11 +871,11 @@ async function optimizeAll() {
     saveState();
     renderAll();
     const uniqueNames = [...new Set(skipped)];
-    showStatus(`Optimalizaci nelze provést: ${uniqueNames.join(', ')} se nevejde. Zvětšete body.`, 'error');
+    showStatus(`Optimization not possible: ${uniqueNames.join(', ')} does not fit. Expand body.`, 'error');
     return;
   }
 
-  debugLayoutStatus(state.placements, state.grid, 'výsledek optimalizace');
+  debugLayoutStatus(state.placements, state.grid, 'optimization result');
 
   if (!isLayoutValid(state.placements, state.grid)) {
     state.placements = savedPlacements;
@@ -883,13 +883,13 @@ async function optimizeAll() {
     selectedPlacementIdx = null;
     saveState();
     renderAll();
-    showStatus('Optimizer nenašel validní rozmístění. Zkus větší body nebo jiné pořadí.', 'error');
+    showStatus('Optimizer did not find a valid layout. Try a larger body or a different order.', 'error');
     return;
   }
 
   saveState();
   renderAll();
-  showStatus(`Optimalizováno (${state.placements.length} položek).`, 'ok');
+  showStatus(`Optimized (${state.placements.length} items).`, 'ok');
 }
 
 // ─── Background Optimizer ─────────────────────────────────────────────────────
@@ -971,8 +971,8 @@ function debugLayoutStatus(placements, grid, label) {
 
   const tag = label ? ` ${label}` : '';
   const ok  = powOk === nonWires.length && (spinners.length === 0 || spinners.every(({ i }) => !hasReps || working.has(i)));
-  console.groupCollapsed(`[Layout${tag}] ${nonWires.length} souč. | napájeno ${powOk}/${nonWires.length} | spinners ${spinners.filter(({i})=>working.has(i)).length}/${spinners.length} funkční ${ok ? '✓' : '⚠'}`);
-  if (unpow.length > 0) console.warn('  Bez napájení:', unpow.join(', '));
+  console.groupCollapsed(`[Layout${tag}] ${nonWires.length} comps | powered ${powOk}/${nonWires.length} | spinners ${spinners.filter(({i})=>working.has(i)).length}/${spinners.length} working ${ok ? '✓' : '⚠'}`);
+  if (unpow.length > 0) console.warn('  Unpowered:', unpow.join(', '));
   spinners.forEach(({ p, i }) => {
     const adjReps = [];
     (p.rotatedPorts || []).forEach(({ cell, side }) => {
@@ -985,8 +985,8 @@ function debugLayoutStatus(placements, grid, label) {
       });
     });
     const wok    = working.has(i);
-    const status = wok ? '✓ FUNKČNÍ' : (hasReps ? '✗ BEZ REPEATERU' : '(bez repů v layoutu)');
-    console.log(`  Spinner [${p.row},${p.col}] r${p.rotation}°: ${status} | sousedé: ${adjReps.join(', ') || '–'}`);
+    const status = wok ? '✓ WORKING' : (hasReps ? '✗ NO REPEATER' : '(no reps in layout)');
+    console.log(`  Spinner [${p.row},${p.col}] r${p.rotation}°: ${status} | neighbors: ${adjReps.join(', ') || '–'}`);
   });
   console.groupEnd();
 }
@@ -1237,8 +1237,8 @@ function scheduleBruteForceOpt() {
   // For large layouts, warn that search may take hours/days but don't block —
   // the first valid layout is typically found within minutes even for 20+ components.
   if (nonWireIds.length > 10) {
-    console.info(`[BruteForce] Velký layout (${nonWireIds.length} součástek) — hledání první validní kombinace může trvat dlouho. UI zůstává responzivní.`);
-    showStatus(`Brute force: ${nonWireIds.length} součástek — hledám první validní kombinaci…`, 'ok');
+    console.info(`[BruteForce] Large layout (${nonWireIds.length} components) — finding the first valid combination may take a while. UI stays responsive.`);
+    showStatus(`Brute force: ${nonWireIds.length} components — searching for the first valid combination…`, 'ok');
   }
 
   // ── Phase 2: brute force runs in N Web Workers, each on a slice of depth-0 branches. ──
@@ -1250,7 +1250,7 @@ function scheduleBruteForceOpt() {
   const t0 = Date.now();
   const totalBranches  = countDepth1Positions(nonWireIds, state.grid);
   const totalCombosStr = estimateTotalCombinations(nonWireIds, state.grid);
-  console.log(`[BruteForce] countDepth1Positions: ${totalBranches} větví za ${Date.now()-t0}ms, odhad kombinací: ${totalCombosStr}`);
+  console.log(`[BruteForce] countDepth1Positions: ${totalBranches} branches in ${Date.now()-t0}ms, combination estimate: ${totalCombosStr}`);
 
   // Decide whether and how to resume from saved state
   let workerInitStates = null; // per-worker resume data; null means fresh start
@@ -1265,7 +1265,7 @@ function scheduleBruteForceOpt() {
         stats: w.stats || {}
       }));
       resumed = true;
-      console.log(`[BruteForce] Pokračuji v multi-worker prohledávání (${N} threadů, ${saved.workers.length} workerů uloženo).`);
+      console.log(`[BruteForce] Resuming multi-worker search (${N} threads, ${saved.workers.length} workers saved).`);
     } else if (saved.v === 1 && N === 1) {
       // Legacy single-worker save matches current N=1 setup
       workerInitStates = [{
@@ -1275,7 +1275,7 @@ function scheduleBruteForceOpt() {
         stats: saved.stats || {}
       }];
       resumed = true;
-      console.log('[BruteForce] Pokračuji v legacy v=1 saveu (jeden worker).');
+      console.log('[BruteForce] Resuming legacy v=1 save (single worker).');
     } else if (saved.v === 1) {
       // Legacy v=1 save with N>1 → migrate: split branches into N ranges,
       // assign the v=1 path to whichever worker owns the current branch.
@@ -1296,7 +1296,7 @@ function scheduleBruteForceOpt() {
         }
       });
       resumed = true;
-      console.log(`[BruteForce] Migrace v=1 → v=2: distribuováno přes ${N} workerů (v=1 byl ve větvi ${v1CurrentBranch}).`);
+      console.log(`[BruteForce] Migration v=1 → v=2: distributed across ${N} workers (v=1 was at branch ${v1CurrentBranch}).`);
     } else if (saved.v === 2 && Array.isArray(saved.workers) && saved.threadCount !== N) {
       // v=2 save with different thread count → re-distribute completed branches.
       // Collect all completed/in-progress branches and redistribute the remainder.
@@ -1329,13 +1329,13 @@ function scheduleBruteForceOpt() {
         };
       });
       resumed = true;
-      console.log(`[BruteForce] Migrace v=2 thread count ${saved.threadCount} → ${N}: ${completedSet.size} větví již dokončeno, redistribuce.`);
+      console.log(`[BruteForce] Migration v=2 thread count ${saved.threadCount} → ${N}: ${completedSet.size} branches already completed, redistributing.`);
     } else {
-      console.log(`[BruteForce] Uložený stav neodpovídá konfiguraci (v=${saved.v}, threads=${saved.threadCount}, current N=${N}) — startuji od začátku.`);
+      console.log(`[BruteForce] Saved state does not match configuration (v=${saved.v}, threads=${saved.threadCount}, current N=${N}) — starting from scratch.`);
       // Note: do NOT call bfClearSave() here — bestLayout below still useful
     }
   } else if (saved) {
-    console.log('[BruteForce] Uložený stav neodpovídá aktuálnímu layoutu — startuji od začátku.');
+    console.log('[BruteForce] Saved state does not match current layout — starting from scratch.');
     bfClearSave();
   }
 
@@ -1389,7 +1389,7 @@ function scheduleBruteForceOpt() {
   // Spawn N workers
   currentBfWorkers = [];
   for (let i = 0; i < N; i++) {
-    const w = new Worker('bruteforce-worker.js?v=90');
+    const w = new Worker('bruteforce-worker.js?v=91');
     currentBfWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1440,12 +1440,12 @@ function scheduleBruteForceOpt() {
             renderAll();
             const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
             if (isFirstGlobal) {
-              console.log(`[BruteForce] První validní (worker ${i}) za ${elapsedS}s (score=${score})`);
-              debugLayoutStatus(finalPl, state.grid, `BF — první validní (worker ${i})`);
-              showStatus(`Brute force: první validní nalezeno workerem ${i} (${elapsedS}s). Hledám lepší…`, 'ok');
+              console.log(`[BruteForce] First valid (worker ${i}) in ${elapsedS}s (score=${score})`);
+              debugLayoutStatus(finalPl, state.grid, `BF — first valid (worker ${i})`);
+              showStatus(`Brute force: first valid found by worker ${i} (${elapsedS}s). Searching for better…`, 'ok');
             } else {
-              console.log(`[BruteForce] Lepší (worker ${i}) score=${score}`);
-              debugLayoutStatus(finalPl, state.grid, `BF aplikováno (worker ${i})`);
+              console.log(`[BruteForce] Better (worker ${i}) score=${score}`);
+              debugLayoutStatus(finalPl, state.grid, `BF applied (worker ${i})`);
             }
           }
           break;
@@ -1453,13 +1453,13 @@ function scheduleBruteForceOpt() {
         case 'done': {
           finishedWorkers++;
           try { w.terminate(); } catch (err) {}
-          console.log(`[BruteForce] Worker ${i} hotov (${finishedWorkers}/${N}).`);
+          console.log(`[BruteForce] Worker ${i} done (${finishedWorkers}/${N}).`);
           if (finishedWorkers >= N) {
             bfClearSave();
             aggregate();
             const completeMsg = valid > 0
-              ? `Brute force hotový (${N} threadů): ${valid} validních rozložení z ${fmtNum(checked)} kombinací.`
-              : `Brute force hotový (${N} threadů): žádné validní rozložení (${fmtNum(checked)} kombinací).`;
+              ? `Brute force complete (${N} threads): ${valid} valid layouts from ${fmtNum(checked)} combinations.`
+              : `Brute force complete (${N} threads): no valid layouts (${fmtNum(checked)} combinations).`;
             console.log(`[BruteForce] ${completeMsg}`);
             updateBFProgress(true, completeMsg);
             currentBfWorkers = [];
@@ -1524,36 +1524,36 @@ function scheduleBruteForceOpt() {
       const pct = Math.min(99.9, (completedBranches / totalBranches) * 100);
       pctStr = (pct < 1 ? pct.toFixed(2) : pct < 10 ? pct.toFixed(1) : Math.floor(pct)) + '%';
       const secPerBranch = elapsedSec / completedBranches;
-      etaStr = 'zbývá ' + fmtDHM((totalBranches - completedBranches) * secPerBranch);
+      etaStr = 'eta ' + fmtDHM((totalBranches - completedBranches) * secPerBranch);
     } else if (totalBranches > 0) {
       // Still in first branch — estimate: time so far × total branches = total time
       // Conservative (assumes we're near start of first branch); shown as approximate.
-      etaStr = 'zbývá ~' + fmtDHM(elapsedSec * (totalBranches - 1)) + ' (odhad)';
+      etaStr = 'eta ~' + fmtDHM(elapsedSec * (totalBranches - 1)) + ' (estimate)';
     }
 
     const elStr = fmtDHM(elapsedSec);
     const parts = ['⚡²'];
     if (pctStr) parts.push(pctStr);
-    const totalSuffix = totalCombosStr ? ' z ~' + totalCombosStr : '';
+    const totalSuffix = totalCombosStr ? ' of ~' + totalCombosStr : '';
     if (checked > 0) {
-      parts.push(fmtNum(checked) + ' kombin.' + totalSuffix);
+      parts.push(fmtNum(checked) + ' combos' + totalSuffix);
     } else {
-      parts.push('prohledávám… ≈' + fmtNum(ticks * 300) + ' uzlů' + totalSuffix);
+      parts.push('searching… ≈' + fmtNum(ticks * 300) + ' nodes' + totalSuffix);
     }
-    parts.push(elStr + ' uplynulo');
+    parts.push(elStr + ' elapsed');
     if (etaStr) parts.push(etaStr);
 
     bfEl.style.display = 'inline';
     bfEl.textContent   = parts.join(' · ');
   }
 
-  console.log(`[BruteForce] Start: ${nonWireIds.length} součástek, grid ${state.grid.rows}×${state.grid.cols}, větví hloubky 1: ${totalBranches} (worker thread)`);
+  console.log(`[BruteForce] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, depth-1 branches: ${totalBranches} (worker thread)`);
   if (bfEl) { bfEl.style.display = 'inline'; bfEl.textContent = '⚡² …'; }
 }
 
 function startBruteForce() {
   scheduleBruteForceOpt();
-  showStatus('Brute force spuštěn — prohledávám všechny kombinace...', 'ok');
+  showStatus('Brute force started — searching all combinations...', 'ok');
 }
 
 // ─── Simulated Annealing dispatcher ─────────────────────────────────────────
@@ -1620,7 +1620,7 @@ function startAnneal() {
   bfAutoFollowTop = true;
   renderBfResults();
   scheduleAnnealOpt();
-  showStatus('SA spuštěn — shell pack + greedy fill, pak 6× workerů s různými strategiemi.', 'ok');
+  showStatus('SA started — shell pack + greedy fill, then 6 workers with different strategies.', 'ok');
 }
 
 function stopAllWorkers() {
@@ -1640,7 +1640,7 @@ function stopAllWorkers() {
   currentSaWorkers = [];
   const bfEl = document.getElementById('bf-progress');
   if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
-  showStatus(stopped > 0 ? `Zastaveno ${stopped} workerů.` : 'Žádný worker neběžel.', 'ok');
+  showStatus(stopped > 0 ? `Stopped ${stopped} workers.` : 'No worker was running.', 'ok');
 }
 
 function addBfResult(layout, score, workerId) {
@@ -1655,7 +1655,7 @@ function addBfResult(layout, score, workerId) {
   const layoutKey = _componentSetKey(layout);
   if (currentKey !== layoutKey) {
     const cur = currentKey.split(',').length, lf = layoutKey.split(',').length;
-    console.warn(`[Anneal] Worker ${workerId} odmítnut — jiná sada součástek (state má ${cur}, leaf má ${lf}). Pravděpodobně greedy.js komponenty zahodil.`);
+    console.warn(`[Anneal] Worker ${workerId} rejected — different component set (state has ${cur}, leaf has ${lf}). Probably greedy.js dropped components.`);
     return;
   }
 
@@ -1709,8 +1709,8 @@ function renderBfResults() {
   container.style.display = 'flex';
   // Header with TOP follow-mode toggle
   const topBtnClass = bfAutoFollowTop ? 'top-btn active' : 'top-btn';
-  const topBtnText = bfAutoFollowTop ? '★ TOP (auto-follow ON)' : '★ TOP (klikni pro auto-follow)';
-  let html = `<button class="${topBtnClass}" onclick="enableTopFollow()" title="Auto-přepínat na nejlepší výsledek">${topBtnText}</button>`;
+  const topBtnText = bfAutoFollowTop ? '★ TOP (auto-follow ON)' : '★ TOP (click to enable auto-follow)';
+  let html = `<button class="${topBtnClass}" onclick="enableTopFollow()" title="Auto-switch to the best result">${topBtnText}</button>`;
   html += bfResults.map((r, i) => {
     const ageSec = Math.floor((Date.now() - r.foundAt) / 1000);
     const ageStr = ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec/60)}m`;
@@ -1733,7 +1733,7 @@ function applyBfResult(idx) {
   saveState();
   renderAll();
   renderBfResults();
-  showStatus(`Layout #${idx+1} aplikován (score ${r.score.toLocaleString()}). Auto-follow vypnut — klikni TOP pro zapnutí.`, 'ok');
+  showStatus(`Layout #${idx+1} applied (score ${r.score.toLocaleString()}). Auto-follow off — click TOP to re-enable.`, 'ok');
 }
 
 // Re-enable auto-follow mode and snap to current #1 result
@@ -1746,7 +1746,7 @@ function enableTopFollow() {
   saveState();
   renderAll();
   renderBfResults();
-  showStatus(`Auto-follow zapnut. Aktuální #1: score ${top.score.toLocaleString()}.`, 'ok');
+  showStatus(`Auto-follow on. Current #1: score ${top.score.toLocaleString()}.`, 'ok');
 }
 
 function scheduleAnnealOpt() {
@@ -1782,7 +1782,7 @@ function scheduleAnnealOpt() {
   const startTime = Date.now();
   let bestScore = scoreLayout(state.placements, state.grid);
   let bestSourceWorker = -1;
-  console.log(`[Anneal] Seed score = ${bestScore} (cíl: zlepšit)`);
+  console.log(`[Anneal] Seed score = ${bestScore} (goal: improve)`);
 
   const bfEl = document.getElementById('bf-progress');
   if (bfEl) { bfEl.style.display = 'inline'; bfEl.textContent = '⚡³ …'; }
@@ -1801,13 +1801,13 @@ function scheduleAnnealOpt() {
     const avgBest = workerStats.reduce((m, w) => Math.min(m, w.bestCost || Infinity), Infinity);
     const fmt = (v) => v === Infinity ? '?' : Math.round(v);
     const elStr = elapsedSec < 60 ? `${elapsedSec.toFixed(0)}s` : `${(elapsedSec/60).toFixed(1)}m`;
-    bfEl.textContent = `⚡³ ${N}× SA · iter ${fmtBfNum(totalIter)} · best cost ${fmt(avgBest)} · ${elStr} uplynulo`;
+    bfEl.textContent = `⚡³ ${N}× SA · iter ${fmtBfNum(totalIter)} · best cost ${fmt(avgBest)} · ${elStr} elapsed`;
   }
 
-  console.log(`[Anneal] Start: ${nonWireIds.length} součástek, grid ${state.grid.rows}×${state.grid.cols}, ${N} workerů`);
+  console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=90');
+    const w = new Worker('sa-worker.js?v=91');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1854,7 +1854,7 @@ function scheduleAnnealOpt() {
             bestScore = score;
             bestSourceWorker = i;
             const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
-            console.log(`[Anneal] Nový top layout (worker ${i}) score=${score}, ${elapsedS}s`);
+            console.log(`[Anneal] New top layout (worker ${i}) score=${score}, ${elapsedS}s`);
           }
           addBfResult(layout, score, i);
           break;
@@ -1862,12 +1862,12 @@ function scheduleAnnealOpt() {
         case 'stopped': {
           finishedWorkers++;
           try { w.terminate(); } catch (err) {}
-          console.log(`[Anneal] Worker ${i} zastaven (${finishedWorkers}/${N}).`);
+          console.log(`[Anneal] Worker ${i} stopped (${finishedWorkers}/${N}).`);
           if (finishedWorkers >= N) {
             const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
             const completeMsg = bfResults.length > 0
-              ? `SA ukončeno (${N}× workers, ${elapsedS}s). ${bfResults.length} valid výsledků nalezeno, nejlepší score ${bestScore.toLocaleString()}.`
-              : `SA ukončeno (${N}× workers, ${elapsedS}s). Bohužel žádný valid layout nenalezen — zkus zvětšit grid nebo upravit komponenty.`;
+              ? `SA finished (${N}× workers, ${elapsedS}s). ${bfResults.length} valid results found, best score ${bestScore.toLocaleString()}.`
+              : `SA finished (${N}× workers, ${elapsedS}s). No valid layout found — try expanding grid or adjusting components.`;
             console.log(`[Anneal] ${completeMsg}`);
             if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
             showStatus(completeMsg, bfResults.length > 0 ? 'ok' : 'warn');
@@ -1906,7 +1906,7 @@ function showBetterLayoutOffer(newScore, oldScore, newWires, oldWires) {
   const el  = document.getElementById('opt-offer');
   const msg = document.getElementById('opt-offer-msg');
   if (!el || !msg) return;
-  msg.textContent = `Nalezeno lepší rozložení (+${pct}% kvalita${wireMsg})`;
+  msg.textContent = `Found a better layout (+${pct}% quality${wireMsg})`;
   el.classList.remove('hidden');
 }
 
@@ -1922,7 +1922,7 @@ function applyBetterLayout() {
   hideBetterLayoutOffer();
   saveState();
   renderAll();
-  showStatus('Lepší rozložení aplikováno.', 'ok');
+  showStatus('Better layout applied.', 'ok');
 }
 
 function dismissOptOffer() {

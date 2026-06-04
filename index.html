@@ -14,7 +14,7 @@
   <aside id="left-panel">
 
     <div id="panel-header">
-      <h1>BODY OPTIMIZER<button id="btn-settings" onclick="openSettings()" title="Nastavení">⚙</button></h1>
+      <h1>BODY OPTIMIZER<button id="btn-settings" onclick="openSettings()" title="Settings">⚙</button></h1>
       <div id="grid-info">
         <span id="grid-size-label">3 × 4</span>
         <span id="grid-level-label">LVL 1</span>
@@ -32,12 +32,12 @@
     <div id="bf-results" style="display:none"></div>
 
     <div id="component-library">
-      <h2>KOMPONENTY</h2>
-      <div id="component-list">Načítám…</div>
+      <h2>COMPONENTS</h2>
+      <div id="component-list">Loading…</div>
     </div>
 
     <div id="placed-components">
-      <h2>UMÍSTĚNO <span id="placed-count">0</span></h2>
+      <h2>PLACED <span id="placed-count">0</span></h2>
       <div id="placed-list"></div>
     </div>
 
@@ -55,8 +55,8 @@
     <div id="opt-offer" class="hidden">
       <span id="opt-offer-msg"></span>
       <div class="opt-offer-btns">
-        <button onclick="applyBetterLayout()">✓ Použít</button>
-        <button onclick="dismissOptOffer()">✗ Zachovat</button>
+        <button onclick="applyBetterLayout()">✓ Apply</button>
+        <button onclick="dismissOptOffer()">✗ Keep</button>
       </div>
     </div>
 
@@ -72,12 +72,12 @@
 <!-- ── Save transfer modal ───────────────────────────────────────── -->
 <div id="save-modal" class="modal hidden" onclick="if(event.target===this)closeSaveModal()">
   <div class="modal-content">
-    <h3 id="save-modal-title">Save stav</h3>
+    <h3 id="save-modal-title">Save state</h3>
     <div id="save-modal-info" class="modal-info"></div>
     <textarea id="save-modal-text" rows="8" spellcheck="false"></textarea>
     <div class="modal-buttons">
       <button id="save-modal-action" onclick="confirmSaveModal()">OK</button>
-      <button onclick="closeSaveModal()">Zavřít</button>
+      <button onclick="closeSaveModal()">Close</button>
     </div>
   </div>
 </div>
@@ -85,57 +85,57 @@
 <!-- ── Settings modal ─────────────────────────────────────────────── -->
 <div id="settings-modal" class="modal hidden" onclick="if(event.target===this)closeSettings()">
   <div class="modal-content">
-    <h3>Nastavení</h3>
+    <h3>Settings</h3>
 
     <div class="settings-section">
-      <label for="setting-threads">Počet threadů pro brute force</label>
+      <label for="setting-threads">Thread count for brute force</label>
       <div class="threads-control">
         <input type="range" id="setting-threads" min="1" max="6" step="1" value="4" oninput="onThreadsChange()">
         <span id="setting-threads-value">4</span>
       </div>
-      <div class="setting-hint">Detekováno HW jader: <span id="setting-hw-cores">?</span>. Max je omezen na 6 — nezahltíme cílový stroj, ani kdyby měl víc.</div>
+      <div class="setting-hint">Detected HW cores: <span id="setting-hw-cores">?</span>. Max capped at 6 — we won't overload the target machine, even if it has more.</div>
     </div>
 
     <div class="settings-section">
-      <h4>Přenos stavu mezi stroji</h4>
+      <h4>State transfer between machines</h4>
       <div class="settings-buttons">
         <button onclick="exportBfSave()">⇪ Export</button>
         <button onclick="openImportBfSave()">⇩ Import</button>
       </div>
-      <div class="setting-hint">Export zahrnuje aktuální layout (a běžící brute force, pokud byl spuštěn ≥ 60 s). Import přepíše layout.</div>
+      <div class="setting-hint">Export includes the current layout (and a running brute force, if started ≥ 60 s ago). Import overwrites the layout.</div>
     </div>
 
     <div class="settings-section">
-      <h4>Nebezpečné akce</h4>
+      <h4>Dangerous actions</h4>
       <div class="settings-buttons">
         <button class="danger" onclick="resetLayout()">↺ System reset</button>
       </div>
-      <div class="setting-hint">Odebere všechny součástky a vrátí grid na výchozí rozměry 3 × 4.</div>
+      <div class="setting-hint">Removes all components and resets the grid to the default 3 × 4 size.</div>
     </div>
 
     <div class="modal-buttons">
-      <button onclick="closeSettings()">Zavřít</button>
+      <button onclick="closeSettings()">Close</button>
     </div>
   </div>
 </div>
 
-<script src="src/constants.js?v=90"></script>
-<script src="src/optimizer/rotation.js?v=90"></script>
-<script src="src/optimizer/bus.js?v=90"></script>
-<script src="src/optimizer/placement.js?v=90"></script>
-<script src="src/optimizer/score.js?v=90"></script>
-<script src="src/optimizer/validate.js?v=90"></script>
-<script src="src/bruteforce/generator.js?v=90"></script>
-<script src="src/bruteforce/save.js?v=90"></script>
-<script src="src/sa/shell.js?v=90"></script>
-<script src="src/sa/moves.js?v=90"></script>
-<script src="src/sa/clusters.js?v=90"></script>
-<script src="src/sa/greedy.js?v=90"></script>
-<script src="src/sa/annealer.js?v=90"></script>
-<script src="src/ui/settings.js?v=90"></script>
-<script src="optimizer.js?v=90"></script>
-<script src="renderer.js?v=90"></script>
-<script src="app.js?v=90"></script>
+<script src="src/constants.js?v=91"></script>
+<script src="src/optimizer/rotation.js?v=91"></script>
+<script src="src/optimizer/bus.js?v=91"></script>
+<script src="src/optimizer/placement.js?v=91"></script>
+<script src="src/optimizer/score.js?v=91"></script>
+<script src="src/optimizer/validate.js?v=91"></script>
+<script src="src/bruteforce/generator.js?v=91"></script>
+<script src="src/bruteforce/save.js?v=91"></script>
+<script src="src/sa/shell.js?v=91"></script>
+<script src="src/sa/moves.js?v=91"></script>
+<script src="src/sa/clusters.js?v=91"></script>
+<script src="src/sa/greedy.js?v=91"></script>
+<script src="src/sa/annealer.js?v=91"></script>
+<script src="src/ui/settings.js?v=91"></script>
+<script src="optimizer.js?v=91"></script>
+<script src="renderer.js?v=91"></script>
+<script src="app.js?v=91"></script>
 
 </body>
 </html>

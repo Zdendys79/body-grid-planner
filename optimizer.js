@@ -200,8 +200,9 @@ function findBestPlacement(compDef, state, pendingIds = []) {
         if (hasOverlap(shape, row, col, occupiedMap)) continue;
         if (!fitsInGrid(shape, row, col, grid.rows, grid.cols)) continue;
 
-        // ── Hard constraint: Repeater — pokud existuje nefunkční Spinner, Repeater se
-        //    k němu MUSÍ připojit. Jinak pozice zamítnuta (není to bonus, je to podmínka).
+        // ── Hard constraint: Repeater — if any non-working Spinner exists,
+        //    the Repeater MUST connect to it. Otherwise position rejected
+        //    (this is a condition, not a bonus).
         if (isRepeater && unworkingSpinnerPorts.length > 0) {
           const connects = unworkingSpinnerPorts.some(({ gr, gc, side }) =>
             energyPorts.some(({ cell, side: es }) => {
