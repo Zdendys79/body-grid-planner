@@ -1300,13 +1300,22 @@ function scheduleAnnealOpt() {
   currentSaWorkers = [];
 
   const BIO_PERIPHERAL_IDS = new Set(['biocell', 'disposable_biocell']);
-  const nonWireIds = state.placements
-    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId))
-    .map(p => p.componentId);
+  const currentNonWire = state.placements
+    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId));
+  const nonWireIds = currentNonWire.map(p => p.componentId);
   if (nonWireIds.length <= 1) return;
-  // Note: we don't pass the current grid state to workers anymore. Each worker
-  // builds its own seed via shell pack + greedy fill (so a dense/invalid current
-  // grid can't poison the search).
+
+  // Pass user's current non-wire placements as seed candidate. Workers will
+  // test validity and use it as starting point if valid (so SA improves the
+  // user's existing solution rather than rebuilding from scratch).
+  const seedPlacements = currentNonWire.map(p => ({
+    componentId: p.componentId,
+    row: p.row, col: p.col, rotation: p.rotation,
+    rotatedShape: p.rotatedShape,
+    rotatedPorts: p.rotatedPorts,
+    rotatedBioPorts: p.rotatedBioPorts || [],
+    rotatedPeripheral: p.rotatedPeripheral
+  }));
 
   const N = getThreadCount();
   const startTime = Date.now();
@@ -1358,6 +1367,7 @@ function scheduleAnnealOpt() {
           w.postMessage({
             type: 'start', workerId: i, nonWireIds,
             grid: { rows: state.grid.rows, cols: state.grid.cols },
+            initialPlacements: seedPlacements,
             options: opts
           });
           break;

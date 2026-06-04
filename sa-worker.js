@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=71',
-  'src/optimizer/rotation.js?v=71',
-  'src/optimizer/bus.js?v=71',
-  'src/optimizer/placement.js?v=71',
-  'src/optimizer/score.js?v=71',
-  'src/optimizer/validate.js?v=71',
-  'src/sa/shell.js?v=71',
-  'src/sa/moves.js?v=71',
-  'src/sa/clusters.js?v=71',
-  'src/sa/greedy.js?v=71',
-  'src/sa/annealer.js?v=71',
-  'optimizer.js?v=71'
+  'src/constants.js?v=72',
+  'src/optimizer/rotation.js?v=72',
+  'src/optimizer/bus.js?v=72',
+  'src/optimizer/placement.js?v=72',
+  'src/optimizer/score.js?v=72',
+  'src/optimizer/validate.js?v=72',
+  'src/sa/shell.js?v=72',
+  'src/sa/moves.js?v=72',
+  'src/sa/clusters.js?v=72',
+  'src/sa/greedy.js?v=72',
+  'src/sa/annealer.js?v=72',
+  'optimizer.js?v=72'
 );
 
 let componentLib = [];
@@ -66,55 +66,79 @@ const WORKER_PROFILES = [
 ];
 
 function runSA(params) {
-  const { nonWireIds, grid, workerId = 0 } = params;
+  const { nonWireIds, grid, workerId = 0, initialPlacements } = params;
   const options = params.options || {};
   const startTime = Date.now();
 
-  // Configure this worker's strategic profile
   const profile = WORKER_PROFILES[workerId % WORKER_PROFILES.length];
   setSaMoveBias(profile.bias);
   console.log(`[SA worker ${workerId}] Profile: bias=${profile.bias}, perturb=${profile.perturb}`);
 
-  // === Phase 0: Cluster generation + per-worker decomposition.
-  // Step 1: enumerate ALL cluster def variants supported by available components
-  //         (lengths A2..A_max, B1..B_max where the budget allows).
-  // Step 2: register ALL defs into componentLib — the search has full freedom.
-  // Step 3: enumerate ALL valid decompositions (partitions of components into clusters).
-  // Step 4: each worker picks a DIFFERENT decomposition by workerId — structural
-  //         diversity at the cluster level (one big chain vs many small ones).
+  // === Phase 0a: Register cluster defs for ALL workers. ===
+  // Even workers that start from user's state will benefit from registered
+  // cluster defs (SA's relocate-move can introduce clusters during search).
   const allClusterDefs = enumerateAllClusterDefs(nonWireIds);
   registerClusterDefs(allClusterDefs);
-  const allDecompositions = enumerateDecompositions(nonWireIds);
-  const decomposition = pickDecompositionForWorker(allDecompositions, workerId);
-  const effectiveIds = substituteClusterIds(nonWireIds, decomposition);
-  console.log(`[SA worker ${workerId}] Pre-generated ${allClusterDefs.length} cluster defs, ${allDecompositions.length} possible decompositions`);
-  if (decomposition.clusters.length > 0) {
-    const desc = decomposition.clusters.map(c => `${c.pattern}${c.spinners}`).join(' + ');
-    console.log(`[SA worker ${workerId}] Decomposition: ${desc} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
-  } else {
-    console.log(`[SA worker ${workerId}] No clusters — pure individuals`);
+  console.log(`[SA worker ${workerId}] Registered ${allClusterDefs.length} cluster def variants`);
+
+  // === Phase 0b: Seed selection priority ===
+  //   1. User's current layout (if valid) — preserves existing work
+  //   2. Shell pack + greedy fill with cluster substitution (per-worker decomposition)
+  let seed = null;
+  let seedExpanded = null;
+  let seedWired = null;
+  let seedValid = false;
+  let seedScore = -Infinity;
+  let seedSource = '';
+
+  if (initialPlacements && initialPlacements.length > 0) {
+    const userSeed = initialPlacements.map(p => ({
+      componentId: p.componentId,
+      row: p.row, col: p.col, rotation: p.rotation,
+      rotatedShape: p.rotatedShape,
+      rotatedPorts: p.rotatedPorts,
+      rotatedBioPorts: p.rotatedBioPorts || [],
+      rotatedPeripheral: p.rotatedPeripheral
+    }));
+    const uWired = tryAddWires(userSeed, grid);
+    if (uWired && isLayoutValid(uWired, grid)) {
+      seed = userSeed;
+      seedExpanded = userSeed;
+      seedWired = uWired;
+      seedValid = true;
+      seedScore = scoreLayout(uWired, grid);
+      seedSource = `uživatelův layout (${userSeed.length} součástek, validní)`;
+    }
   }
 
-  // === Phase 1: build seed (Shell pack + greedy fill interior) ===
-  let seed;
-  try {
-    seed = buildShellThenGreedy(effectiveIds, grid);
-  } catch (e) {
-    activeRun = false;
-    self.postMessage({ type: 'error', workerId, message: 'Greedy seed selhal: ' + e.message });
-    return;
+  if (!seed) {
+    // Fall back to cluster-substituted shell+greedy
+    const allDecompositions = enumerateDecompositions(nonWireIds);
+    const decomposition = pickDecompositionForWorker(allDecompositions, workerId);
+    const effectiveIds = substituteClusterIds(nonWireIds, decomposition);
+    const desc = decomposition.clusters.length > 0
+      ? decomposition.clusters.map(c => `${c.pattern}${c.spinners}`).join(' + ')
+      : '(žádné clustery)';
+    console.log(`[SA worker ${workerId}] Decomposition: ${desc} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
+    try {
+      seed = buildShellThenGreedy(effectiveIds, grid);
+    } catch (e) {
+      activeRun = false;
+      self.postMessage({ type: 'error', workerId, message: 'Greedy seed selhal: ' + e.message });
+      return;
+    }
+    if (!seed || seed.length === 0) {
+      activeRun = false;
+      self.postMessage({ type: 'error', workerId, message: 'Nelze sestavit seed.' });
+      return;
+    }
+    seedExpanded = expandClustersInPlacements(seed);
+    seedWired = tryAddWires(seedExpanded, grid);
+    seedValid = seedWired && isLayoutValid(seedWired, grid);
+    seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
+    seedSource = `shell+greedy s ${desc}`;
   }
-  if (!seed || seed.length === 0) {
-    activeRun = false;
-    self.postMessage({ type: 'error', workerId, message: 'Nelze sestavit seed layout — gridu je málo místa.' });
-    return;
-  }
-  // Expand clusters to individuals for validation (clusters internal to seed)
-  const seedExpanded = expandClustersInPlacements(seed);
-  const seedWired = tryAddWires(seedExpanded, grid);
-  const seedValid = seedWired && isLayoutValid(seedWired, grid);
-  const seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
-  console.log(`[SA worker ${workerId}] Seed: ${seed.length} placement units (${seedExpanded.length} po expanzi), valid=${seedValid}, score=${seedScore}`);
+  console.log(`[SA worker ${workerId}] Seed: ${seedSource}, valid=${seedValid}, score=${seedScore}`);
 
   // === Phase 2: perturb for structural diversity ===
   const perturbed = profile.perturb > 0 ? perturbInitial(seed, grid, profile.perturb) : seed;
