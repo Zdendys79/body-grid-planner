@@ -65,7 +65,18 @@ async function init() {
   // Load persisted SA results (top-20)
   bfResults = bfResultsLoad();
   if (bfResults.length > 0) {
-    console.log(`[init] ${bfResults.length} SA výsledků nahráno z paměti.`);
+    // Validate against current component set — old results from different
+    // component layouts would lose components when applied.
+    const currentKey = _componentSetKey(state.placements);
+    const before = bfResults.length;
+    bfResults = bfResults.filter(r => _componentSetKey(r.layout) === currentKey);
+    if (bfResults.length !== before) {
+      console.log(`[init] ${before - bfResults.length} SA výsledků zahozeno (jiná sada součástek), ponecháno ${bfResults.length}.`);
+      bfResultsSave();
+    }
+    if (bfResults.length > 0) {
+      console.log(`[init] ${bfResults.length} SA výsledků nahráno z paměti.`);
+    }
   }
 
   // Dump current layout to console on startup (saveState dumps on every later change)
@@ -331,6 +342,7 @@ async function addComponent(componentId) {
   debugLayoutStatus(state.placements, state.grid, `po přidání ${def.name}`);
 
   bfClearSave(); // component set changed → discard resume snapshot
+  bfResultsClear(); // component set changed → discard SA result history
   saveState();
   renderAll();
   showStatus(`${def.icon} ${def.name} → [${result.row},${result.col}] r${result.rotation}°${wireMsg}`, 'ok');
@@ -342,6 +354,7 @@ function removePlacement(event, idx) {
   if (selectedPlacementIdx === idx) selectedPlacementIdx = null;
   else if (selectedPlacementIdx > idx) selectedPlacementIdx--;
   bfClearSave(); // component set changed → discard resume snapshot
+  bfResultsClear(); // component set changed → discard SA result history
   saveState();
   renderAll();
   showStatus('Součástka odebrána.', 'ok');
@@ -604,6 +617,7 @@ function expandBody() {
   if (grid.rows < grid.maxRows) grid.rows = Math.min(grid.rows + 2, grid.maxRows);
   if (grid.cols < grid.maxCols) grid.cols = Math.min(grid.cols + 2, grid.maxCols);
   bfClearSave(); // grid dims changed → discard resume snapshot
+  bfResultsClear(); // grid dims changed → saved layouts may not fit anymore
   saveState();
   renderAll();
   showStatus(`Body rozšířeno na ${grid.rows}×${grid.cols}.`, 'ok');
@@ -619,6 +633,7 @@ function resetLayout() {
   hideBetterLayoutOffer();
   bgOptId++;
   bfClearSave(); // layout cleared → discard resume snapshot
+  bfResultsClear(); // layout cleared → no saved layouts are relevant
   saveState();
   renderAll();
   showStatus('Rozložení resetováno na výchozí rozměry (3×4).', 'ok');
@@ -1394,6 +1409,17 @@ let currentSaWorkers = [];
 const BF_RESULTS_MAX = 20;
 const BF_RESULTS_KEY = 'bf_results_v1';
 let bfResults = []; // [{ layout, score, foundAt, workerId }] sorted by score desc
+
+// Canonical key for a component set (non-wires only, sorted). Two layouts
+// with the same key are interchangeable in SA terms; mismatched keys mean
+// applying a saved layout would lose or duplicate components.
+function _componentSetKey(placements) {
+  return (placements || [])
+    .filter(p => p.componentId !== 'wire')
+    .map(p => p.componentId)
+    .sort()
+    .join(',');
+}
 
 // Auto-follow flag: when true, the grid auto-switches to the new #1 result
 // whenever a better one arrives. Browsing a different slot turns this off
