@@ -83,25 +83,16 @@
       "id": "bio_generator",
       "name": "Bio Generator",
       "category": "power",
-      "shape": [[0,1],[0,2],[1,0],[1,1],[1,2]],
+      "shape": [[0,0],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
       "energyPorts": [
-        {"cell": [1,0], "side": "W"}
+        {"cell": [2,0], "side": "W"}
       ],
-      "peripheral": {
-        "id": "bio_chamber",
-        "port": {"cell": [1,0], "side": "N"},
-        "shape": [[0,0]],
-        "name": "Biocell",
-        "color": "#81C784",
-        "bgColor": "#062010"
-      },
+      "bioPorts": [],
+      "peripheral": null,
       "color": "#66BB6A",
       "bgColor": "#062010",
       "icon": "☘",
-      "bioPorts": [
-        {"cell": [1,0], "side": "N"}
-      ],
-      "description": "Port W on (2,0). Bioport N on (2,0)."
+      "description": "Bioreaktor 3x3 (Biocell integrován). Energy port W na (2,0)."
     },
     {
       "id": "energy_cells",
