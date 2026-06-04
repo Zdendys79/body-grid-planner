@@ -1,8 +1,61 @@
 # Idle Directive – Body Optimizer – STATUS
 
 **Datum:** 2026-06-04
-**Verze:** v=52
+**Verze:** v=62
 **URL:** https://idle-directive.zdendys79.website
+**GitHub:** https://github.com/Zdendys/idle-directive
+
+## v=53–62 — Multi-worker brute force + modularizace
+
+### v=53 — Phase 2 Multi-worker
+- `scheduleBruteForceOpt` spawnuje `N = getThreadCount()` workerů, každý přebírá `[branchStart, branchEnd)` slice z `totalBranches`
+- `bfSaveStateV2` formát zachycuje per-worker stav pro resume
+- Reset přesunut do Settings modalu jako "System reset" (danger style)
+- Glassmorphism styl modalů
+
+### v=54–62 — Modularizace (refactor steps 1–9)
+Kompletně rozdělený monolitní app.js (~1900 řádků) + duplicitní worker (~600 řádků) do logické struktury:
+
+```
+src/
+  constants.js                — STATE_KEY, BF_SAVE_KEY, SETTINGS_KEY, MAX_THREADS, _SIDE_IDX
+  optimizer/
+    rotation.js                — rotateSide/rotateCoord/rotateComponent/rotatePeriShape
+                                 getBounds, getUniqueDegs (+ cache)
+    bus.js                     — SIDE_DELTA, OPPOSITE, computePoweredSet, findWirePath
+                                 wouldConnectToComponent/Bus, wouldBePowered
+    placement.js               — getOccupiedMap, hasOverlap, fitsInGrid
+                                 addPeripheralReserved
+    score.js                   — computeFreeSpaceQuality, computeWorkingSet, scoreLayout
+    validate.js                — isLayoutValid, tryAddWires
+  bruteforce/
+    generator.js               — bruteForcePlacements (sdílený main + worker)
+    save.js                    — bfSaveState, bfSaveStateV2, bfLoadSave, bfClearSave
+                                 export/import bundle, _bfEncode/Decode, _computeBranchRanges
+  ui/
+    settings.js                — loadSettings/saveSettings/getThreadCount/openSettings…
+```
+
+**Výhody:**
+- Žádná duplicita kódu mezi main a worker (sdílí `src/`)
+- Jasné API granice
+- Easy unit-testing (každý modul samostatně)
+- IDE navigace + jump-to-definition
+
+**Velký refaktor commit:** krok 7 (`generator.js`) — −862/+438 řádků (sdílený generátor odstranil dvě kopie).
+
+### Pravidla závislostí (script load order)
+1. `src/constants.js` (žádné závislosti)
+2. `src/optimizer/rotation.js` (žádné závislosti)
+3. `src/optimizer/bus.js` (žádné závislosti — definuje SIDE_DELTA, OPPOSITE)
+4. `src/optimizer/placement.js` (závisí na bus.js: SIDE_DELTA pro addPeripheralReserved)
+5. `src/optimizer/score.js` (závisí na bus.js, placement.js)
+6. `src/optimizer/validate.js` (závisí na bus.js, score.js)
+7. `src/bruteforce/generator.js` (závisí na všech optimizer/* + constants)
+8. `src/bruteforce/save.js` (žádné optimizer závislosti, ale potřebuje state.js objekt)
+9. `src/ui/settings.js` (potřebuje SETTINGS_KEY, MAX_THREADS)
+10. `optimizer.js`, `renderer.js` (legacy — zbylé non-extracted funkce: scorePositionAndCompact, buildRotatedPeri, findBestPlacement, atd.)
+11. `app.js` (entry point + state, init, scheduleBruteForceOpt)
 
 ## v=52 — Settings překryvka
 
