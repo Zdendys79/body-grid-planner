@@ -64,16 +64,29 @@ function getBounds(shape) {
   };
 }
 
-// Returns only the geometrically distinct rotations for a component.
-// Square: 1, rectangle: 2, asymmetric: 4. Cached by component ID.
+// Returns rotations that are distinct in either shape OR port configuration.
+// Square components (like battery_2x2) have shape-identical rotations, but
+// their PORT directions still rotate — so all 4 rotations are kept if they
+// produce different port layouts. This lets the optimizer face an energy
+// port directly at the bus, saving wires.
+//
+// Symmetry tiers:
+//   - asymmetric shape, multiple ports: usually 4 rotations
+//   - square + 1 port: 4 rotations (port direction differs each step)
+//   - square + symmetric ports (e.g. 2 opposite): 2 rotations
+//   - rectangle + ports preserved across 180°: 2 rotations
+//   - fully symmetric (rare): 1 rotation
 const _uniqueRotsCache = new Map();
 function getUniqueDegs(def) {
   if (_uniqueRotsCache.has(def.id)) return _uniqueRotsCache.get(def.id);
   const seen = new Set();
   const result = [];
   for (const deg of [0, 90, 180, 270]) {
-    const { shape } = rotateComponent(def, deg);
-    const key = shape.map(([r,c]) => `${r},${c}`).sort().join('|');
+    const { shape, energyPorts, bioPorts } = rotateComponent(def, deg);
+    const shapeKey = shape.map(([r,c]) => `${r},${c}`).sort().join('|');
+    const eKey = (energyPorts || []).map(p => `${p.cell[0]},${p.cell[1]},${p.side}`).sort().join('|');
+    const bKey = (bioPorts || []).map(p => `${p.cell[0]},${p.cell[1]},${p.side}`).sort().join('|');
+    const key = `${shapeKey}#${eKey}#${bKey}`;
     if (!seen.has(key)) { seen.add(key); result.push(deg); }
   }
   _uniqueRotsCache.set(def.id, result);
