@@ -1174,11 +1174,12 @@ function bfResultsClear() {
 }
 
 function startAnneal() {
-  bfResults = [];
+  // Note: don't clear bfResults — they persist across runs (up to 20) so the
+  // user can compare new SA output against earlier sessions.
   bfAutoFollowTop = true;
   renderBfResults();
   scheduleAnnealOpt();
-  showStatus('Smart optimize (SA) — N workerů paralelně, jen valid výsledky se ukládají…', 'ok');
+  showStatus('SA spuštěn — shell pack + greedy fill, pak 6× workerů s různými strategiemi.', 'ok');
 }
 
 function stopAllWorkers() {
@@ -1299,20 +1300,13 @@ function scheduleAnnealOpt() {
   currentSaWorkers = [];
 
   const BIO_PERIPHERAL_IDS = new Set(['biocell', 'disposable_biocell']);
-  const currentNonWire = state.placements
-    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId));
-  const nonWireIds = currentNonWire.map(p => p.componentId);
+  const nonWireIds = state.placements
+    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId))
+    .map(p => p.componentId);
   if (nonWireIds.length <= 1) return;
-
-  // Strip down to the minimal fields needed by SA so postMessage serializes cleanly
-  const seedPlacements = currentNonWire.map(p => ({
-    componentId: p.componentId,
-    row: p.row, col: p.col, rotation: p.rotation,
-    rotatedShape: p.rotatedShape,
-    rotatedPorts: p.rotatedPorts,
-    rotatedBioPorts: p.rotatedBioPorts || [],
-    rotatedPeripheral: p.rotatedPeripheral
-  }));
+  // Note: we don't pass the current grid state to workers anymore. Each worker
+  // builds its own seed via shell pack + greedy fill (so a dense/invalid current
+  // grid can't poison the search).
 
   const N = getThreadCount();
   const startTime = Date.now();
@@ -1364,7 +1358,6 @@ function scheduleAnnealOpt() {
           w.postMessage({
             type: 'start', workerId: i, nonWireIds,
             grid: { rows: state.grid.rows, cols: state.grid.cols },
-            initialPlacements: seedPlacements,
             options: opts
           });
           break;
