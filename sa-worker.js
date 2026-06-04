@@ -16,17 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=68',
-  'src/optimizer/rotation.js?v=68',
-  'src/optimizer/bus.js?v=68',
-  'src/optimizer/placement.js?v=68',
-  'src/optimizer/score.js?v=68',
-  'src/optimizer/validate.js?v=68',
-  'src/sa/shell.js?v=68',
-  'src/sa/moves.js?v=68',
-  'src/sa/greedy.js?v=68',
-  'src/sa/annealer.js?v=68',
-  'optimizer.js?v=68'
+  'src/constants.js?v=69',
+  'src/optimizer/rotation.js?v=69',
+  'src/optimizer/bus.js?v=69',
+  'src/optimizer/placement.js?v=69',
+  'src/optimizer/score.js?v=69',
+  'src/optimizer/validate.js?v=69',
+  'src/sa/shell.js?v=69',
+  'src/sa/moves.js?v=69',
+  'src/sa/clusters.js?v=69',
+  'src/sa/greedy.js?v=69',
+  'src/sa/annealer.js?v=69',
+  'optimizer.js?v=69'
 );
 
 let componentLib = [];
@@ -74,10 +75,20 @@ function runSA(params) {
   setSaMoveBias(profile.bias);
   console.log(`[SA worker ${workerId}] Profile: bias=${profile.bias}, perturb=${profile.perturb}`);
 
+  // === Phase 0: Detect Spinner-Repeater clusters and substitute them in.
+  // Each cluster is a single composite placement guaranteed to satisfy the
+  // Spinner-Repeater adjacency constraint, dramatically shrinking search space.
+  const clusterOpps = detectClusterOpportunities(nonWireIds);
+  const registeredClusters = registerClusterDefs(clusterOpps);
+  const effectiveIds = substituteClusterIds(nonWireIds, clusterOpps);
+  if (clusterOpps.clusters.length > 0) {
+    console.log(`[SA worker ${workerId}] Clusters: ${clusterOpps.clusters.map(c => `${c.pattern}${c.spinners}`).join(', ')} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
+  }
+
   // === Phase 1: build seed (Shell pack + greedy fill interior) ===
   let seed;
   try {
-    seed = buildShellThenGreedy(nonWireIds, grid);
+    seed = buildShellThenGreedy(effectiveIds, grid);
   } catch (e) {
     activeRun = false;
     self.postMessage({ type: 'error', workerId, message: 'Greedy seed selhal: ' + e.message });
@@ -88,14 +99,17 @@ function runSA(params) {
     self.postMessage({ type: 'error', workerId, message: 'Nelze sestavit seed layout — gridu je málo místa.' });
     return;
   }
-  const seedWired = tryAddWires(seed, grid);
+  // Expand clusters to individuals for validation (clusters internal to seed)
+  const seedExpanded = expandClustersInPlacements(seed);
+  const seedWired = tryAddWires(seedExpanded, grid);
   const seedValid = seedWired && isLayoutValid(seedWired, grid);
   const seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
-  console.log(`[SA worker ${workerId}] Seed: ${seed.length} komponent, valid=${seedValid}, score=${seedScore}`);
+  console.log(`[SA worker ${workerId}] Seed: ${seed.length} placement units (${seedExpanded.length} po expanzi), valid=${seedValid}, score=${seedScore}`);
 
   // === Phase 2: perturb for structural diversity ===
   const perturbed = profile.perturb > 0 ? perturbInitial(seed, grid, profile.perturb) : seed;
-  const pWired = tryAddWires(perturbed, grid);
+  const pExpanded = expandClustersInPlacements(perturbed);
+  const pWired = tryAddWires(pExpanded, grid);
   const pValid = pWired && isLayoutValid(pWired, grid);
   const pScore = pValid ? scoreLayout(pWired, grid) : -Infinity;
   console.log(`[SA worker ${workerId}] Po perturbaci: valid=${pValid}, score=${pScore}`);
