@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idle Directive – Body Optimizer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Left panel ─────────────────────────────────────────────── -->
+  <aside id="left-panel">
+
+    <div id="panel-header">
+      <h1>BODY OPTIMIZER<button id="btn-settings" onclick="openSettings()" title="Nastavení">⚙</button></h1>
+      <div id="grid-info">
+        <span id="grid-size-label">3 × 4</span>
+        <span id="grid-level-label">LVL 1</span>
+      </div>
+    </div>
+
+    <div id="body-controls">
+      <button id="btn-expand" onclick="expandBody()">▣ EXPAND BODY</button>
+      <button id="btn-auto"   onclick="optimizeAll()">⚡ RE-OPTIMIZE</button>
+      <button id="btn-brute"  onclick="startBruteForce()">⚡² BRUTE</button>
+      <button id="btn-reset"  onclick="resetLayout()">↺ RESET</button>
+    </div>
+
+    <div id="component-library">
+      <h2>KOMPONENTY</h2>
+      <div id="component-list">Načítám…</div>
+    </div>
+
+    <div id="placed-components">
+      <h2>UMÍSTĚNO <span id="placed-count">0</span></h2>
+      <div id="placed-list"></div>
+    </div>
+
+  </aside>
+
+  <!-- ── Main grid panel ────────────────────────────────────────── -->
+  <main id="main-panel">
+    <div id="grid-container">
+      <div id="grid-scroll">
+        <svg id="body-grid"></svg>
+      </div>
+    </div>
+
+    <!-- Better layout offer banner -->
+    <div id="opt-offer" class="hidden">
+      <span id="opt-offer-msg"></span>
+      <div class="opt-offer-btns">
+        <button onclick="applyBetterLayout()">✓ Použít</button>
+        <button onclick="dismissOptOffer()">✗ Zachovat</button>
+      </div>
+    </div>
+
+    <div id="status-bar">
+      <span id="status-msg" class="status-ok">Ready</span>
+      <span id="bf-progress" style="display:none;font-size:11px;color:#80CBC4;margin-left:8px"></span>
+      <span id="power-status"></span>
+    </div>
+  </main>
+
+</div>
+
+<!-- ── Save transfer modal ───────────────────────────────────────── -->
+<div id="save-modal" class="modal hidden" onclick="if(event.target===this)closeSaveModal()">
+  <div class="modal-content">
+    <h3 id="save-modal-title">Save stav</h3>
+    <div id="save-modal-info" class="modal-info"></div>
+    <textarea id="save-modal-text" rows="8" spellcheck="false"></textarea>
+    <div class="modal-buttons">
+      <button id="save-modal-action" onclick="confirmSaveModal()">OK</button>
+      <button onclick="closeSaveModal()">Zavřít</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings modal ─────────────────────────────────────────────── -->
+<div id="settings-modal" class="modal hidden" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-content">
+    <h3>Nastavení</h3>
+
+    <div class="settings-section">
+      <label for="setting-threads">Počet threadů pro brute force</label>
+      <div class="threads-control">
+        <input type="range" id="setting-threads" min="1" max="6" step="1" value="4" oninput="onThreadsChange()">
+        <span id="setting-threads-value">4</span>
+      </div>
+      <div class="setting-hint">Detekováno HW jader: <span id="setting-hw-cores">?</span>. Max je omezen na 6 — nezahltíme cílový stroj, ani kdyby měl víc.</div>
+    </div>
+
+    <div class="settings-section">
+      <h4>Přenos stavu mezi stroji</h4>
+      <div class="settings-buttons">
+        <button onclick="exportBfSave()">⇪ Export</button>
+        <button onclick="openImportBfSave()">⇩ Import</button>
+      </div>
+      <div class="setting-hint">Export zahrnuje aktuální layout (a běžící brute force, pokud byl spuštěn ≥ 60 s). Import přepíše layout.</div>
+    </div>
+
+    <div class="modal-buttons">
+      <button onclick="closeSettings()">Zavřít</button>
+    </div>
+  </div>
+</div>
+
+<script src="optimizer.js?v=52"></script>
+<script src="renderer.js?v=52"></script>
+<script src="app.js?v=52"></script>
+
+</body>
+</html>

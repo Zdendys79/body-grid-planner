@@ -1,0 +1,318 @@
+{
+  "version": "1.0",
+  "components": [
+    {
+      "id": "wire",
+      "name": "Wire",
+      "category": "infrastructure",
+      "shape": [[0,0]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "N"},
+        {"cell": [0,0], "side": "E"},
+        {"cell": [0,0], "side": "S"},
+        {"cell": [0,0], "side": "W"}
+      ],
+      "peripheral": null,
+      "color": "#FF7B2B",
+      "bgColor": "#1e0a00",
+      "icon": "✦",
+      "description": "Ports N, E, S, W on (0,0)."
+    },
+    {
+      "id": "battery_1x1",
+      "name": "Battery (1x1)",
+      "category": "power",
+      "shape": [[0,0]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,0], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "Ports W, E on (0,0)."
+    },
+    {
+      "id": "battery_1x2",
+      "name": "Battery (1x2)",
+      "category": "power",
+      "shape": [[0,0],[1,0]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "S"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "S on (1,0)."
+    },
+    {
+      "id": "battery_2x2",
+      "name": "Battery (2x2)",
+      "category": "power",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "N"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "N on (0,0)."
+    },
+    {
+      "id": "sensor",
+      "name": "Sensor",
+      "category": "detection",
+      "shape": [[0,0],[0,1],[1,0],[2,0],[3,0],[4,0]],
+      "energyPorts": [
+        {"cell": [4,0], "side": "W"},
+        {"cell": [4,0], "side": "S"},
+        {"cell": [4,0], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#26C6DA",
+      "bgColor": "#00303a",
+      "icon": "◎",
+      "description": "Ports W, S, E on (4,0)."
+    },
+    {
+      "id": "bio_generator",
+      "name": "Bio Generator",
+      "category": "power",
+      "shape": [[0,1],[0,2],[1,0],[1,1],[1,2]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"}
+      ],
+      "peripheral": {
+        "id": "bio_chamber",
+        "port": {"cell": [1,0], "side": "N"},
+        "shape": [[0,0]],
+        "name": "Biocell",
+        "color": "#81C784",
+        "bgColor": "#062010"
+      },
+      "color": "#66BB6A",
+      "bgColor": "#062010",
+      "icon": "☘",
+      "bioPorts": [
+        {"cell": [1,0], "side": "N"}
+      ],
+      "description": "Port W on (2,0). Bioport N on (2,0)."
+    },
+    {
+      "id": "energy_cells",
+      "name": "Energy Cells",
+      "category": "power",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,1], "side": "E"},
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,1], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FFB74D",
+      "bgColor": "#2a1500",
+      "icon": "⬡",
+      "description": "W on (0,0). E on (0,1). W on (1,0). E on (1,1)."
+    },
+    {
+      "id": "pulser",
+      "name": "Pulser",
+      "category": "power",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,1], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#CE93D8",
+      "bgColor": "#1a0a22",
+      "icon": "◈",
+      "description": "W on (1,0). E on (1,1)."
+    },
+    {
+      "id": "spinner",
+      "name": "Spinner",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[1,0],[1,1],[2,0],[2,1]],
+      "energyPorts": [
+        {"cell": [2,0], "side": "W"},
+        {"cell": [2,1], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#4FC3F7",
+      "bgColor": "#001830",
+      "icon": "↺",
+      "optimizerRules": {
+        "requires": "2s_pulse",
+        "sources": [
+          {"component": "repeater_2s", "count": 1, "sides": "any"},
+          {"component": "repeater_4s", "count": 2, "sides": "both"}
+        ]
+      },
+      "description": "W on (2,0). E on (2,1). Requires: 1× Repeater (2s) on any side, OR 1× Repeater (4s) on each side. One Repeater may serve up to 2 Spinners/Pulsers."
+    },
+    {
+      "id": "repeater_2s",
+      "name": "Repeater (2s)",
+      "category": "timing",
+      "shape": [[0,0],[1,0]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,0], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#80CBC4",
+      "bgColor": "#00251a",
+      "icon": "⟳",
+      "intervalMs": 2000,
+      "affects": ["pulser","spinner"],
+      "optimizerRules": {
+        "connectsTo": ["pulser","spinner"],
+        "bothSides": true,
+        "note": "Spinner needs 2s pulses: one 2s repeater on either side is sufficient."
+      },
+      "description": "W, E on (1,0). Interval 2s. Must be placed directly adjacent (W or E side) to Spinner or Pulser. One 2s Repeater on any side is sufficient for one or two Spinners."
+    },
+    {
+      "id": "repeater_4s",
+      "name": "Repeater (4s)",
+      "category": "timing",
+      "shape": [[0,0],[1,0]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,0], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#80CBC4",
+      "bgColor": "#001a12",
+      "icon": "⟳",
+      "intervalMs": 4000,
+      "affects": ["pulser","spinner"],
+      "optimizerRules": {
+        "connectsTo": ["pulser","spinner"],
+        "bothSides": true,
+        "note": "Spinner needs 2s pulses: requires one 4s repeater on EACH side to achieve 2s combined."
+      },
+      "description": "W, E on (1,0). Interval 4s. Must be placed on BOTH sides of a Spinner/Pulser (one on each side) to be effective. Can serve as the shared Repeater between two Spinners."
+    },
+    {
+      "id": "grabber",
+      "name": "Grabber",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[1,0],[1,1],[2,0],[2,1],[3,0],[3,1]],
+      "energyPorts": [
+        {"cell": [3,0], "side": "W"},
+        {"cell": [3,1], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FF8A65",
+      "bgColor": "#1a0800",
+      "icon": "⊞",
+      "description": "W on (3,0). E on (3,1)."
+    },
+    {
+      "id": "collector",
+      "name": "Collector",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[0,2],[0,3],[0,4]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#A5D6A7",
+      "bgColor": "#0a1a0a",
+      "icon": "⊟",
+      "description": "W on (0,0)."
+    },
+    {
+      "id": "decomposer",
+      "name": "Decomposer",
+      "category": "processing",
+      "shape": [[0,1],[0,2],[0,3],[1,0],[1,1],[1,2]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,2], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#CE93D8",
+      "bgColor": "#1a0a22",
+      "icon": "⊠",
+      "description": "W on (1,0). E on (1,2)."
+    },
+    {
+      "id": "harvester",
+      "name": "Harvester",
+      "category": "processing",
+      "shape": [[0,1],[0,2],[1,0],[1,1],[1,2],[1,3]],
+      "energyPorts": [
+        {"cell": [0,1], "side": "W"},
+        {"cell": [0,2], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#A5D6A7",
+      "bgColor": "#0a1500",
+      "icon": "⊕",
+      "description": "W on (0,1). E on (0,2)."
+    },
+    {
+      "id": "salvager",
+      "name": "Salvager",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[0,2],[1,1],[1,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FFB74D",
+      "bgColor": "#1a0f00",
+      "icon": "⊗",
+      "description": "W on (0,0)."
+    },
+    {
+      "id": "disposable_biocell",
+      "name": "Disposable Biocell",
+      "category": "bio",
+      "shape": [[0,0]],
+      "energyPorts": [],
+      "bioPorts": [
+        {"cell": [0,0], "side": "S"}
+      ],
+      "peripheral": null,
+      "color": "#81C784",
+      "bgColor": "#062010",
+      "icon": "◌",
+      "description": "Bioport S on (0,0)."
+    },
+    {
+      "id": "biocell",
+      "name": "Biocell",
+      "category": "bio",
+      "shape": [[0,0],[1,0]],
+      "energyPorts": [],
+      "bioPorts": [
+        {"cell": [1,0], "side": "S"}
+      ],
+      "peripheral": null,
+      "color": "#81C784",
+      "bgColor": "#062010",
+      "icon": "◉",
+      "description": "Bioport S on (1,0)."
+    }
+  ]
+}
