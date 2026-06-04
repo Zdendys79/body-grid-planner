@@ -3,7 +3,7 @@
 // Loads optimizer.js for SIDE_DELTA, rotateComponent, computePoweredSet, computeWorkingSet,
 // computeFreeSpaceQuality, findWirePath, etc. componentLib is sent from main on init.
 
-importScripts('optimizer.js?v=53');
+importScripts('src/constants.js?v=54', 'optimizer.js?v=54');
 
 let componentLib = [];
 
@@ -105,8 +105,7 @@ function tryAddWires(placements, grid) {
 }
 
 // ── Brute force generator (copied from app.js) ──────────────────────────────
-
-const _SIDE_IDX = { N: 0, S: 1, E: 2, W: 3 };
+// (_SIDE_IDX is defined in src/constants.js, loaded via importScripts above)
 
 function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, stateRef, options) {
   const R = grid.rows, C = grid.cols;

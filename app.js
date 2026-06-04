@@ -1,8 +1,6 @@
 // app.js – Idle Directive Body Optimizer
-
-const STATE_KEY = 'idle_directive_state';
-const SETTINGS_KEY = 'app_settings';
-const MAX_THREADS = 6;
+// Constants (STATE_KEY, BF_SAVE_KEY, SETTINGS_KEY, MAX_THREADS, _SIDE_IDX)
+// are defined in src/constants.js, loaded before this file.
 
 let state = {
   grid: { rows: 3, cols: 4, maxRows: 19, maxCols: 12 },
@@ -782,8 +780,7 @@ function estimateTotalCombinations(nonWireIds, grid) {
 //
 // isLayoutValid + tryAddWires at the leaf still verify final correctness.
 // onBranchComplete: called after each depth-0 branch (used for % progress display).
-
-const _SIDE_IDX = { N: 0, S: 1, E: 2, W: 3 };
+// (_SIDE_IDX is defined in src/constants.js)
 
 function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, stateRef, timings) {
   const R = grid.rows, C = grid.cols;
@@ -1307,7 +1304,6 @@ function scheduleBackgroundOpt() {
 // Saved snapshot ties to (idsKey, grid dims) so it is auto-invalidated when the
 // layout's component list or grid size changes. The path encodes (cid, ri, pi)
 // per placed component so the search can replay deterministically.
-const BF_SAVE_KEY = 'bf_resume_v1';
 function _bfBuildIdsKey(nonWireIds) { return [...nonWireIds].sort().join(','); }
 function bfClearSave() {
   try { localStorage.removeItem(BF_SAVE_KEY); } catch (e) {}
