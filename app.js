@@ -1389,7 +1389,7 @@ function scheduleBruteForceOpt() {
   // Spawn N workers
   currentBfWorkers = [];
   for (let i = 0; i < N; i++) {
-    const w = new Worker('bruteforce-worker.js?v=53');
+    const w = new Worker('bruteforce-worker.js?v=90');
     currentBfWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1807,7 +1807,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} součástek, grid ${state.grid.rows}×${state.grid.cols}, ${N} workerů`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=64');
+    const w = new Worker('sa-worker.js?v=90');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
