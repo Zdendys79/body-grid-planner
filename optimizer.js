@@ -27,30 +27,7 @@ function wouldConnectToBioPort(bioPorts, row, col, placements) {
 // computePoweredSet, wouldConnect*, wouldBePowered moved to src/optimizer/bus.js
 // addPeripheralReserved moved to src/optimizer/placement.js
 
-function computeFreeSpaceQuality(extraShape, extraRow, extraCol, placements, gridRows, gridCols) {
-  const occupied = new Set();
-  placements.forEach(p => p.rotatedShape.forEach(([r,c]) => occupied.add(`${p.row+r},${p.col+c}`)));
-  addPeripheralReserved(placements, occupied);
-  if (extraShape && extraShape.length > 0) {
-    extraShape.forEach(([r,c]) => occupied.add(`${extraRow+r},${extraCol+c}`));
-  }
-
-  let quality = 0;
-  for (let r = 0; r < gridRows; r++) {
-    for (let c = 0; c < gridCols; c++) {
-      if (occupied.has(`${r},${c}`)) continue;
-      let freeNeighbours = 0;
-      [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
-        const nr = r+dr, nc = c+dc;
-        if (nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols && !occupied.has(`${nr},${nc}`)) {
-          freeNeighbours++;
-        }
-      });
-      quality += freeNeighbours;
-    }
-  }
-  return quality;
-}
+// computeFreeSpaceQuality moved to src/optimizer/score.js
 
 // Compact spatial score: shared edges + position bias (no energy, no quality – those are in findBestPlacement)
 function scorePositionAndCompact(shape, row, col, occupiedMap, gridRows, gridCols) {
@@ -100,47 +77,7 @@ function buildRotatedPeri(compDef, deg) {
 // Wire-shape stub used for temporary quality calculations
 function wireStub(r, c) { return { rotatedShape: [[0,0]], row: r, col: c }; }
 
-// Returns indices of components whose timing/working conditions are satisfied.
-// Currently: Spinner needs repeater_2s on any side, OR repeater_4s on 2+ distinct sides.
-function computeWorkingSet(placements) {
-  const working = new Set();
-
-  const portMap = new Map();
-  placements.forEach((p, idx) => {
-    p.rotatedPorts.forEach(({ cell, side }) => {
-      const key = `${p.row+cell[0]},${p.col+cell[1]},${side}`;
-      if (!portMap.has(key)) portMap.set(key, []);
-      portMap.get(key).push(idx);
-    });
-  });
-
-  placements.forEach((p, idx) => {
-    if (p.componentId !== 'spinner') return;
-
-    const connected2s = new Set();
-    const connected4sBySide = new Map();
-
-    p.rotatedPorts.forEach(({ cell, side }) => {
-      const gr = p.row + cell[0], gc = p.col + cell[1];
-      const d  = SIDE_DELTA[side];
-      const adjKey = `${gr+d.dr},${gc+d.dc},${OPPOSITE[side]}`;
-      if (!portMap.has(adjKey)) return;
-      portMap.get(adjKey).forEach(adjIdx => {
-        const id = placements[adjIdx].componentId;
-        if (id === 'repeater_2s') connected2s.add(adjIdx);
-        if (id === 'repeater_4s') {
-          if (!connected4sBySide.has(side)) connected4sBySide.set(side, new Set());
-          connected4sBySide.get(side).add(adjIdx);
-        }
-      });
-    });
-
-    if (connected2s.size >= 1)       { working.add(idx); return; }
-    if (connected4sBySide.size >= 2) { working.add(idx); return; }
-  });
-
-  return working;
-}
+// computeWorkingSet moved to src/optimizer/score.js
 
 // Extra placement bonus for repeaters connecting to their valid targets (spinner, pulser).
 // Repeaters are only useful adjacent to these two component types.
