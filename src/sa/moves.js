@@ -138,11 +138,34 @@ function saRelocateMove(placements, grid) {
   return null;
 }
 
+// Per-worker move bias — settable global. Each worker sets its own profile
+// to encourage strategic diversity:
+//   - balanced  (default):  even mix of all moves
+//   - local:    high shift/rotate (fine-tune near current state)
+//   - rotate:   heavy rotate (explore orientations)
+//   - swap:     heavy swap (re-pair components)
+//   - jump:     heavy relocate (escape local minima)
+let saMoveBias = { shift: 0.25, rotate: 0.30, swap: 0.30, relocate: 0.15 };
+
+function setSaMoveBias(profile) {
+  switch (profile) {
+    case 'local':   saMoveBias = { shift: 0.50, rotate: 0.30, swap: 0.15, relocate: 0.05 }; break;
+    case 'rotate':  saMoveBias = { shift: 0.15, rotate: 0.55, swap: 0.20, relocate: 0.10 }; break;
+    case 'swap':    saMoveBias = { shift: 0.15, rotate: 0.20, swap: 0.55, relocate: 0.10 }; break;
+    case 'jump':    saMoveBias = { shift: 0.10, rotate: 0.15, swap: 0.15, relocate: 0.60 }; break;
+    case 'balanced':
+    default:        saMoveBias = { shift: 0.25, rotate: 0.30, swap: 0.30, relocate: 0.15 }; break;
+  }
+}
+
 // Main move generator — picks a random operator with weighted probability.
 function saGenerateMove(placements, grid) {
   const r = Math.random();
-  if (r < 0.25) return saShiftMove(placements, grid);
-  if (r < 0.55) return saRotateMove(placements, grid);
-  if (r < 0.85) return saSwapMove(placements, grid);
+  let cum = saMoveBias.shift;
+  if (r < cum) return saShiftMove(placements, grid);
+  cum += saMoveBias.rotate;
+  if (r < cum) return saRotateMove(placements, grid);
+  cum += saMoveBias.swap;
+  if (r < cum) return saSwapMove(placements, grid);
   return saRelocateMove(placements, grid);
 }
