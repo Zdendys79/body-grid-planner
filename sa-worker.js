@@ -160,7 +160,7 @@ function runSA(params) {
     // expand returns the post-expansion individual list (for the count check).
     // SA needs the un-expanded seed so moves operate on clusters as atoms.
     const strategies = [
-      { name: `shell+greedy s ${desc}`,
+      { name: `shell+greedy with ${desc}`,
         build: () => buildShellThenGreedy(effectiveIds, grid),
         expand: (s) => expandClustersInPlacements(s) },
       { name: 'shell+greedy no clusters',
