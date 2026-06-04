@@ -116,17 +116,25 @@ function renderGrid(state, componentLib) {
 
   svg.innerHTML = html;
 
-  // Attach click handlers
+  // Attach interaction handlers — drag-and-drop, click-to-select,
+  // middle-click to rotate, R key to rotate (handled globally).
   placements.forEach((p, idx) => {
     const g = svg.querySelector(`[data-comp="${idx}"]`);
     if (g) {
-      g.style.cursor = 'pointer';
-      g.addEventListener('click', () => onComponentClick(idx));
+      g.style.cursor = 'grab';
+      g.addEventListener('mousedown', (e) => onComponentMouseDown(idx, e));
       g.addEventListener('mouseenter', () => highlightComponent(idx, true));
       g.addEventListener('mouseleave', () => highlightComponent(idx, false));
+      g.addEventListener('contextmenu', (e) => e.preventDefault()); // prevent right-click menu
     }
   });
 }
+
+// Exposed for app.js drag/rotate logic — read by them when computing the
+// mouse-to-grid-cell mapping.
+const RENDERER_CELL    = CELL;
+const RENDERER_BUS_W   = BUS_W;
+const RENDERER_PERI_V  = PERI_V;
 
 function renderComponent(placement, def, isPowered, idx) {
   const alpha = isPowered ? '' : '66';

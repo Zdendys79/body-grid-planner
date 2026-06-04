@@ -68,9 +68,12 @@ async function init() {
     console.log(`[init] ${bfResults.length} SA výsledků nahráno z paměti.`);
   }
 
+  // Global keyboard listener for R-key rotation of selected component
+  document.addEventListener('keydown', onGlobalKeydown);
+
   renderAll();
   renderBfResults();
-  showStatus('Ready', 'ok');
+  showStatus('Ready · Drag = posun, R nebo prostřední tlačítko = rotace', 'ok');
 
   // Auto-resume brute force if a saved snapshot matches the current layout
   try {
@@ -338,6 +341,214 @@ function selectPlacement(idx) {
 }
 
 function onComponentClick(idx) { selectPlacement(idx); }
+
+// ─── Drag & drop + R-key rotation ───────────────────────────────────────────
+
+let dragState = null; // { idx, startMouseX, startMouseY, lastRow, lastCol, dragging }
+const DRAG_THRESHOLD = 5; // px before mousedown becomes drag
+
+function onComponentMouseDown(idx, e) {
+  // Middle click → rotate the component in place (no drag)
+  if (e.button === 1) {
+    e.preventDefault();
+    tryRotatePlacement(idx, 90);
+    return;
+  }
+  if (e.button !== 0) return; // only left button initiates drag
+  e.preventDefault();
+
+  dragState = {
+    idx,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    origRow: state.placements[idx].row,
+    origCol: state.placements[idx].col,
+    lastRow: state.placements[idx].row,
+    lastCol: state.placements[idx].col,
+    dragging: false
+  };
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+
+function _mouseToGridCell(e) {
+  const svg = document.getElementById('body-grid');
+  if (!svg) return null;
+  const rect = svg.getBoundingClientRect();
+  // SVG scales to its viewBox — must apply scale factor
+  const svgWidth = svg.viewBox.baseVal.width || rect.width;
+  const svgHeight = svg.viewBox.baseVal.height || rect.height;
+  const scaleX = svgWidth / rect.width;
+  const scaleY = svgHeight / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  const col = Math.floor((x - RENDERER_BUS_W) / RENDERER_CELL);
+  const row = Math.floor((y - RENDERER_PERI_V) / RENDERER_CELL);
+  return { row, col };
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  const dx = e.clientX - dragState.startMouseX;
+  const dy = e.clientY - dragState.startMouseY;
+  if (!dragState.dragging) {
+    if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+    dragState.dragging = true;
+    // Show grab cursor everywhere during drag
+    document.body.style.cursor = 'grabbing';
+  }
+
+  const cell = _mouseToGridCell(e);
+  if (!cell) return;
+  // Snap component's top-left toward cursor relative to where the click began
+  const p = state.placements[dragState.idx];
+  // Cursor cell offset from original component top-left
+  const offsetRow = cell.row - dragState.origRow;
+  const offsetCol = cell.col - dragState.origCol;
+  const newRow = dragState.origRow + offsetRow;
+  const newCol = dragState.origCol + offsetCol;
+  if (newRow === dragState.lastRow && newCol === dragState.lastCol) return;
+  if (tryMovePlacement(dragState.idx, newRow, newCol)) {
+    dragState.lastRow = newRow;
+    dragState.lastCol = newCol;
+  }
+}
+
+function onDragEnd(e) {
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  document.body.style.cursor = '';
+  if (!dragState) return;
+  if (!dragState.dragging) {
+    // Treat as plain click → select
+    selectPlacement(dragState.idx);
+  }
+  dragState = null;
+}
+
+// Compute occupied-cells set excluding placement at excludeIdx.
+function _occupiedExcept(excludeIdx) {
+  const occupied = new Set();
+  for (let i = 0; i < state.placements.length; i++) {
+    if (i === excludeIdx) continue;
+    const p = state.placements[i];
+    if (!p.rotatedShape) continue;
+    for (const [r, c] of p.rotatedShape) occupied.add(`${p.row + r},${p.col + c}`);
+    // Also reserve peripheral cells of other placements
+    if (p.rotatedPeripheral) {
+      const peri = p.rotatedPeripheral;
+      const d = SIDE_DELTA[peri.port.side];
+      const sR = p.row + peri.port.cell[0] + d.dr;
+      const sC = p.col + peri.port.cell[1] + d.dc;
+      peri.shape.forEach(([r, c]) => occupied.add(`${sR + r},${sC + c}`));
+    }
+  }
+  return occupied;
+}
+
+function tryMovePlacement(idx, newRow, newCol) {
+  const p = state.placements[idx];
+  if (p.componentId === 'wire') return false; // wires are auto-managed
+  if (p.row === newRow && p.col === newCol) return false;
+
+  const shape = p.rotatedShape;
+  // Bounds check
+  for (const [r, c] of shape) {
+    const gr = newRow + r, gc = newCol + c;
+    if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) return false;
+  }
+  // Overlap check
+  const occupied = _occupiedExcept(idx);
+  for (const [r, c] of shape) {
+    if (occupied.has(`${newRow + r},${newCol + c}`)) return false;
+  }
+  // Peripheral bounds (if any) — must fit in grid
+  if (p.rotatedPeripheral) {
+    const peri = p.rotatedPeripheral;
+    const d = SIDE_DELTA[peri.port.side];
+    const sR = newRow + peri.port.cell[0] + d.dr;
+    const sC = newCol + peri.port.cell[1] + d.dc;
+    for (const [r, c] of peri.shape) {
+      const gr = sR + r, gc = sC + c;
+      if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) return false;
+      if (occupied.has(`${gr},${gc}`)) return false;
+    }
+  }
+
+  // Commit
+  state.placements[idx].row = newRow;
+  state.placements[idx].col = newCol;
+  bfClearSave(); // layout changed → any running BF/SA invalid
+  saveState();
+  renderAll();
+  return true;
+}
+
+function tryRotatePlacement(idx, deltaRotation) {
+  const p = state.placements[idx];
+  if (p.componentId === 'wire') return false;
+  const def = componentLib.find(d => d.id === p.componentId);
+  if (!def) return false;
+
+  const newRotation = ((p.rotation || 0) + deltaRotation + 360) % 360;
+  if (newRotation === p.rotation) return false;
+  const rotated = rotateComponent(def, newRotation);
+  const newPeri = buildRotatedPeri(def, newRotation);
+
+  // Bounds + overlap check
+  for (const [r, c] of rotated.shape) {
+    const gr = p.row + r, gc = p.col + c;
+    if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
+      showStatus('Rotace nemožná — komponenta by se nevešla do gridu.', 'warn');
+      return false;
+    }
+  }
+  const occupied = _occupiedExcept(idx);
+  for (const [r, c] of rotated.shape) {
+    if (occupied.has(`${p.row + r},${p.col + c}`)) {
+      showStatus('Rotace nemožná — kolize s jinou součástkou.', 'warn');
+      return false;
+    }
+  }
+  if (newPeri) {
+    const d = SIDE_DELTA[newPeri.port.side];
+    const sR = p.row + newPeri.port.cell[0] + d.dr;
+    const sC = p.col + newPeri.port.cell[1] + d.dc;
+    for (const [r, c] of newPeri.shape) {
+      const gr = sR + r, gc = sC + c;
+      if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
+        showStatus('Rotace nemožná — peripheral mimo grid.', 'warn');
+        return false;
+      }
+      if (occupied.has(`${gr},${gc}`)) {
+        showStatus('Rotace nemožná — peripheral koliduje.', 'warn');
+        return false;
+      }
+    }
+  }
+
+  // Commit
+  state.placements[idx].rotation = newRotation;
+  state.placements[idx].rotatedShape = rotated.shape;
+  state.placements[idx].rotatedPorts = rotated.energyPorts;
+  state.placements[idx].rotatedBioPorts = rotated.bioPorts;
+  state.placements[idx].rotatedPeripheral = newPeri;
+  bfClearSave();
+  saveState();
+  renderAll();
+  return true;
+}
+
+function onGlobalKeydown(e) {
+  // Don't intercept when typing in inputs
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  // R key rotates selected component
+  if ((e.key === 'r' || e.key === 'R') && selectedPlacementIdx !== null) {
+    e.preventDefault();
+    tryRotatePlacement(selectedPlacementIdx, 90);
+  }
+}
 
 function expandBody() {
   const { grid } = state;
