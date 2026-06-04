@@ -20,52 +20,105 @@
 // horizontal orientation (rotation 0). Cluster can be placed but not rotated
 // 90/180/270 by the search. TODO: pre-rotate cluster variants.
 
-// Strategy: split available Spinner/Rep budget into the LARGEST chain possible.
-// Larger chains have higher cell density (no isolated repeaters) and fewer
-// external ports to wire. We can pack one big chain or many small ones; for
-// the user's typical layouts (8 spinners + 4 rep_2s), the largest A chain is
-// S=5, R=4 = 9 components — uses 4 reps and 5 spinners, leaving 3 spinners
-// unable to be working. Two A4 chains (S=4, R=3 each) would use 8 spinners
-// and 6 reps — but only 4 reps available. So one big chain it is.
-function detectClusterOpportunities(nonWireIds) {
+// Count S/R/R4 in a non-wire id list (others returned separately).
+function _saCountAvailable(nonWireIds) {
   const counts = { spinner: 0, repeater_2s: 0, repeater_4s: 0 };
   const others = [];
   for (const id of nonWireIds) {
     if (counts.hasOwnProperty(id)) counts[id]++;
     else others.push(id);
   }
+  return { counts, others };
+}
 
-  const clusters = [];
+// Enumerate ALL cluster def variants supported by the available components.
+// Lengths from minimum chain up to the largest possible chain given budget.
+// Called once at the start of the search; resulting defs are registered into
+// componentLib so the search has full freedom over which sizes to actually use.
+function enumerateAllClusterDefs(nonWireIds) {
+  const { counts } = _saCountAvailable(nonWireIds);
+  const defs = [];
 
-  // Pattern A — one big chain of S-R-S-R-...-S using all available rep_2s
-  if (counts.repeater_2s >= 1 && counts.spinner >= 2) {
-    // Max chain: min(spinner, rep_2s + 1) spinners
-    const maxSpinners = Math.min(counts.spinner, counts.repeater_2s + 1);
-    if (maxSpinners >= 2) {
-      clusters.push({ pattern: 'A', spinners: maxSpinners });
-      counts.spinner -= maxSpinners;
-      counts.repeater_2s -= (maxSpinners - 1);
+  // Pattern A — S-R2-S chain; needs 2+ spinners and 1+ rep_2s.
+  // Max chain length = min(spinners, rep_2s + 1)
+  if (counts.spinner >= 2 && counts.repeater_2s >= 1) {
+    const maxA = Math.min(counts.spinner, counts.repeater_2s + 1);
+    for (let n = 2; n <= maxA; n++) {
+      const def = buildClusterDef('A', n);
+      if (def) defs.push(def);
+    }
+  }
+  // Pattern B — R4-S-R4 chain; needs 1+ spinners and 2+ rep_4s.
+  if (counts.spinner >= 1 && counts.repeater_4s >= 2) {
+    const maxB = Math.min(counts.spinner, counts.repeater_4s - 1);
+    for (let m = 1; m <= maxB; m++) {
+      const def = buildClusterDef('B', m);
+      if (def) defs.push(def);
+    }
+  }
+  return defs;
+}
+
+// Enumerate all valid decompositions (ways to partition components into clusters).
+// Returns list of { clusters: [{pattern, spinners}, ...], remaining: {...} }.
+// Uses canonical ordering (cluster sizes non-decreasing) to avoid duplicates.
+function enumerateDecompositions(nonWireIds) {
+  const { counts } = _saCountAvailable(nonWireIds);
+  const results = [];
+
+  function recurseA(remS, remR2, current, minSize) {
+    // Record current state as a candidate (only if non-empty)
+    if (current.length > 0) results.push({ clusters: current.slice() });
+    const maxN = Math.min(remS, remR2 + 1);
+    for (let n = minSize; n <= maxN; n++) {
+      if (n - 1 > remR2) continue;
+      current.push({ pattern: 'A', spinners: n });
+      recurseA(remS - n, remR2 - (n - 1), current, n);
+      current.pop();
+    }
+  }
+  function recurseB(remS, remR4, current, minSize) {
+    if (current.length > 0) results.push({ clusters: current.slice() });
+    const maxM = Math.min(remS, remR4 - 1);
+    for (let m = minSize; m <= maxM; m++) {
+      if (m + 1 > remR4) continue;
+      current.push({ pattern: 'B', spinners: m });
+      recurseB(remS - m, remR4 - (m + 1), current, m);
+      current.pop();
     }
   }
 
-  // Pattern B — R-S-R-S-...-R using available rep_4s
-  if (counts.repeater_4s >= 2 && counts.spinner >= 1) {
-    const maxSpinners = Math.min(counts.spinner, counts.repeater_4s - 1);
-    if (maxSpinners >= 1) {
-      clusters.push({ pattern: 'B', spinners: maxSpinners });
-      counts.spinner -= maxSpinners;
-      counts.repeater_4s -= (maxSpinners + 1);
-    }
+  if (counts.spinner >= 2 && counts.repeater_2s >= 1) {
+    recurseA(counts.spinner, counts.repeater_2s, [], 2);
   }
-
-  // Anything left over stays as individuals (will be placed normally)
-  const individuals = [];
-  for (const id of ['spinner', 'repeater_2s', 'repeater_4s']) {
-    for (let i = 0; i < counts[id]; i++) individuals.push(id);
+  if (counts.spinner >= 1 && counts.repeater_4s >= 2) {
+    recurseB(counts.spinner, counts.repeater_4s, [], 1);
   }
-  individuals.push(...others);
+  return results;
+}
 
-  return { clusters, individuals };
+// Score a decomposition for ranking: more clustered spinners = better.
+function _saScoreDecomposition(decomp) {
+  const totalS = decomp.clusters.reduce((s, c) => s + c.spinners, 0);
+  const totalR = decomp.clusters.reduce((s, c) => {
+    return s + (c.pattern === 'A' ? c.spinners - 1 : c.spinners + 1);
+  }, 0);
+  return totalS * 1000 - decomp.clusters.length * 10 + totalR;
+}
+
+// Pick a decomposition deterministically by workerId — workers get
+// different decompositions for structural diversity. Sorted by usage desc.
+function pickDecompositionForWorker(decompositions, workerId) {
+  if (decompositions.length === 0) return { clusters: [] };
+  const sorted = decompositions.slice().sort((a, b) => _saScoreDecomposition(b) - _saScoreDecomposition(a));
+  return sorted[workerId % sorted.length];
+}
+
+// Backward-compatible: greedy best decomposition (used when no workerId given)
+function detectClusterOpportunities(nonWireIds) {
+  const decomps = enumerateDecompositions(nonWireIds);
+  const picked = pickDecompositionForWorker(decomps, 0);
+  return picked;
 }
 
 // Build a synthetic component def for a cluster.
@@ -146,44 +199,35 @@ function buildClusterDef(pattern, spinners) {
   return null;
 }
 
-// Register cluster defs into componentLib so the search treats them as
-// real components. Idempotent — safe to call multiple times.
-// Also force getUniqueDegs to return [0] for clusters (rotation 0 only for now).
-function registerClusterDefs(opportunities) {
-  const out = [];
-  for (const opp of opportunities.clusters) {
-    const def = buildClusterDef(opp.pattern, opp.spinners);
+// Register a list of cluster defs into componentLib (idempotent).
+// Forces getUniqueDegs to return [0] for clusters (rotation 0 only for now).
+function registerClusterDefs(defs) {
+  for (const def of defs) {
     if (!def) continue;
     if (!componentLib.find(d => d.id === def.id)) {
       componentLib.push(def);
     }
-    // Pre-cache unique rotations to force [0] only — until rotated cluster
-    // expansion is implemented, clusters are placed horizontally only.
     if (typeof _uniqueRotsCache !== 'undefined') {
       _uniqueRotsCache.set(def.id, [0]);
     }
-    out.push(def);
   }
-  return out;
 }
 
-// Substitute cluster IDs into a nonWireIds list (removing the components
-// they consume). Returns new id list with cluster_XN tokens.
-function substituteClusterIds(nonWireIds, opportunities) {
+// Substitute cluster IDs into a nonWireIds list — replaces the constituent
+// components with cluster placement tokens. Decomposition is { clusters: [...] }.
+function substituteClusterIds(nonWireIds, decomposition) {
   const result = [];
-  // Track absorption budget per kind
   const absorbed = { spinner: 0, repeater_2s: 0, repeater_4s: 0 };
-  for (const opp of opportunities.clusters) {
-    if (opp.pattern === 'A') {
-      absorbed.spinner += opp.spinners;
-      absorbed.repeater_2s += (opp.spinners - 1);
-    } else if (opp.pattern === 'B') {
-      absorbed.spinner += opp.spinners;
-      absorbed.repeater_4s += (opp.spinners + 1);
+  for (const c of decomposition.clusters) {
+    if (c.pattern === 'A') {
+      absorbed.spinner += c.spinners;
+      absorbed.repeater_2s += (c.spinners - 1);
+    } else if (c.pattern === 'B') {
+      absorbed.spinner += c.spinners;
+      absorbed.repeater_4s += (c.spinners + 1);
     }
-    result.push(`cluster_${opp.pattern}${opp.spinners}`);
+    result.push(`cluster_${c.pattern}${c.spinners}`);
   }
-  // Re-emit any individual id that wasn't absorbed
   for (const id of nonWireIds) {
     if (absorbed[id] > 0) { absorbed[id]--; continue; }
     result.push(id);
