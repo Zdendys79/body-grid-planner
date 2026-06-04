@@ -112,6 +112,10 @@ function _fmtElapsed(ms) {
 }
 
 function exportBfSave() {
+  // Close settings if it's open — otherwise its backdrop sits ON TOP of the
+  // save modal (same z-index, later in DOM order) and blocks pointer events,
+  // making the import textarea unfocusable / paste impossible.
+  if (typeof closeSettings === 'function') closeSettings();
   if (!state.placements || state.placements.length === 0) {
     showStatus('Layout je prázdný — není co exportovat.', 'warn');
     return;
@@ -165,6 +169,9 @@ function exportBfSave() {
 }
 
 function openImportBfSave() {
+  // Same as exportBfSave: close settings first so it doesn't sit on top
+  // of the import modal and swallow paste/click events on the textarea.
+  if (typeof closeSettings === 'function') closeSettings();
   document.getElementById('save-modal-title').textContent = 'Import save stavu';
   document.getElementById('save-modal-info').innerHTML = `
     <p>Vlož exportovaný řetězec z jiného stroje:</p>
