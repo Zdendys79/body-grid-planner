@@ -556,7 +556,7 @@ function tryRotatePlacement(idx, deltaRotation) {
   const rotated = rotateComponent(def, newRotation);
   const newPeri = buildRotatedPeri(def, newRotation);
 
-  // Bounds + overlap check
+  // Bounds check for shape
   for (const [r, c] of rotated.shape) {
     const gr = p.row + r, gc = p.col + c;
     if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
@@ -564,7 +564,39 @@ function tryRotatePlacement(idx, deltaRotation) {
       return false;
     }
   }
-  const occupied = _occupiedExcept(idx);
+  // Bounds check for peripheral
+  if (newPeri) {
+    const d = SIDE_DELTA[newPeri.port.side];
+    const sR = p.row + newPeri.port.cell[0] + d.dr;
+    const sC = p.col + newPeri.port.cell[1] + d.dc;
+    for (const [r, c] of newPeri.shape) {
+      const gr = sR + r, gc = sC + c;
+      if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
+        showStatus('Rotace nemožná — peripheral mimo grid.', 'warn');
+        return false;
+      }
+    }
+  }
+
+  // Overlap check against NON-WIRE placements only. Wires are auto-routed to
+  // connect the component's current port direction; rotating changes that
+  // direction so the existing wire path is obsolete. Including wires here
+  // would falsely block valid rotations (user report: rotation rejected
+  // despite a 3×5 free gap because old wires sat in the new shape's cells).
+  const occupied = new Set();
+  for (let i = 0; i < state.placements.length; i++) {
+    if (i === idx) continue;
+    const other = state.placements[i];
+    if (other.componentId === 'wire') continue;
+    for (const [r, c] of other.rotatedShape) occupied.add(`${other.row + r},${other.col + c}`);
+    if (other.rotatedPeripheral) {
+      const peri = other.rotatedPeripheral;
+      const d = SIDE_DELTA[peri.port.side];
+      const sR = other.row + peri.port.cell[0] + d.dr;
+      const sC = other.col + peri.port.cell[1] + d.dc;
+      peri.shape.forEach(([pr, pc]) => occupied.add(`${sR + pr},${sC + pc}`));
+    }
+  }
   for (const [r, c] of rotated.shape) {
     if (occupied.has(`${p.row + r},${p.col + c}`)) {
       showStatus('Rotace nemožná — kolize s jinou součástkou.', 'warn');
@@ -576,24 +608,30 @@ function tryRotatePlacement(idx, deltaRotation) {
     const sR = p.row + newPeri.port.cell[0] + d.dr;
     const sC = p.col + newPeri.port.cell[1] + d.dc;
     for (const [r, c] of newPeri.shape) {
-      const gr = sR + r, gc = sC + c;
-      if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
-        showStatus('Rotace nemožná — peripheral mimo grid.', 'warn');
-        return false;
-      }
-      if (occupied.has(`${gr},${gc}`)) {
+      if (occupied.has(`${sR + r},${sC + c}`)) {
         showStatus('Rotace nemožná — peripheral koliduje.', 'warn');
         return false;
       }
     }
   }
 
-  // Commit
+  // Commit rotation
   state.placements[idx].rotation = newRotation;
   state.placements[idx].rotatedShape = rotated.shape;
   state.placements[idx].rotatedPorts = rotated.energyPorts;
   state.placements[idx].rotatedBioPorts = rotated.bioPorts;
   state.placements[idx].rotatedPeripheral = newPeri;
+
+  // Drop old wires (their paths target the component's OLD port direction)
+  // and recompute for the new layout.
+  state.placements = state.placements.filter(pp => pp.componentId !== 'wire');
+  const wired = tryAddWires(state.placements, state.grid);
+  if (wired) {
+    state.placements = wired;
+  } else {
+    showStatus('Komponenta otočena, ale nelze ji napájet — zkus jiné místo.', 'warn');
+  }
+
   bfClearSave();
   saveState();
   renderAll();
