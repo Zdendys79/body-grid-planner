@@ -587,3 +587,14 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   font-size: 12px;
 }
 .settings-buttons button:hover { background: var(--bg-hover); }
+
+/* Danger button (e.g. System reset) */
+.settings-buttons button.danger {
+  background: rgba(120,30,30,0.4);
+  color: #ffb0b0;
+  border-color: rgba(180,60,60,0.4);
+}
+.settings-buttons button.danger:hover {
+  background: rgba(160,40,40,0.6);
+  color: #ffd0d0;
+}
