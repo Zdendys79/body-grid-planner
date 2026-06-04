@@ -4,11 +4,12 @@
 // computeFreeSpaceQuality, findWirePath, etc. componentLib is sent from main on init.
 
 importScripts(
-  'src/constants.js?v=57',
-  'src/optimizer/rotation.js?v=57',
-  'src/optimizer/bus.js?v=57',
-  'src/optimizer/placement.js?v=57',
-  'optimizer.js?v=57'
+  'src/constants.js?v=58',
+  'src/optimizer/rotation.js?v=58',
+  'src/optimizer/bus.js?v=58',
+  'src/optimizer/placement.js?v=58',
+  'src/optimizer/score.js?v=58',
+  'optimizer.js?v=58'
 );
 
 let componentLib = [];
@@ -53,12 +54,7 @@ function isLayoutValid(placements, grid) {
   return true;
 }
 
-function scoreLayout(placements, grid) {
-  const wires      = placements.filter(p => p.componentId === 'wire').length;
-  const quality    = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
-  const workingSet = computeWorkingSet(placements);
-  return quality * 4 - wires * 5000 + workingSet.size * 50000;
-}
+// scoreLayout moved to src/optimizer/score.js (loaded via importScripts)
 
 function tryAddWires(placements, grid) {
   const wireDef = componentLib.find(d => d.id === 'wire');

@@ -488,13 +488,7 @@ function ensureComponentOrder(ids) {
   return [...other, ...interleaved, ...bioOnly];
 }
 
-function scoreLayout(placements, grid) {
-  const wires      = placements.filter(p => p.componentId === 'wire').length;
-  const quality    = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
-  const workingSet = computeWorkingSet(placements);
-  // Working spinners dominate; then wire count; then free-space quality
-  return quality * 4 - wires * 5000 + workingSet.size * 50000;
-}
+// scoreLayout moved to src/optimizer/score.js
 
 function shuffleArray(arr) {
   const a = [...arr];
