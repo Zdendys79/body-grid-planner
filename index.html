@@ -22,9 +22,10 @@
     </div>
 
     <div id="body-controls">
-      <button id="btn-expand" onclick="expandBody()">▣ EXPAND BODY</button>
-      <button id="btn-auto"   onclick="optimizeAll()">⚡ RE-OPTIMIZE</button>
-      <button id="btn-brute"  onclick="startBruteForce()">⚡² BRUTE</button>
+      <button id="btn-expand"  onclick="expandBody()">▣ EXPAND BODY</button>
+      <button id="btn-auto"    onclick="optimizeAll()">⚡ RE-OPTIMIZE</button>
+      <button id="btn-anneal"  onclick="startAnneal()">⚡³ SMART (SA)</button>
+      <button id="btn-brute"   onclick="startBruteForce()">⚡² BRUTE</button>
     </div>
 
     <div id="component-library">
@@ -115,18 +116,21 @@
   </div>
 </div>
 
-<script src="src/constants.js?v=63"></script>
-<script src="src/optimizer/rotation.js?v=63"></script>
-<script src="src/optimizer/bus.js?v=63"></script>
-<script src="src/optimizer/placement.js?v=63"></script>
-<script src="src/optimizer/score.js?v=63"></script>
-<script src="src/optimizer/validate.js?v=63"></script>
-<script src="src/bruteforce/generator.js?v=63"></script>
-<script src="src/bruteforce/save.js?v=63"></script>
-<script src="src/ui/settings.js?v=63"></script>
-<script src="optimizer.js?v=63"></script>
-<script src="renderer.js?v=63"></script>
-<script src="app.js?v=63"></script>
+<script src="src/constants.js?v=64"></script>
+<script src="src/optimizer/rotation.js?v=64"></script>
+<script src="src/optimizer/bus.js?v=64"></script>
+<script src="src/optimizer/placement.js?v=64"></script>
+<script src="src/optimizer/score.js?v=64"></script>
+<script src="src/optimizer/validate.js?v=64"></script>
+<script src="src/bruteforce/generator.js?v=64"></script>
+<script src="src/bruteforce/save.js?v=64"></script>
+<script src="src/sa/shell.js?v=64"></script>
+<script src="src/sa/moves.js?v=64"></script>
+<script src="src/sa/annealer.js?v=64"></script>
+<script src="src/ui/settings.js?v=64"></script>
+<script src="optimizer.js?v=64"></script>
+<script src="renderer.js?v=64"></script>
+<script src="app.js?v=64"></script>
 
 </body>
 </html>
