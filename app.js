@@ -406,7 +406,6 @@ let _dragMoveCount = 0;
 function onDragMove(e) {
   if (!dragState) return;
   _dragMoveCount++;
-  // Log first mousemove after each mousedown to confirm event flow
   if (_dragMoveCount === 1) {
     console.log(`[drag] mousemove ZAREGISTROVÁN (#${dragState.idx}), dx=${e.clientX - dragState.startMouseX}, dy=${e.clientY - dragState.startMouseY}`);
   }
@@ -417,6 +416,18 @@ function onDragMove(e) {
     dragState.dragging = true;
     console.log(`[drag] vstoupil do drag módu (#${dragState.idx})`);
     document.body.style.cursor = 'grabbing';
+
+    // CRITICAL: wires block movement — remove them now so the user can drag
+    // the component freely. tryAddWires will recompute on mouseup.
+    const targetId = state.placements[dragState.idx].id;
+    const beforeCount = state.placements.length;
+    state.placements = state.placements.filter(p => p.componentId !== 'wire');
+    const removedWires = beforeCount - state.placements.length;
+    dragState.idx = state.placements.findIndex(p => p.id === targetId);
+    if (removedWires > 0) {
+      console.log(`[drag] odstraněno ${removedWires} wires (přepočítáme po drop)`);
+      renderAll();
+    }
   }
 
   const cell = _mouseToGridCell(e);
@@ -440,7 +451,24 @@ function onDragEnd(e) {
   document.removeEventListener('mouseup', onDragEnd);
   document.body.style.cursor = '';
   if (!dragState) return;
-  if (!dragState.dragging) {
+
+  if (dragState.dragging) {
+    // Drag was active — wires were removed at drag start. Recompute them now
+    // for the new layout so the dropped component is wired properly.
+    const wired = tryAddWires(state.placements, state.grid);
+    if (wired) {
+      state.placements = wired;
+      const newWireCount = wired.filter(p => p.componentId === 'wire').length;
+      console.log(`[drag] po drop přepočítáno ${newWireCount} nových wires`);
+    } else {
+      console.log('[drag] po drop: tryAddWires selhalo — komponenta zůstává nepřipojená');
+      showStatus('Komponenta umístěna, ale nelze ji napájet — zkus jiné místo.', 'warn');
+    }
+    bfClearSave();
+    saveState();
+    renderAll();
+  } else {
+    // Wasn't a drag — treat as plain click → select
     selectPlacement(dragState.idx);
   }
   dragState = null;
