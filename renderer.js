@@ -116,16 +116,16 @@ function renderGrid(state, componentLib) {
 
   svg.innerHTML = html;
 
-  // Attach interaction handlers — drag-and-drop, click-to-select,
-  // middle-click to rotate, R key to rotate (handled globally).
+  // Attach interaction handlers — carry-mode: click to pick up, click again to drop.
+  // R rotates the carried component (handled at document level).
   placements.forEach((p, idx) => {
     const g = svg.querySelector(`[data-comp="${idx}"]`);
     if (g) {
-      g.style.cursor = 'grab';
-      g.addEventListener('mousedown', (e) => onComponentMouseDown(idx, e));
+      g.style.cursor = p._carrying ? 'crosshair' : 'pointer';
+      g.addEventListener('click', (e) => onComponentClick(idx, e));
       g.addEventListener('mouseenter', () => highlightComponent(idx, true));
       g.addEventListener('mouseleave', () => highlightComponent(idx, false));
-      g.addEventListener('contextmenu', (e) => e.preventDefault()); // prevent right-click menu
+      g.addEventListener('contextmenu', (e) => e.preventDefault());
     }
   });
 }
@@ -142,7 +142,8 @@ function renderComponent(placement, def, isPowered, idx) {
   const stroke = def.color + (isPowered ? '' : '55');
   const cellSet = new Set(placement.rotatedShape.map(([r,c]) => `${r},${c}`));
 
-  let html = `<g data-comp="${idx}" data-comp-id="${def.id}">`;
+  const carryAttr = placement._carrying ? ' data-carrying="true"' : '';
+  let html = `<g data-comp="${idx}" data-comp-id="${def.id}"${carryAttr}>`;
 
   placement.rotatedShape.forEach(([r,c]) => {
     const x = cellX(placement.col + c), y = cellY(placement.row + r);

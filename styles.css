@@ -690,3 +690,20 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 }
 #bf-results::-webkit-scrollbar { width: 6px; }
 #bf-results::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+/* Carry mode — component is "lifted" from grid and follows cursor */
+g[data-carrying="true"] {
+  opacity: 0.65;
+  pointer-events: none;
+  transition: transform 60ms ease-out;
+}
+g[data-carrying="true"] rect {
+  stroke-dasharray: 4 3;
+  stroke-width: 2 !important;
+}
+body.carry-mode {
+  cursor: crosshair !important;
+}
+body.carry-mode g[data-comp] {
+  cursor: crosshair !important;
+}
