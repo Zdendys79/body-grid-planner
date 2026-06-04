@@ -742,46 +742,8 @@ function scheduleBackgroundOpt() {
 // ─── Brute force save/load/export/import moved to src/bruteforce/save.js ──
 
 
-// ─── Settings (thread count + import/export entrypoints) ────────────────────
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? (JSON.parse(raw) || {}) : {};
-  } catch (e) { return {}; }
-}
-function saveSettings(s) {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
-}
-function getThreadCount() {
-  const s = loadSettings();
-  if (typeof s.threads === 'number' && s.threads >= 1 && s.threads <= MAX_THREADS) return s.threads;
-  // Default: detected HW capped at MAX_THREADS
-  return Math.min(navigator.hardwareConcurrency || 4, MAX_THREADS);
-}
-
-function openSettings() {
-  const hw = navigator.hardwareConcurrency || '?';
-  document.getElementById('setting-hw-cores').textContent = hw;
-  const current = getThreadCount();
-  const slider = document.getElementById('setting-threads');
-  slider.value = current;
-  document.getElementById('setting-threads-value').textContent = current;
-  document.getElementById('settings-modal').classList.remove('hidden');
-}
-function closeSettings() {
-  document.getElementById('settings-modal').classList.add('hidden');
-}
-function onThreadsChange() {
-  let val = parseInt(document.getElementById('setting-threads').value, 10);
-  if (!Number.isFinite(val)) val = 1;
-  if (val < 1) val = 1;
-  if (val > MAX_THREADS) val = MAX_THREADS;
-  document.getElementById('setting-threads-value').textContent = val;
-  const s = loadSettings();
-  s.threads = val;
-  saveSettings(s);
-}
+// Settings (loadSettings, saveSettings, getThreadCount, openSettings, closeSettings,
+// onThreadsChange) moved to src/ui/settings.js
 
 // Pretty-print rolling brute-force timings and reset the accumulators.
 // Helps identify which phase of the search loop dominates wall time.
