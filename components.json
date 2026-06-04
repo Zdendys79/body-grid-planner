@@ -276,6 +276,21 @@
       "description": "W on (0,0)."
     },
     {
+      "id": "metal_scavenger",
+      "name": "Metal Scavenger",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#B0BEC5",
+      "bgColor": "#0e1419",
+      "icon": "⊡",
+      "description": "Metal harvester 2x3. W on (1,0)."
+    },
+    {
       "id": "disposable_biocell",
       "name": "Disposable Biocell",
       "category": "bio",
