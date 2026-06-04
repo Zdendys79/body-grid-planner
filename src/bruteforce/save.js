@@ -239,8 +239,8 @@ function applyImportSave() {
     try {
       localStorage.setItem(BF_SAVE_KEY, JSON.stringify(bfData));
       closeSaveModal();
-      showStatus('Layout a BF save importovány. Pokračuji v prohledávání…', 'ok');
-      setTimeout(scheduleBruteForceOpt, 200);
+      showStatus('Layout a BF save importovány. Spusť ho ručně tlačítkem BRUTE.', 'ok');
+      // Note: do NOT auto-start. User triggers via the BRUTE button.
     } catch (e) {
       closeSaveModal();
       showStatus('Layout importován, BF save selhal: ' + e.message, 'warn');
