@@ -108,9 +108,12 @@ function tryAddWires(placements, grid) {
 
 const _SIDE_IDX = { N: 0, S: 1, E: 2, W: 3 };
 
-function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, stateRef) {
+function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, stateRef, options) {
   const R = grid.rows, C = grid.cols;
   const GRID_CELLS = R * C;
+  // Phase 2: branch-range slicing for parallel workers
+  const branchStart = (options && options.branchStart) || 0;
+  const branchEnd   = (options && options.branchEnd != null) ? options.branchEnd : Infinity;
 
   const defById = new Map();
   for (const id of new Set(nonWireIds)) {
@@ -393,8 +396,11 @@ function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, s
     placements.pop();
   }
 
+  // Depth-0 branch index, exposed via stateRef.getCurrentBranchIdx for save snapshots
+  let depth0BranchIdx = 0;
   if (stateRef) {
     stateRef.getPath = () => placements.map(p => ({ cid: p.componentId, ri: p._ri, pi: p._pi }));
+    stateRef.getCurrentBranchIdx = () => depth0BranchIdx;
   }
 
   let _nodes = 0;
@@ -451,6 +457,14 @@ function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, s
         if (sameDeg && (row < prevRow || (row === prevRow && col <= prevCol))) continue;
         const baseIdx = row * C + col;
         if (hasOverlapFlat(cellOffsets, baseIdx)) continue;
+
+        // Phase 2: depth-0 branch-range slicing for parallel workers.
+        // At depth 0 the grid is empty, so each (ri, pi) maps 1:1 to a branch index.
+        if (idx === 0) {
+          if (depth0BranchIdx >= branchEnd) return;
+          if (depth0BranchIdx < branchStart) { depth0BranchIdx++; continue; }
+        }
+
         const p = {
           id: placements.length+1, componentId: id, row, col, rotation: deg,
           rotatedShape: shape, rotatedPorts: energyPorts, rotatedBioPorts: bioPorts, rotatedPeripheral: rotPeri,
@@ -474,7 +488,10 @@ function* bruteForcePlacements(nonWireIds, grid, onBranchComplete, resumePath, s
           if (!resumeMatched && ri === startRi && pi === startPi) resumeMatched = true;
         }
         popPlacement();
-        if (idx === 0 && onBranchComplete) onBranchComplete();
+        if (idx === 0) {
+          depth0BranchIdx++;
+          if (onBranchComplete) onBranchComplete();
+        }
       }
     }
   }
@@ -510,7 +527,7 @@ self.onmessage = function (e) {
 };
 
 function runSearch(params) {
-  const { nonWireIds, grid, resumePath } = params;
+  const { nonWireIds, grid, resumePath, branchStart = 0, branchEnd = Infinity, workerId = 0 } = params;
   const stateRef = {};
   let checked = (params.resumeStats?.checked) || 0;
   let valid   = (params.resumeStats?.valid)   || 0;
@@ -522,14 +539,17 @@ function runSearch(params) {
 
   const gen = bruteForcePlacements(nonWireIds, grid, () => {
     completedBranches++;
-  }, resumePath, stateRef);
+  }, resumePath, stateRef, { branchStart, branchEnd });
 
   function sendProgress() {
     const path = stateRef.getPath ? stateRef.getPath() : [];
+    const currentBranchIdx = stateRef.getCurrentBranchIdx ? stateRef.getCurrentBranchIdx() : branchStart;
     self.postMessage({
       type: 'progress',
+      workerId,
       stats: { checked, valid, ticks, completedBranches, bestScore },
-      path
+      path,
+      currentBranchIdx
     });
   }
 
@@ -537,7 +557,7 @@ function runSearch(params) {
     if (stopRequested) {
       activeRun = false;
       sendProgress();
-      self.postMessage({ type: 'stopped' });
+      self.postMessage({ type: 'stopped', workerId });
       return;
     }
 
@@ -547,7 +567,7 @@ function runSearch(params) {
       if (done) {
         activeRun = false;
         sendProgress();
-        self.postMessage({ type: 'done', stats: { checked, valid, ticks, completedBranches, bestScore } });
+        self.postMessage({ type: 'done', workerId, stats: { checked, valid, ticks, completedBranches, bestScore } });
         return;
       }
       if (pl === null) { ticks++; continue; }
@@ -565,6 +585,7 @@ function runSearch(params) {
         bestScore = score;
         self.postMessage({
           type: 'leaf',
+          workerId,
           layout: finalPl,
           score,
           isFirst: valid === 1,
