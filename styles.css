@@ -598,3 +598,16 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   background: rgba(160,40,40,0.6);
   color: #ffd0d0;
 }
+
+/* SMART (Simulated Annealing) button — primary action */
+#btn-anneal {
+  background: linear-gradient(135deg, #5abf6022, #80cbc422);
+  color: #80cbc4;
+  border: 1px solid #5abf6066;
+  padding: 8px 10px;
+  font-weight: 600;
+}
+#btn-anneal:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5abf6044, #80cbc444);
+  color: #b0e0e0;
+}

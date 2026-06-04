@@ -1119,6 +1119,150 @@ function startBruteForce() {
   showStatus('Brute force spuštěn — prohledávám všechny kombinace...', 'ok');
 }
 
+// ─── Simulated Annealing dispatcher ─────────────────────────────────────────
+// Spawns N workers, each runs an independent SA from a different random seed.
+// Best layout across all workers is applied. SA is the PRIMARY algorithm —
+// orders of magnitude faster than brute force for non-trivial layouts.
+
+let currentSaWorkers = [];
+
+function startAnneal() {
+  scheduleAnnealOpt();
+  showStatus('Smart optimize (Simulated Annealing) spuštěn — hledám dobré řešení…', 'ok');
+}
+
+function scheduleAnnealOpt() {
+  const myId = ++bgOptId;
+  pendingBetterLayout = null;
+  hideBetterLayoutOffer();
+
+  // Terminate any prior workers (BF or SA)
+  for (const w of currentBfWorkers) { try { w.terminate(); } catch (e) {} }
+  currentBfWorkers = [];
+  for (const w of currentSaWorkers) { try { w.terminate(); } catch (e) {} }
+  currentSaWorkers = [];
+
+  const BIO_PERIPHERAL_IDS = new Set(['biocell', 'disposable_biocell']);
+  const nonWireIds = state.placements
+    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId))
+    .map(p => p.componentId);
+  if (nonWireIds.length <= 1) return;
+
+  const N = getThreadCount();
+  const startTime = Date.now();
+  let bestScore = scoreLayout(state.placements, state.grid);
+  let bestSourceWorker = -1;
+
+  const bfEl = document.getElementById('bf-progress');
+  if (bfEl) { bfEl.style.display = 'inline'; bfEl.textContent = '⚡³ …'; }
+
+  // Worker state
+  const workerStats = Array.from({ length: N }, () => ({
+    iter: 0, T: 0, currentCost: Infinity, bestCost: Infinity, elapsedMs: 0
+  }));
+  let lastProgressUpdate = 0;
+  let finishedWorkers = 0;
+
+  function renderProgress() {
+    if (!bfEl) return;
+    const elapsedSec = (Date.now() - startTime) / 1000;
+    const totalIter = workerStats.reduce((s, w) => s + (w.iter || 0), 0);
+    const avgBest = workerStats.reduce((m, w) => Math.min(m, w.bestCost || Infinity), Infinity);
+    const fmt = (v) => v === Infinity ? '?' : Math.round(v);
+    const elStr = elapsedSec < 60 ? `${elapsedSec.toFixed(0)}s` : `${(elapsedSec/60).toFixed(1)}m`;
+    bfEl.textContent = `⚡³ ${N}× SA · iter ${fmtBfNum(totalIter)} · best cost ${fmt(avgBest)} · ${elStr} uplynulo`;
+  }
+
+  console.log(`[Anneal] Start: ${nonWireIds.length} součástek, grid ${state.grid.rows}×${state.grid.cols}, ${N} workerů`);
+
+  for (let i = 0; i < N; i++) {
+    const w = new Worker('sa-worker.js?v=64');
+    currentSaWorkers.push(w);
+
+    w.onmessage = (e) => {
+      if (bgOptId !== myId) { try { w.terminate(); } catch (err) {} return; }
+      const msg = e.data;
+      switch (msg.type) {
+        case 'ready': {
+          // Each worker gets a slightly different temperature schedule for diversity
+          const opts = {
+            tStart: 15000 + i * 2500,
+            coolingRate: 0.99995 - i * 0.00001,
+            maxIter: 500000,
+            restartAfter: 8000 + i * 1000,
+            progressEvery: 2000
+          };
+          w.postMessage({ type: 'start', workerId: i, nonWireIds, grid: { rows: state.grid.rows, cols: state.grid.cols }, options: opts });
+          break;
+        }
+        case 'progress': {
+          workerStats[i].iter = msg.iter;
+          workerStats[i].T = msg.T;
+          workerStats[i].currentCost = msg.currentCost;
+          workerStats[i].bestCost = msg.bestCost;
+          workerStats[i].elapsedMs = msg.elapsedMs;
+          const now = Date.now();
+          if (now - lastProgressUpdate >= 1000) {
+            lastProgressUpdate = now;
+            renderProgress();
+          }
+          break;
+        }
+        case 'leaf': {
+          const finalPl = (msg.layout || []).map(rehydratePlacement);
+          const score = msg.score;
+          if (score > bestScore) {
+            bestScore = score;
+            bestSourceWorker = i;
+            state.placements = finalPl;
+            state.nextId = finalPl.length + 1;
+            saveState();
+            renderAll();
+            const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[Anneal] Lepší layout (worker ${i}) score=${score}, ${elapsedS}s`);
+            debugLayoutStatus(finalPl, state.grid, `SA aplikováno (worker ${i})`);
+          }
+          break;
+        }
+        case 'done': {
+          finishedWorkers++;
+          try { w.terminate(); } catch (err) {}
+          console.log(`[Anneal] Worker ${i} hotov (${finishedWorkers}/${N}).`);
+          if (finishedWorkers >= N) {
+            const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
+            const completeMsg = `Smart optimize hotový (${N}× SA, ${elapsedS}s). Nejlepší layout: score ${bestScore} (worker ${bestSourceWorker}).`;
+            console.log(`[Anneal] ${completeMsg}`);
+            if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
+            showStatus(completeMsg, 'ok');
+            currentSaWorkers = [];
+          }
+          break;
+        }
+        case 'stopped': { try { w.terminate(); } catch (err) {} break; }
+        case 'error': {
+          console.error(`[Anneal Worker ${i}]`, msg.message);
+          showStatus(`SA worker ${i}: ${msg.message}`, 'error');
+          break;
+        }
+      }
+    };
+
+    w.onerror = (err) => {
+      console.error(`[Anneal Worker ${i}] onerror:`, err.message, err.filename, err.lineno);
+      showStatus(`SA worker ${i} selhal: ${err.message}`, 'error');
+    };
+
+    w.postMessage({ type: 'init', componentLib });
+  }
+}
+
+function fmtBfNum(n) {
+  return n >= 1e9 ? (n / 1e9).toFixed(1) + 'G'
+       : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M'
+       : n >= 1000 ? (n / 1000).toFixed(n >= 100000 ? 0 : 1) + 'k'
+       : String(n);
+}
+
 function showBetterLayoutOffer(newScore, oldScore, newWires, oldWires) {
   const pct     = Math.round((newScore - oldScore) / Math.max(1, Math.abs(oldScore)) * 100);
   const wireDiff = oldWires - newWires;
