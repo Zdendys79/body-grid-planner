@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=69',
-  'src/optimizer/rotation.js?v=69',
-  'src/optimizer/bus.js?v=69',
-  'src/optimizer/placement.js?v=69',
-  'src/optimizer/score.js?v=69',
-  'src/optimizer/validate.js?v=69',
-  'src/sa/shell.js?v=69',
-  'src/sa/moves.js?v=69',
-  'src/sa/clusters.js?v=69',
-  'src/sa/greedy.js?v=69',
-  'src/sa/annealer.js?v=69',
-  'optimizer.js?v=69'
+  'src/constants.js?v=70',
+  'src/optimizer/rotation.js?v=70',
+  'src/optimizer/bus.js?v=70',
+  'src/optimizer/placement.js?v=70',
+  'src/optimizer/score.js?v=70',
+  'src/optimizer/validate.js?v=70',
+  'src/sa/shell.js?v=70',
+  'src/sa/moves.js?v=70',
+  'src/sa/clusters.js?v=70',
+  'src/sa/greedy.js?v=70',
+  'src/sa/annealer.js?v=70',
+  'optimizer.js?v=70'
 );
 
 let componentLib = [];
@@ -75,14 +75,24 @@ function runSA(params) {
   setSaMoveBias(profile.bias);
   console.log(`[SA worker ${workerId}] Profile: bias=${profile.bias}, perturb=${profile.perturb}`);
 
-  // === Phase 0: Detect Spinner-Repeater clusters and substitute them in.
-  // Each cluster is a single composite placement guaranteed to satisfy the
-  // Spinner-Repeater adjacency constraint, dramatically shrinking search space.
-  const clusterOpps = detectClusterOpportunities(nonWireIds);
-  const registeredClusters = registerClusterDefs(clusterOpps);
-  const effectiveIds = substituteClusterIds(nonWireIds, clusterOpps);
-  if (clusterOpps.clusters.length > 0) {
-    console.log(`[SA worker ${workerId}] Clusters: ${clusterOpps.clusters.map(c => `${c.pattern}${c.spinners}`).join(', ')} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
+  // === Phase 0: Cluster generation + per-worker decomposition.
+  // Step 1: enumerate ALL cluster def variants supported by available components
+  //         (lengths A2..A_max, B1..B_max where the budget allows).
+  // Step 2: register ALL defs into componentLib — the search has full freedom.
+  // Step 3: enumerate ALL valid decompositions (partitions of components into clusters).
+  // Step 4: each worker picks a DIFFERENT decomposition by workerId — structural
+  //         diversity at the cluster level (one big chain vs many small ones).
+  const allClusterDefs = enumerateAllClusterDefs(nonWireIds);
+  registerClusterDefs(allClusterDefs);
+  const allDecompositions = enumerateDecompositions(nonWireIds);
+  const decomposition = pickDecompositionForWorker(allDecompositions, workerId);
+  const effectiveIds = substituteClusterIds(nonWireIds, decomposition);
+  console.log(`[SA worker ${workerId}] Pre-generated ${allClusterDefs.length} cluster defs, ${allDecompositions.length} possible decompositions`);
+  if (decomposition.clusters.length > 0) {
+    const desc = decomposition.clusters.map(c => `${c.pattern}${c.spinners}`).join(' + ');
+    console.log(`[SA worker ${workerId}] Decomposition: ${desc} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
+  } else {
+    console.log(`[SA worker ${workerId}] No clusters — pure individuals`);
   }
 
   // === Phase 1: build seed (Shell pack + greedy fill interior) ===
