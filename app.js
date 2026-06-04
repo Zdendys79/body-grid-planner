@@ -88,9 +88,9 @@ async function init() {
           bfSaved.rows === state.grid.rows &&
           bfSaved.cols === state.grid.cols &&
           currentIds.length > 1) {
-        console.log('[init] Nalezeno uložené prohledávání pro aktuální layout — pokračuji…');
-        showStatus('Pokračuji v dříve uloženém brute force…', 'ok');
-        setTimeout(scheduleBruteForceOpt, 200);
+        console.log('[init] Nalezeno uložené prohledávání pro aktuální layout — STOP! Optimalizace se spouští jen ručně.');
+        showStatus('Uložený BF stav nalezen. Spusť ho ručně tlačítkem BRUTE.', 'ok');
+        // Note: do NOT auto-resume. User triggers via the BRUTE button.
       } else {
         console.log('[init] Uložené prohledávání neodpovídá layoutu — zahodím.');
         bfClearSave();
@@ -279,7 +279,6 @@ async function addComponent(componentId) {
     saveState();
     renderAll();
     showStatus(`${def.icon} ${def.name} přidán – komponenty přeskládány.`, 'ok');
-    scheduleBackgroundOpt();
     return;
   }
 
@@ -319,8 +318,6 @@ async function addComponent(componentId) {
   saveState();
   renderAll();
   showStatus(`${def.icon} ${def.name} → [${result.row},${result.col}] r${result.rotation}°${wireMsg}`, 'ok');
-
-  scheduleBackgroundOpt();
 }
 
 function removePlacement(event, idx) {
@@ -332,7 +329,6 @@ function removePlacement(event, idx) {
   saveState();
   renderAll();
   showStatus('Součástka odebrána.', 'ok');
-  scheduleBackgroundOpt();
 }
 
 function selectPlacement(idx) {
@@ -559,7 +555,6 @@ function expandBody() {
   saveState();
   renderAll();
   showStatus(`Body rozšířeno na ${grid.rows}×${grid.cols}.`, 'ok');
-  scheduleBackgroundOpt();
 }
 
 function resetLayout() {
@@ -663,14 +658,12 @@ async function optimizeAll() {
     saveState();
     renderAll();
     showStatus('Optimizer nenašel validní rozmístění. Zkus větší body nebo jiné pořadí.', 'error');
-    scheduleBackgroundOpt();
     return;
   }
 
   saveState();
   renderAll();
   showStatus(`Optimalizováno (${state.placements.length} položek).`, 'ok');
-  scheduleBackgroundOpt();
 }
 
 // ─── Background Optimizer ─────────────────────────────────────────────────────
