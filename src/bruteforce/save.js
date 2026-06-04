@@ -13,13 +13,25 @@ function _bfBuildIdsKey(nonWireIds) { return [...nonWireIds].sort().join(','); }
 
 function bfClearSave() {
   try { localStorage.removeItem(BF_SAVE_KEY); } catch (e) {}
-  // Also stop any running workers — their state is now invalid
+  // Invalidate bgOptId so any pending worker messages already in the queue
+  // see bgOptId !== their myId and exit early instead of stomping state.
+  bgOptId++;
+  // Stop BF workers
   if (currentBfWorkers.length > 0) {
     for (const w of currentBfWorkers) {
       try { w.postMessage({ type: 'stop' }); } catch (e) {}
       try { w.terminate(); } catch (e) {}
     }
     currentBfWorkers = [];
+  }
+  // Stop SA workers (previously missed — caused leaf messages to overwrite
+  // user's component additions and lose work).
+  if (typeof currentSaWorkers !== 'undefined' && currentSaWorkers.length > 0) {
+    for (const w of currentSaWorkers) {
+      try { w.postMessage({ type: 'stop' }); } catch (e) {}
+      try { w.terminate(); } catch (e) {}
+    }
+    currentSaWorkers = [];
   }
 }
 

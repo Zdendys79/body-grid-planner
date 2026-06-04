@@ -1676,7 +1676,7 @@ function dismissOptOffer() {
 // ─── Persistence ─────────────────────────────────────────────────────────────
 
 function saveState() {
-  localStorage.setItem(STATE_KEY, JSON.stringify({
+  const data = {
     grid: state.grid,
     nextId: state.nextId,
     placements: state.placements.map(p => ({
@@ -1684,7 +1684,12 @@ function saveState() {
       row: p.row, col: p.col, rotation: p.rotation,
       autoPlaced: p.autoPlaced || false
     }))
-  }));
+  };
+  const json = JSON.stringify(data);
+  localStorage.setItem(STATE_KEY, json);
+  // Console dump after every layout change — handy for sharing layouts
+  // or debugging. Compact one-liner so it's easy to copy.
+  console.log('[Layout dump]', json);
 }
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────
