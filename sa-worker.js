@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=81',
-  'src/optimizer/rotation.js?v=81',
-  'src/optimizer/bus.js?v=81',
-  'src/optimizer/placement.js?v=81',
-  'src/optimizer/score.js?v=81',
-  'src/optimizer/validate.js?v=81',
-  'src/sa/shell.js?v=81',
-  'src/sa/moves.js?v=81',
-  'src/sa/clusters.js?v=81',
-  'src/sa/greedy.js?v=81',
-  'src/sa/annealer.js?v=81',
-  'optimizer.js?v=81'
+  'src/constants.js?v=82',
+  'src/optimizer/rotation.js?v=82',
+  'src/optimizer/bus.js?v=82',
+  'src/optimizer/placement.js?v=82',
+  'src/optimizer/score.js?v=82',
+  'src/optimizer/validate.js?v=82',
+  'src/sa/shell.js?v=82',
+  'src/sa/moves.js?v=82',
+  'src/sa/clusters.js?v=82',
+  'src/sa/greedy.js?v=82',
+  'src/sa/annealer.js?v=82',
+  'optimizer.js?v=82'
 );
 
 let componentLib = [];
@@ -82,14 +82,33 @@ function runSA(params) {
   console.log(`[SA worker ${workerId}] Registered ${allClusterDefs.length} cluster def variants`);
 
   // === Phase 0b: Seed selection priority ===
-  //   1. User's current layout (if valid) — preserves existing work
-  //   2. Shell pack + greedy fill with cluster substitution (per-worker decomposition)
+  //   1. User's current layout if structurally sane (bounds + no overlap).
+  //      Wire-validity NOT required — SA's cost function handles invalid
+  //      states with a penalty; what matters is preserving the full component
+  //      count so SA never reports a leaf with fewer components than the user has.
+  //   2. Multi-strategy greedy chain: each tries to place ALL components;
+  //      next strategy fires if any are dropped.
   let seed = null;
   let seedExpanded = null;
   let seedWired = null;
   let seedValid = false;
   let seedScore = -Infinity;
   let seedSource = '';
+
+  function _isUserSeedSane(userSeed) {
+    const occupied = new Set();
+    for (const p of userSeed) {
+      if (!p.rotatedShape) return false;
+      for (const [r, c] of p.rotatedShape) {
+        const gr = p.row + r, gc = p.col + c;
+        if (gr < 0 || gr >= grid.rows || gc < 0 || gc >= grid.cols) return false;
+        const key = `${gr},${gc}`;
+        if (occupied.has(key)) return false;
+        occupied.add(key);
+      }
+    }
+    return true;
+  }
 
   if (initialPlacements && initialPlacements.length > 0) {
     const userSeed = initialPlacements.map(p => ({
@@ -100,19 +119,21 @@ function runSA(params) {
       rotatedBioPorts: p.rotatedBioPorts || [],
       rotatedPeripheral: p.rotatedPeripheral
     }));
-    const uWired = tryAddWires(userSeed, grid);
-    if (uWired && isLayoutValid(uWired, grid)) {
+    if (_isUserSeedSane(userSeed)) {
       seed = userSeed;
       seedExpanded = userSeed;
-      seedWired = uWired;
-      seedValid = true;
-      seedScore = scoreLayout(uWired, grid);
-      seedSource = `uživatelův layout (${userSeed.length} součástek, validní)`;
+      seedWired = tryAddWires(userSeed, grid);
+      seedValid = seedWired && isLayoutValid(seedWired, grid);
+      seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
+      seedSource = seedValid
+        ? `uživatelův layout (${userSeed.length} součástek, validní)`
+        : `uživatelův layout (${userSeed.length} součástek, ne-validní — SA opraví)`;
     }
   }
 
   if (!seed) {
-    // Fall back to cluster-substituted shell+greedy
+    // Multi-strategy fallback chain. Each strategy returns expanded placements.
+    const targetCount = nonWireIds.length;
     const allDecompositions = enumerateDecompositions(nonWireIds);
     const decomposition = pickDecompositionForWorker(allDecompositions, workerId);
     const effectiveIds = substituteClusterIds(nonWireIds, decomposition);
@@ -120,25 +141,55 @@ function runSA(params) {
       ? decomposition.clusters.map(c => `${c.pattern}${c.spinners}`).join(' + ')
       : '(žádné clustery)';
     console.log(`[SA worker ${workerId}] Decomposition: ${desc} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
-    try {
-      seed = buildShellThenGreedy(effectiveIds, grid);
-    } catch (e) {
+
+    // Each strategy: build returns SA-level placements (may contain clusters),
+    // expand returns the post-expansion individual list (for the count check).
+    // SA needs the un-expanded seed so moves operate on clusters as atoms.
+    const strategies = [
+      { name: `shell+greedy s ${desc}`,
+        build: () => buildShellThenGreedy(effectiveIds, grid),
+        expand: (s) => expandClustersInPlacements(s) },
+      { name: 'shell+greedy bez clusterů',
+        build: () => buildShellThenGreedy(nonWireIds, grid),
+        expand: (s) => s },
+      { name: 'pure greedy bez clusterů',
+        build: () => buildGreedyInitial(nonWireIds, grid, []),
+        expand: (s) => s }
+    ];
+
+    let chosen = null;
+    for (const strat of strategies) {
+      try {
+        const candidate = strat.build();
+        const expanded = candidate ? strat.expand(candidate) : null;
+        const placed = expanded ? expanded.length : 0;
+        if (placed >= targetCount) {
+          chosen = { seed: candidate, expanded, source: strat.name };
+          break;
+        }
+        console.log(`[SA worker ${workerId}] ${strat.name}: ${placed}/${targetCount} fit → zkouším další strategii.`);
+      } catch (e) {
+        console.warn(`[SA worker ${workerId}] ${strat.name} hodil chybu: ${e.message}`);
+      }
+    }
+
+    if (!chosen) {
       activeRun = false;
-      self.postMessage({ type: 'error', workerId, message: 'Greedy seed selhal: ' + e.message });
+      self.postMessage({
+        type: 'error', workerId,
+        message: `Nelze umístit všech ${targetCount} součástek do gridu ${grid.rows}x${grid.cols}. Zvětši body nebo redukuj sadu.`
+      });
       return;
     }
-    if (!seed || seed.length === 0) {
-      activeRun = false;
-      self.postMessage({ type: 'error', workerId, message: 'Nelze sestavit seed.' });
-      return;
-    }
-    seedExpanded = expandClustersInPlacements(seed);
+
+    seed = chosen.seed;            // SA-level (may contain clusters)
+    seedExpanded = chosen.expanded; // individual placements for scoring/wiring
     seedWired = tryAddWires(seedExpanded, grid);
     seedValid = seedWired && isLayoutValid(seedWired, grid);
     seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
-    seedSource = `shell+greedy s ${desc}`;
+    seedSource = chosen.source;
   }
-  console.log(`[SA worker ${workerId}] Seed: ${seedSource}, valid=${seedValid}, score=${seedScore}`);
+  console.log(`[SA worker ${workerId}] Seed: ${seedSource}, valid=${seedValid}, score=${seedScore}, count=${seedExpanded.length}`);
 
   // === Phase 2: perturb for structural diversity ===
   const perturbed = profile.perturb > 0 ? perturbInitial(seed, grid, profile.perturb) : seed;
