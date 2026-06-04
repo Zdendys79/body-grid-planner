@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=82',
-  'src/optimizer/rotation.js?v=82',
-  'src/optimizer/bus.js?v=82',
-  'src/optimizer/placement.js?v=82',
-  'src/optimizer/score.js?v=82',
-  'src/optimizer/validate.js?v=82',
-  'src/sa/shell.js?v=82',
-  'src/sa/moves.js?v=82',
-  'src/sa/clusters.js?v=82',
-  'src/sa/greedy.js?v=82',
-  'src/sa/annealer.js?v=82',
-  'optimizer.js?v=82'
+  'src/constants.js?v=83',
+  'src/optimizer/rotation.js?v=83',
+  'src/optimizer/bus.js?v=83',
+  'src/optimizer/placement.js?v=83',
+  'src/optimizer/score.js?v=83',
+  'src/optimizer/validate.js?v=83',
+  'src/sa/shell.js?v=83',
+  'src/sa/moves.js?v=83',
+  'src/sa/clusters.js?v=83',
+  'src/sa/greedy.js?v=83',
+  'src/sa/annealer.js?v=83',
+  'optimizer.js?v=83'
 );
 
 let componentLib = [];
@@ -105,6 +105,20 @@ function runSA(params) {
         const key = `${gr},${gc}`;
         if (occupied.has(key)) return false;
         occupied.add(key);
+      }
+      // Peripheral cells (Biocell etc.) must also fit in grid + not overlap
+      if (p.rotatedPeripheral) {
+        const peri = p.rotatedPeripheral;
+        const d = SIDE_DELTA[peri.port.side];
+        const sR = p.row + peri.port.cell[0] + d.dr;
+        const sC = p.col + peri.port.cell[1] + d.dc;
+        for (const [r, c] of peri.shape) {
+          const gr = sR + r, gc = sC + c;
+          if (gr < 0 || gr >= grid.rows || gc < 0 || gc >= grid.cols) return false;
+          const key = `${gr},${gc}`;
+          if (occupied.has(key)) return false;
+          occupied.add(key);
+        }
       }
     }
     return true;

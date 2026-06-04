@@ -5,12 +5,29 @@
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+// Absolute grid cells occupied by a placement's peripheral (e.g. Biocell for
+// Bio Generator). Empty array if the component has no peripheral.
+function _saPeripheralCells(p) {
+  if (!p.rotatedPeripheral) return [];
+  const peri = p.rotatedPeripheral;
+  const d = SIDE_DELTA[peri.port.side];
+  const startR = p.row + peri.port.cell[0] + d.dr;
+  const startC = p.col + peri.port.cell[1] + d.dc;
+  return peri.shape.map(([r, c]) => [startR + r, startC + c]);
+}
+
 function _saHasOverlap(placements) {
   const occupied = new Set();
   for (const p of placements) {
     if (!p.rotatedShape) continue;
     for (const [r, c] of p.rotatedShape) {
       const k = `${p.row+r},${p.col+c}`;
+      if (occupied.has(k)) return true;
+      occupied.add(k);
+    }
+    // Peripheral cells (e.g. Biocell) also reserve their space
+    for (const [gr, gc] of _saPeripheralCells(p)) {
+      const k = `${gr},${gc}`;
       if (occupied.has(k)) return true;
       occupied.add(k);
     }
@@ -21,6 +38,10 @@ function _saHasOverlap(placements) {
 function _saFitsInGrid(p, grid) {
   for (const [r, c] of p.rotatedShape) {
     const gr = p.row + r, gc = p.col + c;
+    if (gr < 0 || gr >= grid.rows || gc < 0 || gc >= grid.cols) return false;
+  }
+  // Peripheral must also fit — otherwise auto-placed Biocell ends up off-grid
+  for (const [gr, gc] of _saPeripheralCells(p)) {
     if (gr < 0 || gr >= grid.rows || gc < 0 || gc >= grid.cols) return false;
   }
   return true;
@@ -108,11 +129,12 @@ function saRelocateMove(placements, grid) {
   const def = componentLib.find(d => d.id === target.componentId);
   if (!def) return null;
 
-  // Build occupied set from all other placements
+  // Build occupied set from all other placements (shape AND peripheral cells)
   const others = placements.filter((_, idx) => idx !== i);
   const occupied = new Set();
   for (const p of others) {
     for (const [r, c] of p.rotatedShape) occupied.add(`${p.row+r},${p.col+c}`);
+    for (const [gr, gc] of _saPeripheralCells(p)) occupied.add(`${gr},${gc}`);
   }
 
   const degs = getUniqueDegs(def);
@@ -131,6 +153,14 @@ function saRelocateMove(placements, grid) {
     if (overlap) continue;
     const replaced = _saMakePlacement(target.componentId, row, col, deg);
     if (!replaced) continue;
+    // _saMakePlacement attaches rotatedPeripheral; verify peripheral fits in
+    // grid AND doesn't overlap any other placement's cells.
+    if (!_saFitsInGrid(replaced, grid)) continue;
+    let periOverlap = false;
+    for (const [gr, gc] of _saPeripheralCells(replaced)) {
+      if (occupied.has(`${gr},${gc}`)) { periOverlap = true; break; }
+    }
+    if (periOverlap) continue;
     const next = placements.slice();
     next[i] = replaced;
     return next;
