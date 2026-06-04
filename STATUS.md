@@ -1,9 +1,42 @@
 # Idle Directive – Body Optimizer – STATUS
 
 **Datum:** 2026-06-04
-**Verze:** v=62
+**Verze:** v=88
 **URL:** https://idle-directive.zdendys79.website
 **GitHub:** https://github.com/Zdendys/idle-directive
+
+---
+
+## Nápady na vylepšení (zatím neimplementováno)
+
+### 1. Bent/diagonal cluster varianty pro Spinner-Repeater chainy
+
+Aktuálně `src/sa/clusters.js` definuje jen **lineární** I-shape chain (`buildClusterDef('A', n)` = horizontální `S-R₂-S-R₂-…`, ve 4 rotacích přes `_precomputeRotationVariants`). SA s těmito atomickými clustery zvládne jen "narovnané" tvary; ohnuté/diagonální musí skládat z jednotlivých součástek přes `shift/swap/relocate` moves — řádově pomalejší.
+
+Návrh: přidat další `buildClusterDef` varianty s identickými outer porty `(2,0) W` + `(2,4) E` ale jinou vnitřní geometrií:
+
+- `A_L_n` — L-shape (R₂ vystupuje kolmo o 1 řádek dolů → 4h × 5w)
+- `A_diag_up_n` — diagonální vzestup (S vlevo dole, S vpravo nahoře → 5h × 5w)
+- `A_diag_down_n` — diagonální sestup (mirror diag_up)
+
+Každá nová varianta vyžaduje vlastní `_internalPlacements` array + projde stejným `_precomputeRotationVariants` → 4 rotace na variantu. Celkem +12 cluster variant pro `n=2`.
+
+Přínos: SA dokáže atomicky umístit "L u horní hrany + I uvnitř" nebo "dva diagonály do rohů" místo aby k těmto konfiguracím konvergovala přes desítky individuálních moves.
+
+### 2. Island migration — cross-worker sync nejlepšího layoutu
+
+Aktuálně jsou SA workery nezávislé ostrovy: `bestValidLayout` je per-worker, main thread leafy sbírá ale nevysílá je zpět. Zaseknutý worker (např. na score 75k zatímco jiný má 100k) pokračuje od svého lokálního maxima.
+
+Návrh: každých N iterací (např. 1000) main thread broadcastne aktuální `bfResults[0].layout` všem workerům jako `{type:'migrate', layout, score}`. Worker pokud má `bestValidCost > globalCost`, přepne svůj `current` + `best` na globální nejlepší a rozhřeje T zpátky na ~50 % `tStart`. Stále si nese svůj per-worker `WORKER_PROFILES` (move bias + perturb), takže od stejného startu jde **jinou cestou**.
+
+Trade-off:
+- ✅ Rychlejší konvergence k globálnímu optimu
+- ⚠️ Riziko premature convergence (všichni v jednom basinu)
+- ⚠️ Vyžaduje broadcast logiku v `scheduleAnnealOpt` + `migrate` handler v sa-worker
+
+Implementační rozsah: ~80 LOC, low-risk (žádná změna scoringu).
+
+---
 
 ## v=53–62 — Multi-worker brute force + modularizace
 
