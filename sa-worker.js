@@ -16,16 +16,16 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=64',
-  'src/optimizer/rotation.js?v=64',
-  'src/optimizer/bus.js?v=64',
-  'src/optimizer/placement.js?v=64',
-  'src/optimizer/score.js?v=64',
-  'src/optimizer/validate.js?v=64',
-  'src/sa/shell.js?v=64',
-  'src/sa/moves.js?v=64',
-  'src/sa/annealer.js?v=64',
-  'optimizer.js?v=64'
+  'src/constants.js?v=65',
+  'src/optimizer/rotation.js?v=65',
+  'src/optimizer/bus.js?v=65',
+  'src/optimizer/placement.js?v=65',
+  'src/optimizer/score.js?v=65',
+  'src/optimizer/validate.js?v=65',
+  'src/sa/shell.js?v=65',
+  'src/sa/moves.js?v=65',
+  'src/sa/annealer.js?v=65',
+  'optimizer.js?v=65'
 );
 
 let componentLib = [];
@@ -117,21 +117,41 @@ function buildInitialState(nonWireIds, grid) {
 }
 
 function runSA(params) {
-  const { nonWireIds, grid, workerId = 0 } = params;
+  const { nonWireIds, grid, workerId = 0, initialPlacements } = params;
   const options = params.options || {};
 
   const startTime = Date.now();
 
-  // Build initial state (shell + random fill)
+  // Prefer the current valid layout as the seed. SA then incrementally improves
+  // it. Fall back to shell+random only if no seed was provided.
   let initial = null;
-  for (let tryNum = 0; tryNum < 5 && !initial; tryNum++) {
-    initial = buildInitialState(nonWireIds, grid);
+  if (initialPlacements && initialPlacements.length > 0) {
+    initial = initialPlacements.map(p => ({
+      componentId: p.componentId,
+      row: p.row, col: p.col, rotation: p.rotation,
+      rotatedShape: p.rotatedShape,
+      rotatedPorts: p.rotatedPorts,
+      rotatedBioPorts: p.rotatedBioPorts,
+      rotatedPeripheral: p.rotatedPeripheral
+    }));
+    console.log(`[SA worker ${workerId}] Start z aktuálního layoutu (${initial.length} součástek)`);
+  } else {
+    for (let tryNum = 0; tryNum < 5 && !initial; tryNum++) {
+      initial = buildInitialState(nonWireIds, grid);
+    }
+    console.log(`[SA worker ${workerId}] Start ze shell+random seedu`);
   }
   if (!initial) {
     activeRun = false;
-    self.postMessage({ type: 'error', workerId, message: 'Nelze sestavit počáteční rozložení — gridu je málo místa.' });
+    self.postMessage({ type: 'error', workerId, message: 'Nelze sestavit počáteční rozložení.' });
     return;
   }
+
+  // Verify initial state and report it
+  const initWired = tryAddWires(initial, grid);
+  const initValid = initWired && isLayoutValid(initWired, grid);
+  const initScore = initValid ? scoreLayout(initWired, grid) : -Infinity;
+  console.log(`[SA worker ${workerId}] Initial valid=${initValid}, score=${initScore}`);
 
   let bestKnownCost = Infinity;
   let bestKnownLayout = null;

@@ -1143,15 +1143,26 @@ function scheduleAnnealOpt() {
   currentSaWorkers = [];
 
   const BIO_PERIPHERAL_IDS = new Set(['biocell', 'disposable_biocell']);
-  const nonWireIds = state.placements
-    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId))
-    .map(p => p.componentId);
+  const currentNonWire = state.placements
+    .filter(p => p.componentId !== 'wire' && !BIO_PERIPHERAL_IDS.has(p.componentId));
+  const nonWireIds = currentNonWire.map(p => p.componentId);
   if (nonWireIds.length <= 1) return;
+
+  // Strip down to the minimal fields needed by SA so postMessage serializes cleanly
+  const seedPlacements = currentNonWire.map(p => ({
+    componentId: p.componentId,
+    row: p.row, col: p.col, rotation: p.rotation,
+    rotatedShape: p.rotatedShape,
+    rotatedPorts: p.rotatedPorts,
+    rotatedBioPorts: p.rotatedBioPorts || [],
+    rotatedPeripheral: p.rotatedPeripheral
+  }));
 
   const N = getThreadCount();
   const startTime = Date.now();
   let bestScore = scoreLayout(state.placements, state.grid);
   let bestSourceWorker = -1;
+  console.log(`[Anneal] Seed score = ${bestScore} (cíl: zlepšit)`);
 
   const bfEl = document.getElementById('bf-progress');
   if (bfEl) { bfEl.style.display = 'inline'; bfEl.textContent = '⚡³ …'; }
@@ -1185,14 +1196,21 @@ function scheduleAnnealOpt() {
       switch (msg.type) {
         case 'ready': {
           // Each worker gets a slightly different temperature schedule for diversity
+          // (max ~3-5 min runtime per worker on a 35-component layout)
           const opts = {
-            tStart: 15000 + i * 2500,
-            coolingRate: 0.99995 - i * 0.00001,
-            maxIter: 500000,
-            restartAfter: 8000 + i * 1000,
-            progressEvery: 2000
+            tStart: 30000 + i * 5000,
+            tEnd: 0.1,
+            coolingRate: 0.9997 - i * 0.00005,
+            maxIter: 30000,
+            restartAfter: 3000 + i * 500,
+            progressEvery: 200
           };
-          w.postMessage({ type: 'start', workerId: i, nonWireIds, grid: { rows: state.grid.rows, cols: state.grid.cols }, options: opts });
+          w.postMessage({
+            type: 'start', workerId: i, nonWireIds,
+            grid: { rows: state.grid.rows, cols: state.grid.cols },
+            initialPlacements: seedPlacements,
+            options: opts
+          });
           break;
         }
         case 'progress': {
