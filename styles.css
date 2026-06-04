@@ -459,9 +459,11 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   to   { opacity: 1; }
 }
 .modal-content {
-  background: rgba(20,30,50,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* Solid translucent panel — no nested backdrop-filter. Stacking blur(20px)
+     on top of the modal's outer blur(10px) saturate(140%) caused Firefox
+     to lock up when pasting a long string into a textarea: every keystroke
+     forced both filters to re-composite the underlying page. */
+  background: rgba(20,30,50,0.96);
   border: 1px solid rgba(74,159,223,0.3);
   border-radius: 10px;
   box-shadow: 0 12px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
