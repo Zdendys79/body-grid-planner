@@ -94,22 +94,50 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
   return fakeState.placements.filter(p => p.componentId !== 'wire');
 }
 
-// Fallback: place a component at any non-overlapping position with any rotation
+// Fallback: place a component at any non-overlapping position with any rotation.
+// Validates that the component's PERIPHERAL (e.g. Biocell on Bio Generator) also
+// fits within grid bounds and doesn't overlap — otherwise the peripheral would
+// be auto-placed off-grid or onto another component.
 function _saFindAnyFit(def, state) {
   const occupiedMap = getOccupiedMap(state.placements);
+  // Cells reserved by existing placements' peripherals must also be respected
+  const periOccupied = new Set();
+  for (const p of state.placements) {
+    if (!p.rotatedPeripheral) continue;
+    const peri = p.rotatedPeripheral;
+    const d = SIDE_DELTA[peri.port.side];
+    const sR = p.row + peri.port.cell[0] + d.dr;
+    const sC = p.col + peri.port.cell[1] + d.dc;
+    for (const [r, c] of peri.shape) periOccupied.add(`${sR + r},${sC + c}`);
+  }
   for (const deg of getUniqueDegs(def)) {
     const { shape, energyPorts, bioPorts } = rotateComponent(def, deg);
+    const rotPeri = buildRotatedPeri(def, deg);
     const bounds = getBounds(shape);
     if (bounds.height > state.grid.rows || bounds.width > state.grid.cols) continue;
     for (let row = 0; row <= state.grid.rows - bounds.height; row++) {
       for (let col = 0; col <= state.grid.cols - bounds.width; col++) {
         if (hasOverlap(shape, row, col, occupiedMap)) continue;
+        // Verify peripheral (if any) fits in grid and doesn't collide
+        if (rotPeri) {
+          const d = SIDE_DELTA[rotPeri.port.side];
+          const sR = row + rotPeri.port.cell[0] + d.dr;
+          const sC = col + rotPeri.port.cell[1] + d.dc;
+          let periBad = false;
+          for (const [pr, pc] of rotPeri.shape) {
+            const rr = sR + pr, cc = sC + pc;
+            if (rr < 0 || rr >= state.grid.rows || cc < 0 || cc >= state.grid.cols) { periBad = true; break; }
+            if (occupiedMap.has(`${rr},${cc}`)) { periBad = true; break; }
+            if (periOccupied.has(`${rr},${cc}`)) { periBad = true; break; }
+          }
+          if (periBad) continue;
+        }
         return {
           row, col, rotation: deg,
           rotatedShape: shape,
           rotatedPorts: energyPorts,
           rotatedBioPorts: bioPorts,
-          rotatedPeripheral: buildRotatedPeri(def, deg)
+          rotatedPeripheral: rotPeri
         };
       }
     }
