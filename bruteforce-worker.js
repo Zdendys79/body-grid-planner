@@ -3,25 +3,12 @@
 // Loads optimizer.js for SIDE_DELTA, rotateComponent, computePoweredSet, computeWorkingSet,
 // computeFreeSpaceQuality, findWirePath, etc. componentLib is sent from main on init.
 
-importScripts('src/constants.js?v=54', 'optimizer.js?v=54');
+importScripts('src/constants.js?v=55', 'src/optimizer/rotation.js?v=55', 'optimizer.js?v=55');
 
 let componentLib = [];
 
 // ── Helpers copied verbatim from app.js (kept in sync) ──────────────────────
-
-const _uniqueRotsCache = new Map();
-function getUniqueDegs(def) {
-  if (_uniqueRotsCache.has(def.id)) return _uniqueRotsCache.get(def.id);
-  const seen = new Set();
-  const result = [];
-  for (const deg of [0, 90, 180, 270]) {
-    const { shape } = rotateComponent(def, deg);
-    const key = shape.map(([r,c]) => `${r},${c}`).sort().join('|');
-    if (!seen.has(key)) { seen.add(key); result.push(deg); }
-  }
-  _uniqueRotsCache.set(def.id, result);
-  return result;
-}
+// getUniqueDegs moved to src/optimizer/rotation.js
 
 function isLayoutValid(placements, grid) {
   const poweredSet  = computePoweredSet(placements, grid.rows, grid.cols);
