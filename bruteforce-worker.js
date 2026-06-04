@@ -3,7 +3,7 @@
 // Loads optimizer.js for SIDE_DELTA, rotateComponent, computePoweredSet, computeWorkingSet,
 // computeFreeSpaceQuality, findWirePath, etc. componentLib is sent from main on init.
 
-importScripts('optimizer.js?v=52');
+importScripts('optimizer.js?v=53');
 
 let componentLib = [];
 

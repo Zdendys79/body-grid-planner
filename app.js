@@ -16,7 +16,7 @@ let selectedPlacementIdx = null;
 // Background optimizer state
 let bgOptId = 0;
 let pendingBetterLayout = null;
-let currentBfWorker = null; // active brute-force worker (Phase 1: single thread)
+let currentBfWorkers = []; // active brute-force workers (Phase 2: multi-thread)
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -1311,11 +1311,13 @@ const BF_SAVE_KEY = 'bf_resume_v1';
 function _bfBuildIdsKey(nonWireIds) { return [...nonWireIds].sort().join(','); }
 function bfClearSave() {
   try { localStorage.removeItem(BF_SAVE_KEY); } catch (e) {}
-  // Also stop any running worker — its state is now invalid
-  if (currentBfWorker) {
-    try { currentBfWorker.postMessage({ type: 'stop' }); } catch (e) {}
-    try { currentBfWorker.terminate(); } catch (e) {}
-    currentBfWorker = null;
+  // Also stop any running workers — their state is now invalid
+  if (currentBfWorkers.length > 0) {
+    for (const w of currentBfWorkers) {
+      try { w.postMessage({ type: 'stop' }); } catch (e) {}
+      try { w.terminate(); } catch (e) {}
+    }
+    currentBfWorkers = [];
   }
 }
 function bfLoadSave() {
@@ -1333,6 +1335,34 @@ function bfSaveState(idsKey, rows, cols, path, stats, bestLayout) {
       v: 1, idsKey, rows, cols, path, stats, bestLayout, saved: Date.now()
     }));
   } catch (e) { console.warn('[BruteForce] Save failed:', e.message); }
+}
+
+// Multi-worker save (Phase 2). One snapshot atomically captures every worker's
+// position so resume — even across page reloads — preserves per-thread progress.
+function bfSaveStateV2(idsKey, rows, cols, totalBranches, threadCount, workerStates, bestLayout, elapsedMs) {
+  try {
+    localStorage.setItem(BF_SAVE_KEY, JSON.stringify({
+      v: 2, idsKey, rows, cols, totalBranches, threadCount,
+      workers: workerStates.map(w => ({
+        branchRange: w.branchRange,
+        currentBranchIdx: w.currentBranchIdx,
+        path: w.path,
+        stats: w.stats
+      })),
+      bestLayout,
+      elapsedMs,
+      saved: Date.now()
+    }));
+  } catch (e) { console.warn('[BruteForce] Save v=2 failed:', e.message); }
+}
+
+// Split [0, total) into n contiguous ranges as evenly as possible
+function _computeBranchRanges(total, n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push([Math.floor(i * total / n), Math.floor((i + 1) * total / n)]);
+  }
+  return out;
 }
 
 // ─── Export / Import save state (cross-device transfer) ─────────────────────
@@ -1630,38 +1660,51 @@ function scheduleBruteForceOpt() {
     showStatus(`Brute force: ${nonWireIds.length} součástek — hledám první validní kombinaci…`, 'ok');
   }
 
-  // Try to resume from saved snapshot if the layout's id-set & grid match
+  // ── Phase 2: brute force runs in N Web Workers, each on a slice of depth-0 branches. ──
   const idsKey = _bfBuildIdsKey(nonWireIds);
+  const N = getThreadCount();
   const saved = bfLoadSave();
-  let resumePath = null;
+
+  // Compute totalBranches first — we need it to plan ranges
+  const t0 = Date.now();
+  const totalBranches  = countDepth1Positions(nonWireIds, state.grid);
+  const totalCombosStr = estimateTotalCombinations(nonWireIds, state.grid);
+  console.log(`[BruteForce] countDepth1Positions: ${totalBranches} větví za ${Date.now()-t0}ms, odhad kombinací: ${totalCombosStr}`);
+
+  // Decide whether and how to resume from saved state
+  let workerInitStates = null; // per-worker resume data; null means fresh start
   let resumed = false;
   if (saved && saved.idsKey === idsKey && saved.rows === state.grid.rows && saved.cols === state.grid.cols) {
-    resumePath = saved.path;
-    resumed = true;
-    console.log(`[BruteForce] Pokračuji v dříve uloženém prohledávání (${saved.path?.length || 0} úrovní hluboko, uloženo ${new Date(saved.saved).toLocaleTimeString()}).`);
+    if (saved.v === 2 && Array.isArray(saved.workers) && saved.threadCount === N) {
+      // Full multi-worker resume
+      workerInitStates = saved.workers.map(w => ({
+        branchRange: w.branchRange,
+        currentBranchIdx: w.currentBranchIdx,
+        path: w.path || [],
+        stats: w.stats || {}
+      }));
+      resumed = true;
+      console.log(`[BruteForce] Pokračuji v multi-worker prohledávání (${N} threadů, ${saved.workers.length} workerů uloženo).`);
+    } else if (saved.v === 1 && N === 1) {
+      // Legacy single-worker save matches current N=1 setup
+      workerInitStates = [{
+        branchRange: [0, totalBranches],
+        currentBranchIdx: 0, // legacy save doesn't track this; restart current branch
+        path: saved.path || [],
+        stats: saved.stats || {}
+      }];
+      resumed = true;
+      console.log('[BruteForce] Pokračuji v legacy v=1 saveu (jeden worker).');
+    } else {
+      console.log(`[BruteForce] Uložený stav neodpovídá konfiguraci (v=${saved.v}, threads=${saved.threadCount}, current N=${N}) — startuji od začátku.`);
+      bfClearSave();
+    }
   } else if (saved) {
     console.log('[BruteForce] Uložený stav neodpovídá aktuálnímu layoutu — startuji od začátku.');
     bfClearSave();
   }
 
-  const currentScore = scoreLayout(state.placements, state.grid);
-  let bestScore = (resumed && saved.stats) ? (saved.stats.bestScore ?? currentScore) : currentScore;
-  let checked   = (resumed && saved.stats) ? (saved.stats.checked   ?? 0) : 0;
-  let valid     = (resumed && saved.stats) ? (saved.stats.valid     ?? 0) : 0;
-  let ticks     = (resumed && saved.stats) ? (saved.stats.ticks     ?? 0) : 0;
-  // Reconstruct effective startTime so "elapsed" displayed time is preserved across reload
-  const startTime = (resumed && saved.stats)
-    ? Date.now() - (saved.stats.elapsedMs || 0)
-    : Date.now();
-
-  // Exact count of depth-1 branches — used for ETA calculation only (not shown to user).
-  const t0 = Date.now();
-  const totalBranches   = countDepth1Positions(nonWireIds, state.grid);
-  let completedBranches = (resumed && saved.stats) ? (saved.stats.completedBranches ?? 0) : 0;
-  const totalCombosStr  = estimateTotalCombinations(nonWireIds, state.grid);
-  console.log(`[BruteForce] countDepth1Positions: ${totalBranches} větví za ${Date.now()-t0}ms, odhad kombinací: ${totalCombosStr}`);
-
-  // If we resumed and the saved bestLayout differs from current state, restore it
+  // Restore bestLayout if resuming
   if (resumed && saved.bestLayout && Array.isArray(saved.bestLayout) && saved.bestLayout.length > 0) {
     try {
       state.placements = saved.bestLayout.map(rehydratePlacement);
@@ -1670,112 +1713,141 @@ function scheduleBruteForceOpt() {
     } catch (e) { console.warn('[BruteForce] Failed to restore bestLayout:', e.message); }
   }
 
-  // ── Phase 1: brute force runs in a Web Worker. Main thread handles UI + persistence only. ──
-  // Terminate any previous worker so we don't double-run on re-schedule
-  if (currentBfWorker) {
-    try { currentBfWorker.terminate(); } catch (e) {}
-    currentBfWorker = null;
+  // Set up per-worker state (live on main thread)
+  const ranges = workerInitStates
+    ? workerInitStates.map(w => w.branchRange)
+    : _computeBranchRanges(totalBranches, N);
+  const workerStates = ranges.map((range, i) => {
+    const init = workerInitStates ? workerInitStates[i] : null;
+    return {
+      branchRange: range,
+      currentBranchIdx: init?.currentBranchIdx ?? range[0],
+      path: init?.path || [],
+      stats: init?.stats || { checked: 0, valid: 0, ticks: 0, completedBranches: 0, bestScore: -Infinity }
+    };
+  });
+
+  // Aggregated stats (updated from worker progress messages)
+  const currentScore = scoreLayout(state.placements, state.grid);
+  let bestScore = workerStates.reduce((m, w) => Math.max(m, w.stats.bestScore ?? -Infinity), -Infinity);
+  if (!Number.isFinite(bestScore)) bestScore = currentScore;
+  let checked  = workerStates.reduce((s, w) => s + (w.stats.checked  || 0), 0);
+  let valid    = workerStates.reduce((s, w) => s + (w.stats.valid    || 0), 0);
+  let ticks    = workerStates.reduce((s, w) => s + (w.stats.ticks    || 0), 0);
+  let completedBranches = workerStates.reduce((s, w) => s + (w.stats.completedBranches || 0), 0);
+  const startTime = (resumed && saved.elapsedMs) ? Date.now() - saved.elapsedMs : Date.now();
+
+  function aggregate() {
+    checked  = workerStates.reduce((s, w) => s + (w.stats.checked  || 0), 0);
+    valid    = workerStates.reduce((s, w) => s + (w.stats.valid    || 0), 0);
+    ticks    = workerStates.reduce((s, w) => s + (w.stats.ticks    || 0), 0);
+    completedBranches = workerStates.reduce((s, w) => s + (w.stats.completedBranches || 0), 0);
+    const bs = workerStates.reduce((m, w) => Math.max(m, w.stats.bestScore ?? -Infinity), -Infinity);
+    if (Number.isFinite(bs) && bs > bestScore) bestScore = bs;
   }
 
   let lastProgressUpdate = 0;
-  let lastWorkerPath = null;
+  let finishedWorkers = 0;
 
-  const worker = new Worker('bruteforce-worker.js?v=48');
-  currentBfWorker = worker;
+  // Spawn N workers
+  currentBfWorkers = [];
+  for (let i = 0; i < N; i++) {
+    const w = new Worker('bruteforce-worker.js?v=53');
+    currentBfWorkers.push(w);
 
-  worker.onmessage = (e) => {
-    if (bgOptId !== myId) {
-      // We've been cancelled — kill stale worker
-      try { worker.terminate(); } catch (err) {}
-      return;
-    }
-    const msg = e.data;
-    switch (msg.type) {
-      case 'ready': {
-        worker.postMessage({
-          type: 'start',
-          nonWireIds,
-          grid: { rows: state.grid.rows, cols: state.grid.cols },
-          resumePath,
-          resumeStats: resumed ? {
-            checked, valid, ticks, completedBranches, bestScore
-          } : null
-        });
-        break;
+    w.onmessage = (e) => {
+      if (bgOptId !== myId) {
+        try { w.terminate(); } catch (err) {}
+        return;
       }
-      case 'progress': {
-        checked = msg.stats.checked;
-        valid = msg.stats.valid;
-        ticks = msg.stats.ticks;
-        completedBranches = msg.stats.completedBranches;
-        if (typeof msg.stats.bestScore === 'number' && msg.stats.bestScore > bestScore) bestScore = msg.stats.bestScore;
-        if (msg.path) lastWorkerPath = msg.path;
-        const now = Date.now();
-        if (now - lastProgressUpdate >= 60_000) {
-          lastProgressUpdate = now;
-          updateBFProgress(false);
-          if (lastWorkerPath) {
-            bfSaveState(idsKey, state.grid.rows, state.grid.cols, lastWorkerPath, {
-              checked, ticks, valid, bestScore, completedBranches,
-              elapsedMs: now - startTime
-            }, state.placements);
-          }
+      const msg = e.data;
+      const ws = workerStates[i];
+      switch (msg.type) {
+        case 'ready': {
+          // Tell this worker its range (resume current branch if applicable)
+          w.postMessage({
+            type: 'start',
+            workerId: i,
+            nonWireIds,
+            grid: { rows: state.grid.rows, cols: state.grid.cols },
+            branchStart: ws.currentBranchIdx,
+            branchEnd: ws.branchRange[1],
+            resumePath: (ws.path && ws.path.length > 0) ? ws.path : null,
+            resumeStats: ws.stats || null
+          });
+          break;
         }
-        break;
-      }
-      case 'leaf': {
-        const finalPl = (msg.layout || []).map(rehydratePlacement);
-        const score = msg.score;
-        const isFirst = !!msg.isFirst;
-        if (isFirst || score > bestScore) {
-          bestScore = score;
-          state.placements = finalPl;
-          state.nextId = finalPl.length + 1;
-          saveState();
-          renderAll();
-          const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
-          if (isFirst) {
-            console.log(`[BruteForce] První validní rozložení za ${elapsedS}s (score=${bestScore}, #${msg.stats?.checked || checked})`);
-            debugLayoutStatus(finalPl, state.grid, 'BruteForce — první validní');
-            showStatus(`Brute force: první validní rozložení nalezeno (${elapsedS}s). Hledám lepší…`, 'ok');
-          } else {
-            console.log(`[BruteForce] Lepší rozložení score=${bestScore} (${fmtNum(checked)} prohledáno)`);
-            debugLayoutStatus(finalPl, state.grid, 'BruteForce aplikováno');
+        case 'progress': {
+          ws.stats = msg.stats || ws.stats;
+          if (msg.path) ws.path = msg.path;
+          if (typeof msg.currentBranchIdx === 'number') ws.currentBranchIdx = msg.currentBranchIdx;
+          aggregate();
+          const now = Date.now();
+          if (now - lastProgressUpdate >= 60_000) {
+            lastProgressUpdate = now;
+            updateBFProgress(false);
+            bfSaveStateV2(idsKey, state.grid.rows, state.grid.cols, totalBranches, N, workerStates, state.placements, now - startTime);
           }
+          break;
         }
-        break;
+        case 'leaf': {
+          const finalPl = (msg.layout || []).map(rehydratePlacement);
+          const score = msg.score;
+          const isFirstGlobal = (valid === 0); // first valid found across all workers
+          ws.stats.valid = (ws.stats.valid || 0) + 0; // valid already in stats from worker
+          if (score > bestScore || isFirstGlobal) {
+            bestScore = score;
+            state.placements = finalPl;
+            state.nextId = finalPl.length + 1;
+            saveState();
+            renderAll();
+            const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
+            if (isFirstGlobal) {
+              console.log(`[BruteForce] První validní (worker ${i}) za ${elapsedS}s (score=${score})`);
+              debugLayoutStatus(finalPl, state.grid, `BF — první validní (worker ${i})`);
+              showStatus(`Brute force: první validní nalezeno workerem ${i} (${elapsedS}s). Hledám lepší…`, 'ok');
+            } else {
+              console.log(`[BruteForce] Lepší (worker ${i}) score=${score}`);
+              debugLayoutStatus(finalPl, state.grid, `BF aplikováno (worker ${i})`);
+            }
+          }
+          break;
+        }
+        case 'done': {
+          finishedWorkers++;
+          try { w.terminate(); } catch (err) {}
+          console.log(`[BruteForce] Worker ${i} hotov (${finishedWorkers}/${N}).`);
+          if (finishedWorkers >= N) {
+            bfClearSave();
+            aggregate();
+            const completeMsg = valid > 0
+              ? `Brute force hotový (${N} threadů): ${valid} validních rozložení z ${fmtNum(checked)} kombinací.`
+              : `Brute force hotový (${N} threadů): žádné validní rozložení (${fmtNum(checked)} kombinací).`;
+            console.log(`[BruteForce] ${completeMsg}`);
+            updateBFProgress(true, completeMsg);
+            currentBfWorkers = [];
+          }
+          break;
+        }
+        case 'stopped': {
+          try { w.terminate(); } catch (err) {}
+          break;
+        }
+        case 'error': {
+          console.error(`[BruteForce Worker ${i}]`, msg.message);
+          showStatus(`Worker ${i}: ${msg.message}`, 'error');
+          break;
+        }
       }
-      case 'done': {
-        bfClearSave();
-        const completeMsg = valid > 0
-          ? `Brute force hotový: nalezeno ${valid} validních rozložení z ${fmtNum(checked)} kombinací.`
-          : `Brute force hotový: žádné validní rozložení (${fmtNum(checked)} kombinací).`;
-        console.log(`[BruteForce] ${completeMsg}`);
-        updateBFProgress(true, completeMsg);
-        try { worker.terminate(); } catch (err) {}
-        if (currentBfWorker === worker) currentBfWorker = null;
-        break;
-      }
-      case 'stopped': {
-        try { worker.terminate(); } catch (err) {}
-        if (currentBfWorker === worker) currentBfWorker = null;
-        break;
-      }
-      case 'error': {
-        console.error('[BruteForce Worker]', msg.message);
-        showStatus('Chyba ve worker procesu: ' + msg.message, 'error');
-        break;
-      }
-    }
-  };
+    };
 
-  worker.onerror = (err) => {
-    console.error('[BruteForce Worker] onerror:', err.message, err.filename, err.lineno);
-    showStatus('Worker selhal: ' + err.message, 'error');
-  };
+    w.onerror = (err) => {
+      console.error(`[BruteForce Worker ${i}] onerror:`, err.message, err.filename, err.lineno);
+      showStatus(`Worker ${i} selhal: ${err.message}`, 'error');
+    };
 
-  // Kick off: send init message with the component library
-  worker.postMessage({ type: 'init', componentLib });
+    w.postMessage({ type: 'init', componentLib });
+  }
 
   function fmtNum(n) {
     return n >= 1e9 ? (n / 1e9).toFixed(1) + 'G'

@@ -25,7 +25,6 @@
       <button id="btn-expand" onclick="expandBody()">▣ EXPAND BODY</button>
       <button id="btn-auto"   onclick="optimizeAll()">⚡ RE-OPTIMIZE</button>
       <button id="btn-brute"  onclick="startBruteForce()">⚡² BRUTE</button>
-      <button id="btn-reset"  onclick="resetLayout()">↺ RESET</button>
     </div>
 
     <div id="component-library">
@@ -102,15 +101,23 @@
       <div class="setting-hint">Export zahrnuje aktuální layout (a běžící brute force, pokud byl spuštěn ≥ 60 s). Import přepíše layout.</div>
     </div>
 
+    <div class="settings-section">
+      <h4>Nebezpečné akce</h4>
+      <div class="settings-buttons">
+        <button class="danger" onclick="resetLayout()">↺ System reset</button>
+      </div>
+      <div class="setting-hint">Odebere všechny součástky a vrátí grid na výchozí rozměry 3 × 4.</div>
+    </div>
+
     <div class="modal-buttons">
       <button onclick="closeSettings()">Zavřít</button>
     </div>
   </div>
 </div>
 
-<script src="optimizer.js?v=52"></script>
-<script src="renderer.js?v=52"></script>
-<script src="app.js?v=52"></script>
+<script src="optimizer.js?v=53"></script>
+<script src="renderer.js?v=53"></script>
+<script src="app.js?v=53"></script>
 
 </body>
 </html>
