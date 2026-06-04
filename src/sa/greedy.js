@@ -88,7 +88,7 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
   }
 
   if (droppedIds.length > 0) {
-    console.warn(`[Greedy] ${droppedIds.length} komponent nevejde do gridu ${grid.rows}x${grid.cols}: ${droppedIds.join(', ')}. SA poběží s neúplnou sadou.`);
+    console.warn(`[Greedy] ${droppedIds.length} components do not fit in grid ${grid.rows}x${grid.cols}: ${droppedIds.join(', ')}. SA will run with incomplete set.`);
   }
   // SA wants non-wires only — it'll rebuild wires every cost evaluation
   return fakeState.placements.filter(p => p.componentId !== 'wire');

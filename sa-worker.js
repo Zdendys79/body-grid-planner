@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=90',
-  'src/optimizer/rotation.js?v=90',
-  'src/optimizer/bus.js?v=90',
-  'src/optimizer/placement.js?v=90',
-  'src/optimizer/score.js?v=90',
-  'src/optimizer/validate.js?v=90',
-  'src/sa/shell.js?v=90',
-  'src/sa/moves.js?v=90',
-  'src/sa/clusters.js?v=90',
-  'src/sa/greedy.js?v=90',
-  'src/sa/annealer.js?v=90',
-  'optimizer.js?v=90'
+  'src/constants.js?v=91',
+  'src/optimizer/rotation.js?v=91',
+  'src/optimizer/bus.js?v=91',
+  'src/optimizer/placement.js?v=91',
+  'src/optimizer/score.js?v=91',
+  'src/optimizer/validate.js?v=91',
+  'src/sa/shell.js?v=91',
+  'src/sa/moves.js?v=91',
+  'src/sa/clusters.js?v=91',
+  'src/sa/greedy.js?v=91',
+  'src/sa/annealer.js?v=91',
+  'optimizer.js?v=91'
 );
 
 let componentLib = [];
@@ -140,8 +140,8 @@ function runSA(params) {
       seedValid = seedWired && isLayoutValid(seedWired, grid);
       seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
       seedSource = seedValid
-        ? `uživatelův layout (${userSeed.length} součástek, validní)`
-        : `uživatelův layout (${userSeed.length} součástek, ne-validní — SA opraví)`;
+        ? `user layout (${userSeed.length} components, valid)`
+        : `user layout (${userSeed.length} components, invalid — SA will fix)`;
     }
   }
 
@@ -153,8 +153,8 @@ function runSA(params) {
     const effectiveIds = substituteClusterIds(nonWireIds, decomposition);
     const desc = decomposition.clusters.length > 0
       ? decomposition.clusters.map(c => `${c.pattern}${c.spinners}`).join(' + ')
-      : '(žádné clustery)';
-    console.log(`[SA worker ${workerId}] Decomposition: ${desc} (z ${nonWireIds.length} ID na ${effectiveIds.length})`);
+      : '(no clusters)';
+    console.log(`[SA worker ${workerId}] Decomposition: ${desc} (from ${nonWireIds.length} IDs to ${effectiveIds.length})`);
 
     // Each strategy: build returns SA-level placements (may contain clusters),
     // expand returns the post-expansion individual list (for the count check).
@@ -163,10 +163,10 @@ function runSA(params) {
       { name: `shell+greedy s ${desc}`,
         build: () => buildShellThenGreedy(effectiveIds, grid),
         expand: (s) => expandClustersInPlacements(s) },
-      { name: 'shell+greedy bez clusterů',
+      { name: 'shell+greedy no clusters',
         build: () => buildShellThenGreedy(nonWireIds, grid),
         expand: (s) => s },
-      { name: 'pure greedy bez clusterů',
+      { name: 'pure greedy no clusters',
         build: () => buildGreedyInitial(nonWireIds, grid, []),
         expand: (s) => s }
     ];
@@ -181,9 +181,9 @@ function runSA(params) {
           chosen = { seed: candidate, expanded, source: strat.name };
           break;
         }
-        console.log(`[SA worker ${workerId}] ${strat.name}: ${placed}/${targetCount} fit → zkouším další strategii.`);
+        console.log(`[SA worker ${workerId}] ${strat.name}: ${placed}/${targetCount} fit → trying next strategy.`);
       } catch (e) {
-        console.warn(`[SA worker ${workerId}] ${strat.name} hodil chybu: ${e.message}`);
+        console.warn(`[SA worker ${workerId}] ${strat.name} threw: ${e.message}`);
       }
     }
 
@@ -191,7 +191,7 @@ function runSA(params) {
       activeRun = false;
       self.postMessage({
         type: 'error', workerId,
-        message: `Nelze umístit všech ${targetCount} součástek do gridu ${grid.rows}x${grid.cols}. Zvětši body nebo redukuj sadu.`
+        message: `Cannot place all ${targetCount} components in grid ${grid.rows}x${grid.cols}. Expand body or reduce set.`
       });
       return;
     }

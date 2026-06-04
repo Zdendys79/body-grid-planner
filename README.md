@@ -1,73 +1,73 @@
 # Idle Directive – Body Optimizer
 
-Web aplikace pro optimalizaci rozmístění součástek na tělovém gridu.
+Web app for optimizing component placement on a body grid.
 
 **URL:** `https://idle-directive.zdendys79.website`  
-**Soubory:** `/var/www/html/idle_directive/`
+**Files:** `/var/www/html/idle_directive/`
 
 ---
 
-## Architektura
+## Architecture
 
-| Soubor | Role |
+| File | Role |
 |---|---|
-| `index.html` | HTML kostra, načítá skripty s cache busterem `?v=XX` |
-| `components.json` | Definice všech součástek (tvar, porty, barvy) — AUTORITATIVNÍ, neupravovat! |
-| `optimizer.js` | Logika rozmísťování: rotace, výpočet napájení, hard constraints |
+| `index.html` | HTML skeleton, loads scripts with cache buster `?v=XX` |
+| `components.json` | Definitions of all components (shape, ports, colors) — AUTHORITATIVE, do not edit! |
+| `optimizer.js` | Placement logic: rotation, powering computation, hard constraints |
 | `app.js` | UI, state management, background optimizer |
-| `renderer.js` | SVG renderer gridu |
+| `renderer.js` | SVG grid renderer |
 | `styles.css` | CSS |
 
 ---
 
-## Klíčové koncepty
+## Key concepts
 
-### Souřadnicový systém
-Grid `rows × cols`, (0,0) = levý horní roh.  
-**Bus:** levý sloupec (W porty na col=0) a dolní řádek (S porty na row=rows-1).
+### Coordinate system
+Grid `rows × cols`, (0,0) = top-left corner.  
+**Bus:** left column (W ports at col=0) and bottom row (S ports at row=rows-1).
 
-### Napájení (computePoweredSet)
-BFS z busů přes port-na-port spojení. Port A side → sousední buňka → port B OPPOSITE(side).
+### Powering (computePoweredSet)
+BFS from buses through port-to-port connections. Port A side → adjacent cell → port B OPPOSITE(side).
 
-### Funkčnost Spinneru (computeWorkingSet)
-Spinner je funkční, pokud:
-- má sousedící repeater_2s na jakékoli straně, NEBO
-- má sousedící repeater_4s na 2 různých stranách.
+### Spinner working state (computeWorkingSet)
+A Spinner is working if:
+- it has an adjacent repeater_2s on any side, OR
+- it has an adjacent repeater_4s on 2 distinct sides.
 
-Pulser: Repeatery jsou volitelné.
+Pulser: Repeaters are optional.
 
-### Hard constraints v findBestPlacement
-1. **Spinner**: musí mít volné sousední buňky pro čekající Repeatery (z pendingIds).
-2. **Repeater**: pokud existuje nefunkční Spinner, Repeater se k němu MUSÍ připojit.
+### Hard constraints in findBestPlacement
+1. **Spinner**: must have free adjacent cells for pending Repeaters (from pendingIds).
+2. **Repeater**: if any non-working Spinner exists, the Repeater MUST connect to it.
 
-### Pořadí komponent (Rep → Spin)
-ensureComponentOrder: ostatní → Repeater → Spinner → Repeater → Spinner → bio-only.  
-Repeater jde vždy PŘED Spinnerem — Spinner pak využije energyBonus a připojí se
-k napájenému Repeateru. Tím vzniká řetěz Rep→Spin→Rep→Spin přirozeně.
+### Component order (Rep → Spin)
+ensureComponentOrder: others → Repeater → Spinner → Repeater → Spinner → bio-only.  
+Repeater always comes BEFORE Spinner — the Spinner then uses energyBonus and connects
+to the powered Repeater. This naturally creates a Rep→Spin→Rep→Spin chain.
 
 ### Background optimizer (scheduleBackgroundOpt)
-- N ≤ 7 komponent: zkouší všechna N! pořadí
-- N > 7: 800 náhodných pořadí (generateClusterOrdering) + 1× ensureComponentOrder
-- Každé pořadí projde isLayoutValid — neplatné zahazuje
-- Nejlepší validní výsledek nabídne uživateli přes banner
+- N ≤ 7 components: tries all N! orderings
+- N > 7: 800 random orderings (generateClusterOrdering) + 1× ensureComponentOrder
+- Every ordering goes through isLayoutValid — invalid ones are discarded
+- Best valid result is offered to the user via a banner
 
 ### isLayoutValid
-Layout je platný pokud:
-- každá energetická komponenta je napájená
-- každý Spinner je funkční (pokud v layoutu existují Repeatery)
+A layout is valid if:
+- every energy component is powered
+- every Spinner is working (if Repeaters exist in the layout)
 
 ---
 
 ## Cache buster
 
-Po každé změně optimizer.js nebo app.js je nutné zvýšit verzi v index.html.
-Aktuální verze: v=22
+After any change to optimizer.js or app.js, bump the version in index.html.
+Current version: v=90
 
 ---
 
-## Pravidla pro vývoj
+## Development rules
 
-- components.json je autoritativní — NIKDY neupravovat porty, tvar ani barvy bez výslovného požadavku
-- Debugování connectivity: hledej chybu v ORDER nebo SCORING v optimizer.js, ne v definicích portů
-- Validace layoutu: hard constraints v isLayoutValid, ne scoring triky
-- Žádné umělé cluster systémy — správné uspořádání vznikne přirozeně ze správných constraints
+- components.json is authoritative — NEVER edit ports, shape or colors without an explicit request
+- Debugging connectivity: look for bugs in ORDER or SCORING in optimizer.js, not in port definitions
+- Layout validation: hard constraints in isLayoutValid, not scoring tricks
+- No artificial cluster systems — correct arrangement emerges naturally from correct constraints

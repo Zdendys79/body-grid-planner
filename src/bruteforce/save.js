@@ -117,7 +117,7 @@ function exportBfSave() {
   // making the import textarea unfocusable / paste impossible.
   if (typeof closeSettings === 'function') closeSettings();
   if (!state.placements || state.placements.length === 0) {
-    showStatus('Layout je prázdný — není co exportovat.', 'warn');
+    showStatus('Layout is empty — nothing to export.', 'warn');
     return;
   }
 
@@ -139,31 +139,31 @@ function exportBfSave() {
   };
   const encoded = _bfEncodeSave(bundle);
 
-  const layoutInfo = `${bundle.layout.placements.length} součástek · grid ${state.grid.rows}×${state.grid.cols}`;
+  const layoutInfo = `${bundle.layout.placements.length} components · grid ${state.grid.rows}×${state.grid.cols}`;
   let bfInfo = '';
   if (bfData) {
     const elapsedStr = _fmtElapsed(bfData.stats?.elapsedMs || 0);
     const checked = bfData.stats?.checked || 0;
     const completed = bfData.stats?.completedBranches || 0;
     bfInfo = `
-      <p><strong>BF progress:</strong> path ${bfData.path?.length || 0} úrovní · dokončeno větví ${completed}</p>
-      <p><strong>Prohledáno listů:</strong> ${checked.toLocaleString()} · uplynulo ${elapsedStr}</p>
+      <p><strong>BF progress:</strong> path ${bfData.path?.length || 0} levels · branches completed ${completed}</p>
+      <p><strong>Leaves searched:</strong> ${checked.toLocaleString()} · elapsed ${elapsedStr}</p>
     `;
   } else {
-    bfInfo = `<p><em>(žádný BF save — exportuje se jen layout)</em></p>`;
+    bfInfo = `<p><em>(no BF save — exporting layout only)</em></p>`;
   }
 
-  document.getElementById('save-modal-title').textContent = 'Export stavu';
+  document.getElementById('save-modal-title').textContent = 'Export state';
   document.getElementById('save-modal-info').innerHTML = `
     <p><strong>Layout:</strong> ${layoutInfo}</p>
     ${bfInfo}
-    <p><strong>Velikost stringu:</strong> ${encoded.length.toLocaleString()} znaků</p>
-    <p style="margin-top:6px;color:var(--text-bright)">Zkopíruj text a vlož ho na cílovém stroji v dialogu Import.</p>
+    <p><strong>String size:</strong> ${encoded.length.toLocaleString()} chars</p>
+    <p style="margin-top:6px;color:var(--text-bright)">Copy the text and paste it on the target machine in the Import dialog.</p>
   `;
   const ta = document.getElementById('save-modal-text');
   ta.value = encoded;
   ta.readOnly = true;
-  document.getElementById('save-modal-action').textContent = 'Kopírovat do schránky';
+  document.getElementById('save-modal-action').textContent = 'Copy to clipboard';
   document.getElementById('save-modal').classList.remove('hidden');
   setTimeout(() => { ta.focus(); ta.select(); }, 50);
 }
@@ -172,14 +172,14 @@ function openImportBfSave() {
   // Same as exportBfSave: close settings first so it doesn't sit on top
   // of the import modal and swallow paste/click events on the textarea.
   if (typeof closeSettings === 'function') closeSettings();
-  document.getElementById('save-modal-title').textContent = 'Import save stavu';
+  document.getElementById('save-modal-title').textContent = 'Import save state';
   document.getElementById('save-modal-info').innerHTML = `
-    <p>Vlož exportovaný řetězec z jiného stroje:</p>
+    <p>Paste exported string from another machine:</p>
   `;
   const ta = document.getElementById('save-modal-text');
   ta.value = '';
   ta.readOnly = false;
-  document.getElementById('save-modal-action').textContent = 'Importovat';
+  document.getElementById('save-modal-action').textContent = 'Import';
   document.getElementById('save-modal').classList.remove('hidden');
   setTimeout(() => ta.focus(), 50);
 }
@@ -188,8 +188,8 @@ function confirmSaveModal() {
   const ta = document.getElementById('save-modal-text');
   if (ta.readOnly) {
     navigator.clipboard.writeText(ta.value).then(
-      () => { showStatus('Save zkopírován do schránky.', 'ok'); closeSaveModal(); },
-      () => { ta.select(); showStatus('Kopírování selhalo — vyber text a Ctrl+C.', 'warn'); }
+      () => { showStatus('Save copied to clipboard.', 'ok'); closeSaveModal(); },
+      () => { ta.select(); showStatus('Copy failed — select text and Ctrl+C.', 'warn'); }
     );
   } else {
     applyImportSave();
@@ -198,16 +198,16 @@ function confirmSaveModal() {
 
 function applyImportSave() {
   const text = document.getElementById('save-modal-text').value.trim();
-  if (!text) { showStatus('Prázdný vstup.', 'warn'); return; }
+  if (!text) { showStatus('Empty input.', 'warn'); return; }
   let data;
   try {
     data = _bfDecodeSave(text);
   } catch (e) {
-    showStatus('Neplatný formát řetězce: ' + e.message, 'error');
+    showStatus('Invalid string format: ' + e.message, 'error');
     return;
   }
   if (!data) {
-    showStatus('Prázdný nebo nevalidní obsah.', 'error');
+    showStatus('Empty or invalid content.', 'error');
     return;
   }
 
@@ -229,15 +229,15 @@ function applyImportSave() {
       };
     }
   } else {
-    showStatus('Nerozpoznaný formát importu.', 'error');
+    showStatus('Unrecognized import format.', 'error');
     return;
   }
 
   if (layoutData && layoutData.placements) {
     const ok = (state.placements && state.placements.length > 0)
       ? confirm(
-          `Importovat layout ${layoutData.placements.length} součástek, grid ${layoutData.grid.rows}×${layoutData.grid.cols}?\n\n` +
-          `Aktuální layout (${state.placements.length} součástek, grid ${state.grid.rows}×${state.grid.cols}) bude přepsán.`
+          `Import layout with ${layoutData.placements.length} components, grid ${layoutData.grid.rows}×${layoutData.grid.cols}?\n\n` +
+          `Current layout (${state.placements.length} components, grid ${state.grid.rows}×${state.grid.cols}) will be overwritten.`
         )
       : true;
     if (!ok) return;
@@ -258,15 +258,15 @@ function applyImportSave() {
     try {
       localStorage.setItem(BF_SAVE_KEY, JSON.stringify(bfData));
       closeSaveModal();
-      showStatus('Layout a BF save importovány. Spusť ho ručně tlačítkem BRUTE.', 'ok');
+      showStatus('Layout and BF save imported. Start it manually via the BRUTE button.', 'ok');
       // Note: do NOT auto-start. User triggers via the BRUTE button.
     } catch (e) {
       closeSaveModal();
-      showStatus('Layout importován, BF save selhal: ' + e.message, 'warn');
+      showStatus('Layout imported, BF save failed: ' + e.message, 'warn');
     }
   } else {
     closeSaveModal();
-    showStatus('Layout importován (bez BF save).', 'ok');
+    showStatus('Layout imported (without BF save).', 'ok');
   }
 }
 
