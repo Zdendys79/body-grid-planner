@@ -16,16 +16,16 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=65',
-  'src/optimizer/rotation.js?v=65',
-  'src/optimizer/bus.js?v=65',
-  'src/optimizer/placement.js?v=65',
-  'src/optimizer/score.js?v=65',
-  'src/optimizer/validate.js?v=65',
-  'src/sa/shell.js?v=65',
-  'src/sa/moves.js?v=65',
-  'src/sa/annealer.js?v=65',
-  'optimizer.js?v=65'
+  'src/constants.js?v=66',
+  'src/optimizer/rotation.js?v=66',
+  'src/optimizer/bus.js?v=66',
+  'src/optimizer/placement.js?v=66',
+  'src/optimizer/score.js?v=66',
+  'src/optimizer/validate.js?v=66',
+  'src/sa/shell.js?v=66',
+  'src/sa/moves.js?v=66',
+  'src/sa/annealer.js?v=66',
+  'optimizer.js?v=66'
 );
 
 let componentLib = [];
@@ -157,42 +157,32 @@ function runSA(params) {
   let bestKnownLayout = null;
 
   const result = simulatedAnneal(initial, grid, {
-    tStart:        options.tStart        || 20000,
-    tEnd:          options.tEnd          || 0.01,
-    coolingRate:   options.coolingRate   || 0.99995,
-    maxIter:       options.maxIter       || 500000,
-    restartAfter:  options.restartAfter  || 10000,
-    progressEvery: options.progressEvery || 1000,
+    tStart:        options.tStart        || 30000,
+    tEnd:          options.tEnd          || 0.1,
+    coolingRate:   options.coolingRate   || 0.99997,
+    restartAfter:  options.restartAfter  || 5000,
+    progressEvery: options.progressEvery || 500,
     shouldStop:    () => stopRequested,
-    progressCb: (iter, T, currentCost, bestCost) => {
+    progressCb: (iter, T, currentCost, bestCost, bestValidCost) => {
       self.postMessage({
         type: 'progress', workerId,
-        iter, T, currentCost, bestCost,
+        iter, T, currentCost, bestCost, bestValidCost,
         elapsedMs: Date.now() - startTime
       });
     },
-    reportLeaf: (best, bestCost) => {
-      const wired = tryAddWires(best, grid);
-      if (!wired || !isLayoutValid(wired, grid)) return;
-      const score = -bestCost; // SA cost = -scoreLayout
+    // Called only when a VALID layout improves on previous best-valid
+    reportLeaf: (wiredLayout, score) => {
       const isFirst = (bestKnownLayout === null);
-      bestKnownLayout = wired;
-      bestKnownCost = bestCost;
+      bestKnownLayout = wiredLayout;
+      bestKnownCost = -score;
       self.postMessage({
         type: 'leaf', workerId,
-        layout: wired, score, isFirst
+        layout: wiredLayout, score, isFirst
       });
     }
   });
 
   activeRun = false;
-  if (stopRequested) {
-    self.postMessage({ type: 'stopped', workerId });
-  } else {
-    self.postMessage({
-      type: 'done', workerId,
-      finalLayout: result.wiredLayout, finalCost: result.cost,
-      iters: options.maxIter
-    });
-  }
+  // Worker only exits if explicitly stopped by main thread
+  self.postMessage({ type: 'stopped', workerId });
 }

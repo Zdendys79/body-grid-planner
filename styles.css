@@ -611,3 +611,53 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   background: linear-gradient(135deg, #5abf6044, #80cbc444);
   color: #b0e0e0;
 }
+
+/* Top-K SA results panel */
+#bf-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(80, 203, 196, 0.05);
+}
+.result-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  transition: background 0.1s, border-color 0.1s;
+}
+.result-slot:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.result-rank {
+  color: var(--accent);
+  font-weight: bold;
+  min-width: 24px;
+}
+.result-score {
+  color: var(--text-bright);
+  flex: 1;
+  font-weight: 600;
+}
+.result-age {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+/* STOP button */
+#btn-stop {
+  background: #f0505022;
+  color: var(--err-color);
+  border: 1px solid #f0505055;
+  padding: 8px 10px;
+}
+#btn-stop:hover:not(:disabled) { background: #f0505044; }

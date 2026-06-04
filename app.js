@@ -1126,9 +1126,92 @@ function startBruteForce() {
 
 let currentSaWorkers = [];
 
+// Top-K best VALID layouts found by SA — newest improvements go on top,
+// max 4 visible slots. The oldest entry is preserved as anchor.
+const BF_RESULTS_MAX = 4;
+let bfResults = []; // [{ layout, score, foundAt, workerId }] sorted by score desc
+
 function startAnneal() {
+  bfResults = [];
+  renderBfResults();
   scheduleAnnealOpt();
-  showStatus('Smart optimize (Simulated Annealing) spuštěn — hledám dobré řešení…', 'ok');
+  showStatus('Smart optimize (SA) — N workerů paralelně, jen valid výsledky se ukládají…', 'ok');
+}
+
+function stopAllWorkers() {
+  bgOptId++;
+  let stopped = 0;
+  for (const w of currentBfWorkers) {
+    try { w.postMessage({ type: 'stop' }); } catch (e) {}
+    try { w.terminate(); } catch (e) {}
+    stopped++;
+  }
+  for (const w of currentSaWorkers) {
+    try { w.postMessage({ type: 'stop' }); } catch (e) {}
+    try { w.terminate(); } catch (e) {}
+    stopped++;
+  }
+  currentBfWorkers = [];
+  currentSaWorkers = [];
+  const bfEl = document.getElementById('bf-progress');
+  if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
+  showStatus(stopped > 0 ? `Zastaveno ${stopped} workerů.` : 'Žádný worker neběžel.', 'ok');
+}
+
+function addBfResult(layout, score, workerId) {
+  // Reject duplicates by score (within 1 point) — SA can re-find same plateau
+  if (bfResults.some(r => Math.abs(r.score - score) < 1)) return;
+
+  const entry = { layout, score, foundAt: Date.now(), workerId };
+  bfResults.unshift(entry); // newest at top
+  // Sort by score descending, but keep insertion order for ties (newer first)
+  bfResults.sort((a, b) => (b.score - a.score) || (b.foundAt - a.foundAt));
+  // Trim to top-K but always preserve the oldest entry (anchor)
+  if (bfResults.length > BF_RESULTS_MAX) {
+    // Identify the oldest by foundAt
+    let oldestIdx = 0;
+    for (let i = 1; i < bfResults.length; i++) {
+      if (bfResults[i].foundAt < bfResults[oldestIdx].foundAt) oldestIdx = i;
+    }
+    const oldest = bfResults[oldestIdx];
+    // Keep top (K-1) by score, plus the oldest if not already in top (K-1)
+    const top = bfResults.slice(0, BF_RESULTS_MAX - 1);
+    if (top.includes(oldest)) {
+      bfResults = bfResults.slice(0, BF_RESULTS_MAX);
+    } else {
+      bfResults = [...top, oldest];
+    }
+  }
+  renderBfResults();
+}
+
+function renderBfResults() {
+  const container = document.getElementById('bf-results');
+  if (!container) return;
+  if (bfResults.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'flex';
+  container.innerHTML = bfResults.map((r, i) => {
+    const ageSec = Math.floor((Date.now() - r.foundAt) / 1000);
+    const ageStr = ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec/60)}m`;
+    return `<div class="result-slot" onclick="applyBfResult(${i})" title="W${r.workerId} · ${ageStr} ago · score ${r.score}">
+      <span class="result-rank">#${i+1}</span>
+      <span class="result-score">${r.score.toLocaleString()}</span>
+      <span class="result-age">${ageStr}</span>
+    </div>`;
+  }).join('');
+}
+
+function applyBfResult(idx) {
+  const r = bfResults[idx];
+  if (!r || !r.layout) return;
+  state.placements = r.layout.map(rehydratePlacement);
+  state.nextId = state.placements.length + 1;
+  saveState();
+  renderAll();
+  showStatus(`Layout #${idx+1} aplikován (score ${r.score.toLocaleString()}).`, 'ok');
 }
 
 function scheduleAnnealOpt() {
@@ -1227,36 +1310,42 @@ function scheduleAnnealOpt() {
           break;
         }
         case 'leaf': {
-          const finalPl = (msg.layout || []).map(rehydratePlacement);
+          // Worker reports a VALID layout improvement — add to top-4 history
+          const layout = msg.layout || [];
           const score = msg.score;
           if (score > bestScore) {
             bestScore = score;
             bestSourceWorker = i;
-            state.placements = finalPl;
-            state.nextId = finalPl.length + 1;
+            const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[Anneal] Nový top layout (worker ${i}) score=${score}, ${elapsedS}s`);
+          }
+          addBfResult(layout, score, i);
+          // Auto-apply the first valid result so user sees progress immediately
+          if (bfResults.length === 1) {
+            state.placements = layout.map(rehydratePlacement);
+            state.nextId = state.placements.length + 1;
             saveState();
             renderAll();
-            const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
-            console.log(`[Anneal] Lepší layout (worker ${i}) score=${score}, ${elapsedS}s`);
-            debugLayoutStatus(finalPl, state.grid, `SA aplikováno (worker ${i})`);
+            showStatus(`Nalezen první valid layout (worker ${i}, score ${score.toLocaleString()}). Hledám lepší…`, 'ok');
           }
           break;
         }
-        case 'done': {
+        case 'stopped': {
           finishedWorkers++;
           try { w.terminate(); } catch (err) {}
-          console.log(`[Anneal] Worker ${i} hotov (${finishedWorkers}/${N}).`);
+          console.log(`[Anneal] Worker ${i} zastaven (${finishedWorkers}/${N}).`);
           if (finishedWorkers >= N) {
             const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
-            const completeMsg = `Smart optimize hotový (${N}× SA, ${elapsedS}s). Nejlepší layout: score ${bestScore} (worker ${bestSourceWorker}).`;
+            const completeMsg = bfResults.length > 0
+              ? `SA ukončeno (${N}× workers, ${elapsedS}s). ${bfResults.length} valid výsledků nalezeno, nejlepší score ${bestScore.toLocaleString()}.`
+              : `SA ukončeno (${N}× workers, ${elapsedS}s). Bohužel žádný valid layout nenalezen — zkus zvětšit grid nebo upravit komponenty.`;
             console.log(`[Anneal] ${completeMsg}`);
             if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
-            showStatus(completeMsg, 'ok');
+            showStatus(completeMsg, bfResults.length > 0 ? 'ok' : 'warn');
             currentSaWorkers = [];
           }
           break;
         }
-        case 'stopped': { try { w.terminate(); } catch (err) {} break; }
         case 'error': {
           console.error(`[Anneal Worker ${i}]`, msg.message);
           showStatus(`SA worker ${i}: ${msg.message}`, 'error');

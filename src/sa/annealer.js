@@ -10,32 +10,43 @@
 // states that cannot be wired or violate hard constraints.
 
 // Compute SA cost for a placement list (non-wire components only).
-// Penalty weights are calibrated so SA can probabilistically tunnel through
-// invalid regions at high T (e.g. e^(-100000/20000) = e^-5 ≈ 0.007).
+// Cost gradient (lower = better):
+//   - valid wired layout:       -scoreLayout(wired)                  ≈ -400k..-200k
+//   - wired but constraint-bad: baseCost + 30000                     ≈ -370k..-170k
+//   - unwireable (no path):     pseudo-base + unpowered * 5000       ≈ -100k..+200k
+//
+// The unwireable branch needs a gradient — count how many energy components
+// can't be powered by direct port/bus access, and penalise per-unpowered.
+// This way SA can move from "many isolated" → "fewer isolated" → "wired" →
+// "valid" without facing infinite cliffs.
 function saComputeCost(nonWirePlacements, grid) {
   const wired = tryAddWires(nonWirePlacements, grid);
-  if (!wired) {
-    // Cannot be wired — very high penalty, mostly unreachable for SA.
-    return 800000 + nonWirePlacements.length * 1000;
+  if (wired) {
+    const baseCost = -scoreLayout(wired, grid);
+    if (isLayoutValid(wired, grid)) return baseCost;
+    return baseCost + 30000;
   }
-  // Soft cost from scoreLayout (negated so lower = better)
-  const baseCost = -scoreLayout(wired, grid);
-  if (!isLayoutValid(wired, grid)) {
-    // Wired but fails Spinner-Repeater / Repeater-target constraints.
-    return baseCost + 100000;
+  // Unwireable — gradient based on count of un-powerable components
+  const poweredSet = computePoweredSet(nonWirePlacements, grid.rows, grid.cols);
+  let unpowered = 0;
+  for (let i = 0; i < nonWirePlacements.length; i++) {
+    const p = nonWirePlacements[i];
+    const def = componentLib.find(d => d.id === p.componentId);
+    if (def && def.energyPorts.length > 0 && !poweredSet.has(i)) unpowered++;
   }
-  return baseCost;
+  // pseudo-baseline + linear penalty per unpowered component
+  return 50000 + unpowered * 3000;
 }
 
-// Main SA loop. Returns { placements (non-wire), cost, wiredLayout, iters }.
-// progressCb(iter, T, currentCost, bestCost) — called every N iterations.
+// Main SA loop. Runs until shouldStop() returns true (no maxIter cap).
+// SA may transiently accept invalid neighbours to escape local minima, but
+// only VALID layouts are reported via reportLeaf — invalid results are useless.
 function simulatedAnneal(initialNonWire, grid, options = {}) {
-  const tStart        = options.tStart        ?? 20000;
-  const tEnd          = options.tEnd          ?? 0.01;
+  const tStart        = options.tStart        ?? 30000;
+  const tEnd          = options.tEnd          ?? 0.1;
   const coolingRate   = options.coolingRate   ?? 0.9999;
-  const maxIter       = options.maxIter       ?? 200000;
-  const restartAfter  = options.restartAfter  ?? 8000;   // restart from best if stuck
-  const progressEvery = options.progressEvery ?? 1000;
+  const restartAfter  = options.restartAfter  ?? 5000;
+  const progressEvery = options.progressEvery ?? 500;
   const progressCb    = options.progressCb;
   const shouldStop    = options.shouldStop;
   const reportLeaf    = options.reportLeaf;
@@ -44,15 +55,17 @@ function simulatedAnneal(initialNonWire, grid, options = {}) {
   let currentCost = saComputeCost(current, grid);
   let best = current.map(p => ({ ...p }));
   let bestCost = currentCost;
+  // Track best VALID layout separately — only this is reported as a result
+  let bestValidCost = Infinity;
+  let bestValidLayout = null;
   let T = tStart;
   let lastImprovement = 0;
+  let iter = 0;
 
-  for (let iter = 0; iter < maxIter; iter++) {
+  // Run indefinitely until shouldStop signals
+  while (true) {
     if (shouldStop && shouldStop()) break;
 
-    // Retry move generation until we get a non-null neighbour — dense layouts
-    // produce lots of null moves (overlap/out-of-bounds), so we'd otherwise
-    // spin the iteration counter without doing real work.
     let neighbour = null;
     for (let attempt = 0; attempt < 30 && !neighbour; attempt++) {
       neighbour = saGenerateMove(current, grid);
@@ -67,29 +80,36 @@ function simulatedAnneal(initialNonWire, grid, options = {}) {
           best = current.map(p => ({ ...p }));
           bestCost = currentCost;
           lastImprovement = iter;
-          if (reportLeaf) reportLeaf(best, bestCost);
+        }
+        // Check if this neighbour is a VALID layout that beats our best-valid
+        const nWired = tryAddWires(neighbour, grid);
+        if (nWired && isLayoutValid(nWired, grid)) {
+          const validScore = scoreLayout(nWired, grid);
+          if (-validScore < bestValidCost) {
+            bestValidCost = -validScore;
+            bestValidLayout = nWired;
+            if (reportLeaf) reportLeaf(nWired, validScore);
+          }
         }
       }
     }
 
-    // Cool down
     T *= coolingRate;
     if (T < tEnd) T = tEnd;
 
-    // Restart from best if stuck
+    // Restart from best if stuck — reheat partially
     if (iter - lastImprovement > restartAfter) {
-      T = tStart * 0.5;
+      T = tStart * 0.7;
       current = best.map(p => ({ ...p }));
       currentCost = bestCost;
       lastImprovement = iter;
     }
 
     if (progressCb && (iter % progressEvery === 0)) {
-      progressCb(iter, T, currentCost, bestCost);
+      progressCb(iter, T, currentCost, bestCost, bestValidCost);
     }
+    iter++;
   }
 
-  // Final wiring of best state
-  const wired = tryAddWires(best, grid) || [];
-  return { placements: best, cost: bestCost, wiredLayout: wired };
+  return { placements: best, cost: bestCost, bestValidLayout, bestValidCost, iters: iter };
 }
