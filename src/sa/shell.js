@@ -32,6 +32,10 @@ function packShell(componentIds, grid) {
   for (const id of order) {
     const def = componentLib.find(d => d.id === id);
     if (!def) { remaining.push(id); continue; }
+    // Skip clusters from shell packing — clusters have W/E (or N/S) ports that
+    // need bus access, not edge placement. Let greedy fill them via
+    // findBestPlacement, which scores energy-port-to-bus connections.
+    if (def._isCluster) { remaining.push(id); continue; }
 
     let best = null;
     let bestScore = -Infinity;

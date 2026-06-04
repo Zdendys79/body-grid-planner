@@ -199,17 +199,56 @@ function buildClusterDef(pattern, spinners) {
   return null;
 }
 
-// Register a list of cluster defs into componentLib (idempotent).
-// Forces getUniqueDegs to return [0] for clusters (rotation 0 only for now).
+// Pre-compute internal sub-placements for all 4 cluster rotations so
+// expandClusterPlacement can look them up directly without recomputing.
+function _precomputeRotationVariants(def) {
+  if (!def._internalPlacements) return;
+  const result = { 0: def._internalPlacements };
+  const maxR = Math.max(...def.shape.map(([r]) => r));
+  const maxC = Math.max(...def.shape.map(([, c]) => c));
+
+  for (const rot of [90, 180, 270]) {
+    // Rotated cluster shape to find normalization offset
+    const rotatedShape = def.shape.map(([r, c]) => rotateCoord(r, c, maxR, maxC, rot));
+    const offsetR = Math.min(...rotatedShape.map(([r]) => r));
+    const offsetC = Math.min(...rotatedShape.map(([, c]) => c));
+
+    const rotInternals = [];
+    for (const ip of def._internalPlacements) {
+      const subDef = componentLib.find(d => d.id === ip.componentId);
+      if (!subDef) continue;
+      // Sub-component shape in its own original rotation
+      const subShape = rotateComponent(subDef, ip.rotation).shape;
+      // Where its cells sit in the original (rotation 0) cluster
+      const subCellsInCluster = subShape.map(([sr, sc]) => [ip.relRow + sr, ip.relCol + sc]);
+      // Rotate each cell by cluster's rotation, then normalise
+      const rotatedSubCells = subCellsInCluster.map(([r, c]) => rotateCoord(r, c, maxR, maxC, rot));
+      const normalized = rotatedSubCells.map(([r, c]) => [r - offsetR, c - offsetC]);
+      const newRelRow = Math.min(...normalized.map(([r]) => r));
+      const newRelCol = Math.min(...normalized.map(([, c]) => c));
+      rotInternals.push({
+        componentId: ip.componentId,
+        relRow: newRelRow,
+        relCol: newRelCol,
+        rotation: (ip.rotation + rot) % 360
+      });
+    }
+    result[rot] = rotInternals;
+  }
+  def._internalsByRotation = result;
+}
+
+// Register cluster defs into componentLib (idempotent). Precomputes all 4
+// rotation variants of internal placements so expansion works for any rotation.
 function registerClusterDefs(defs) {
   for (const def of defs) {
     if (!def) continue;
     if (!componentLib.find(d => d.id === def.id)) {
       componentLib.push(def);
     }
-    if (typeof _uniqueRotsCache !== 'undefined') {
-      _uniqueRotsCache.set(def.id, [0]);
-    }
+    _precomputeRotationVariants(def);
+    // Note: we DO NOT force [0] in _uniqueRotsCache anymore — all 4 rotations
+    // are valid placements for the cluster, and expansion handles them.
   }
 }
 
@@ -236,10 +275,14 @@ function substituteClusterIds(nonWireIds, decomposition) {
 }
 
 // Expand a cluster placement back into individual component placements.
-// Currently supports only rotation 0 (clusters are placed canonically).
+// Uses precomputed _internalsByRotation to handle any cluster rotation (0/90/180/270).
 function expandClusterPlacement(clusterPlacement, clusterDef) {
+  const rot = clusterPlacement.rotation || 0;
+  const internals = (clusterDef._internalsByRotation && clusterDef._internalsByRotation[rot])
+    ? clusterDef._internalsByRotation[rot]
+    : clusterDef._internalPlacements;
   const out = [];
-  for (const ip of clusterDef._internalPlacements) {
+  for (const ip of internals) {
     const subDef = componentLib.find(d => d.id === ip.componentId);
     if (!subDef) continue;
     const rotated = rotateComponent(subDef, ip.rotation);
