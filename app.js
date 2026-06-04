@@ -1488,6 +1488,18 @@ function addBfResult(layout, score, workerId) {
   // Reject duplicates by score (within 1 point) — SA can re-find same plateau
   if (bfResults.some(r => Math.abs(r.score - score) < 1)) return;
 
+  // Defensive: reject any leaf whose component set differs from current state.
+  // Catches bugs like greedy.js silently dropping components that can't be
+  // placed — those leafs would overwrite the user's full layout with a
+  // partial one when applied via auto-follow.
+  const currentKey = _componentSetKey(state.placements);
+  const layoutKey = _componentSetKey(layout);
+  if (currentKey !== layoutKey) {
+    const cur = currentKey.split(',').length, lf = layoutKey.split(',').length;
+    console.warn(`[Anneal] Worker ${workerId} odmítnut — jiná sada součástek (state má ${cur}, leaf má ${lf}). Pravděpodobně greedy.js komponenty zahodil.`);
+    return;
+  }
+
   const entry = { layout, score, foundAt: Date.now(), workerId };
   const oldTopScore = bfResults.length > 0 ? bfResults[0].score : -Infinity;
 
@@ -1511,12 +1523,20 @@ function addBfResult(layout, score, workerId) {
   bfResultsSave();
   renderBfResults();
 
-  // Auto-follow: if this push changed the #1 (new top score), apply to grid
+  // Auto-follow: only fire if BOTH conditions hold:
+  //   (a) new entry is at #1 AND beats previous bfResults top
+  //   (b) new score beats the user's currently displayed layout
+  // (b) is critical — protects against downgrading the user's valid state
+  // with an inferior SA result (e.g. when bfResults was empty so oldTopScore
+  // = -Infinity and any new entry trivially "wins").
   if (bfAutoFollowTop && bfResults[0] === entry && score > oldTopScore) {
-    state.placements = layout.map(rehydratePlacement);
-    state.nextId = state.placements.length + 1;
-    saveState();
-    renderAll();
+    const currentScore = scoreLayout(state.placements, state.grid);
+    if (score > currentScore) {
+      state.placements = layout.map(rehydratePlacement);
+      state.nextId = state.placements.length + 1;
+      saveState();
+      renderAll();
+    }
   }
 }
 

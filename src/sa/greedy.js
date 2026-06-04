@@ -43,14 +43,18 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
     nextId: prefilledPlacements.length + 1
   };
 
+  const droppedIds = [];
   for (const id of ordered) {
     const def = componentLib.find(d => d.id === id);
-    if (!def) continue;
+    if (!def) { droppedIds.push(id + ' (def missing)'); continue; }
     const result = findBestPlacement(def, fakeState);
     if (!result) {
       // findBestPlacement is constraint-aware; if it fails, try any geometric fit
       const anyFit = _saFindAnyFit(def, fakeState);
-      if (!anyFit) continue;
+      if (!anyFit) {
+        droppedIds.push(id);
+        continue;
+      }
       fakeState.placements.push({
         id: fakeState.nextId++, componentId: id,
         row: anyFit.row, col: anyFit.col, rotation: anyFit.rotation,
@@ -83,6 +87,9 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
     });
   }
 
+  if (droppedIds.length > 0) {
+    console.warn(`[Greedy] ${droppedIds.length} komponent nevejde do gridu ${grid.rows}x${grid.cols}: ${droppedIds.join(', ')}. SA poběží s neúplnou sadou.`);
+  }
   // SA wants non-wires only — it'll rebuild wires every cost evaluation
   return fakeState.placements.filter(p => p.componentId !== 'wire');
 }
