@@ -839,17 +839,73 @@ function scheduleBruteForceOpt() {
       }];
       resumed = true;
       console.log('[BruteForce] Pokračuji v legacy v=1 saveu (jeden worker).');
+    } else if (saved.v === 1) {
+      // Legacy v=1 save with N>1 → migrate: split branches into N ranges,
+      // assign the v=1 path to whichever worker owns the current branch.
+      const v1Path = saved.path || [];
+      const v1Stats = saved.stats || {};
+      const v1CurrentBranch = v1Stats.completedBranches || 0;
+      const ranges = _computeBranchRanges(totalBranches, N);
+      workerInitStates = ranges.map(([start, end]) => {
+        if (v1CurrentBranch >= start && v1CurrentBranch < end) {
+          // This worker's slice contains the v=1 current branch — resume here
+          return { branchRange: [start, end], currentBranchIdx: v1CurrentBranch, path: v1Path, stats: v1Stats };
+        } else if (end <= v1CurrentBranch) {
+          // Slice is entirely behind v=1's progress — skip (terminates immediately)
+          return { branchRange: [start, end], currentBranchIdx: end, path: [], stats: {} };
+        } else {
+          // Slice is past v=1's progress — fresh start
+          return { branchRange: [start, end], currentBranchIdx: start, path: [], stats: {} };
+        }
+      });
+      resumed = true;
+      console.log(`[BruteForce] Migrace v=1 → v=2: distribuováno přes ${N} workerů (v=1 byl ve větvi ${v1CurrentBranch}).`);
+    } else if (saved.v === 2 && Array.isArray(saved.workers) && saved.threadCount !== N) {
+      // v=2 save with different thread count → re-distribute completed branches.
+      // Collect all completed/in-progress branches and redistribute the remainder.
+      const completedSet = new Set();
+      let bestPath = [];
+      let bestPathBranch = -1;
+      let bestPathStats = {};
+      for (const w of saved.workers) {
+        const [s] = w.branchRange;
+        const cur = w.currentBranchIdx ?? s;
+        for (let b = s; b < cur; b++) completedSet.add(b);
+        // Save the deepest active path so worker covering that branch can resume it
+        if (w.path && w.path.length > bestPath.length) {
+          bestPath = w.path;
+          bestPathBranch = cur;
+          bestPathStats = w.stats || {};
+        }
+      }
+      const ranges = _computeBranchRanges(totalBranches, N);
+      workerInitStates = ranges.map(([start, end]) => {
+        // Skip ahead past any contiguous completed branches at the start
+        let cur = start;
+        while (cur < end && completedSet.has(cur)) cur++;
+        const usesBestPath = (bestPathBranch >= cur && bestPathBranch < end && bestPath.length > 0);
+        return {
+          branchRange: [start, end],
+          currentBranchIdx: usesBestPath ? bestPathBranch : cur,
+          path: usesBestPath ? bestPath : [],
+          stats: usesBestPath ? bestPathStats : {}
+        };
+      });
+      resumed = true;
+      console.log(`[BruteForce] Migrace v=2 thread count ${saved.threadCount} → ${N}: ${completedSet.size} větví již dokončeno, redistribuce.`);
     } else {
       console.log(`[BruteForce] Uložený stav neodpovídá konfiguraci (v=${saved.v}, threads=${saved.threadCount}, current N=${N}) — startuji od začátku.`);
-      bfClearSave();
+      // Note: do NOT call bfClearSave() here — bestLayout below still useful
     }
   } else if (saved) {
     console.log('[BruteForce] Uložený stav neodpovídá aktuálnímu layoutu — startuji od začátku.');
     bfClearSave();
   }
 
-  // Restore bestLayout if resuming
-  if (resumed && saved.bestLayout && Array.isArray(saved.bestLayout) && saved.bestLayout.length > 0) {
+  // Restore bestLayout if save exists for matching layout (even if not "resuming" config)
+  if (saved && saved.idsKey === idsKey
+      && saved.rows === state.grid.rows && saved.cols === state.grid.cols
+      && saved.bestLayout && Array.isArray(saved.bestLayout) && saved.bestLayout.length > 0) {
     try {
       state.placements = saved.bestLayout.map(rehydratePlacement);
       state.nextId = state.placements.length + 1;
