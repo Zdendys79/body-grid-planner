@@ -62,7 +62,14 @@ async function init() {
     }
   }
 
+  // Load persisted SA results (top-20)
+  bfResults = bfResultsLoad();
+  if (bfResults.length > 0) {
+    console.log(`[init] ${bfResults.length} SA výsledků nahráno z paměti.`);
+  }
+
   renderAll();
+  renderBfResults();
   showStatus('Ready', 'ok');
 
   // Auto-resume brute force if a saved snapshot matches the current layout
@@ -1126,13 +1133,49 @@ function startBruteForce() {
 
 let currentSaWorkers = [];
 
-// Top-K best VALID layouts found by SA — newest improvements go on top,
-// max 4 visible slots. The oldest entry is preserved as anchor.
-const BF_RESULTS_MAX = 4;
+// Top-K best VALID layouts found by SA — newest improvements go on top.
+// Persisted to localStorage (key BF_RESULTS_KEY) so they survive reloads.
+const BF_RESULTS_MAX = 20;
+const BF_RESULTS_KEY = 'bf_results_v1';
 let bfResults = []; // [{ layout, score, foundAt, workerId }] sorted by score desc
+
+// Auto-follow flag: when true, the grid auto-switches to the new #1 result
+// whenever a better one arrives. Browsing a different slot turns this off
+// (so the user's chosen layout isn't replaced behind their back). Clicking
+// the "TOP" button re-enables it and snaps back to #1.
+let bfAutoFollowTop = true;
+
+function bfResultsLoad() {
+  try {
+    const raw = localStorage.getItem(BF_RESULTS_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch (e) { return []; }
+}
+
+function bfResultsSave() {
+  try {
+    localStorage.setItem(BF_RESULTS_KEY, JSON.stringify(bfResults));
+  } catch (e) {
+    // Quota exceeded — drop oldest until it fits
+    console.warn('[bfResults] LocalStorage full — trimming oldest:', e.message);
+    while (bfResults.length > 5) {
+      bfResults.pop();
+      try { localStorage.setItem(BF_RESULTS_KEY, JSON.stringify(bfResults)); return; } catch (e2) {}
+    }
+  }
+}
+
+function bfResultsClear() {
+  bfResults = [];
+  try { localStorage.removeItem(BF_RESULTS_KEY); } catch (e) {}
+  renderBfResults();
+}
 
 function startAnneal() {
   bfResults = [];
+  bfAutoFollowTop = true;
   renderBfResults();
   scheduleAnnealOpt();
   showStatus('Smart optimize (SA) — N workerů paralelně, jen valid výsledky se ukládají…', 'ok');
@@ -1163,18 +1206,18 @@ function addBfResult(layout, score, workerId) {
   if (bfResults.some(r => Math.abs(r.score - score) < 1)) return;
 
   const entry = { layout, score, foundAt: Date.now(), workerId };
-  bfResults.unshift(entry); // newest at top
-  // Sort by score descending, but keep insertion order for ties (newer first)
+  const oldTopScore = bfResults.length > 0 ? bfResults[0].score : -Infinity;
+
+  bfResults.unshift(entry);
   bfResults.sort((a, b) => (b.score - a.score) || (b.foundAt - a.foundAt));
-  // Trim to top-K but always preserve the oldest entry (anchor)
+
+  // Trim to MAX but always preserve the oldest entry (anchor)
   if (bfResults.length > BF_RESULTS_MAX) {
-    // Identify the oldest by foundAt
     let oldestIdx = 0;
     for (let i = 1; i < bfResults.length; i++) {
       if (bfResults[i].foundAt < bfResults[oldestIdx].foundAt) oldestIdx = i;
     }
     const oldest = bfResults[oldestIdx];
-    // Keep top (K-1) by score, plus the oldest if not already in top (K-1)
     const top = bfResults.slice(0, BF_RESULTS_MAX - 1);
     if (top.includes(oldest)) {
       bfResults = bfResults.slice(0, BF_RESULTS_MAX);
@@ -1182,7 +1225,16 @@ function addBfResult(layout, score, workerId) {
       bfResults = [...top, oldest];
     }
   }
+  bfResultsSave();
   renderBfResults();
+
+  // Auto-follow: if this push changed the #1 (new top score), apply to grid
+  if (bfAutoFollowTop && bfResults[0] === entry && score > oldTopScore) {
+    state.placements = layout.map(rehydratePlacement);
+    state.nextId = state.placements.length + 1;
+    saveState();
+    renderAll();
+  }
 }
 
 function renderBfResults() {
@@ -1193,7 +1245,11 @@ function renderBfResults() {
     return;
   }
   container.style.display = 'flex';
-  container.innerHTML = bfResults.map((r, i) => {
+  // Header with TOP follow-mode toggle
+  const topBtnClass = bfAutoFollowTop ? 'top-btn active' : 'top-btn';
+  const topBtnText = bfAutoFollowTop ? '★ TOP (auto-follow ON)' : '★ TOP (klikni pro auto-follow)';
+  let html = `<button class="${topBtnClass}" onclick="enableTopFollow()" title="Auto-přepínat na nejlepší výsledek">${topBtnText}</button>`;
+  html += bfResults.map((r, i) => {
     const ageSec = Math.floor((Date.now() - r.foundAt) / 1000);
     const ageStr = ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec/60)}m`;
     return `<div class="result-slot" onclick="applyBfResult(${i})" title="W${r.workerId} · ${ageStr} ago · score ${r.score}">
@@ -1202,16 +1258,33 @@ function renderBfResults() {
       <span class="result-age">${ageStr}</span>
     </div>`;
   }).join('');
+  container.innerHTML = html;
 }
 
 function applyBfResult(idx) {
   const r = bfResults[idx];
   if (!r || !r.layout) return;
+  // User chose a specific slot — disable auto-follow so we don't override their pick
+  bfAutoFollowTop = false;
   state.placements = r.layout.map(rehydratePlacement);
   state.nextId = state.placements.length + 1;
   saveState();
   renderAll();
-  showStatus(`Layout #${idx+1} aplikován (score ${r.score.toLocaleString()}).`, 'ok');
+  renderBfResults();
+  showStatus(`Layout #${idx+1} aplikován (score ${r.score.toLocaleString()}). Auto-follow vypnut — klikni TOP pro zapnutí.`, 'ok');
+}
+
+// Re-enable auto-follow mode and snap to current #1 result
+function enableTopFollow() {
+  if (bfResults.length === 0) return;
+  bfAutoFollowTop = true;
+  const top = bfResults[0];
+  state.placements = top.layout.map(rehydratePlacement);
+  state.nextId = state.placements.length + 1;
+  saveState();
+  renderAll();
+  renderBfResults();
+  showStatus(`Auto-follow zapnut. Aktuální #1: score ${top.score.toLocaleString()}.`, 'ok');
 }
 
 function scheduleAnnealOpt() {
@@ -1310,7 +1383,7 @@ function scheduleAnnealOpt() {
           break;
         }
         case 'leaf': {
-          // Worker reports a VALID layout improvement — add to top-4 history
+          // Worker reports a VALID layout improvement
           const layout = msg.layout || [];
           const score = msg.score;
           if (score > bestScore) {
@@ -1320,14 +1393,6 @@ function scheduleAnnealOpt() {
             console.log(`[Anneal] Nový top layout (worker ${i}) score=${score}, ${elapsedS}s`);
           }
           addBfResult(layout, score, i);
-          // Auto-apply the first valid result so user sees progress immediately
-          if (bfResults.length === 1) {
-            state.placements = layout.map(rehydratePlacement);
-            state.nextId = state.placements.length + 1;
-            saveState();
-            renderAll();
-            showStatus(`Nalezen první valid layout (worker ${i}, score ${score.toLocaleString()}). Hledám lepší…`, 'ok');
-          }
           break;
         }
         case 'stopped': {
