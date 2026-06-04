@@ -678,22 +678,7 @@ function findAnyPlacement(def, state) {
   return null;
 }
 
-// Returns only the geometrically distinct rotations for a component.
-// A square has 1, a rectangle has 2, an asymmetric shape has 4.
-// Cached by component ID to avoid repeated rotateComponent calls.
-const _uniqueRotsCache = new Map();
-function getUniqueDegs(def) {
-  if (_uniqueRotsCache.has(def.id)) return _uniqueRotsCache.get(def.id);
-  const seen = new Set();
-  const result = [];
-  for (const deg of [0, 90, 180, 270]) {
-    const { shape } = rotateComponent(def, deg);
-    const key = shape.map(([r,c]) => `${r},${c}`).sort().join('|');
-    if (!seen.has(key)) { seen.add(key); result.push(deg); }
-  }
-  _uniqueRotsCache.set(def.id, result);
-  return result;
-}
+// getUniqueDegs moved to src/optimizer/rotation.js
 
 // Counts exact number of valid root positions for the first component (depth-1 branches).
 // Uses unique rotations to match the actual generator behaviour.
