@@ -9,32 +9,30 @@
 // The cost function uses scoreLayout (negated) plus heavy penalties for
 // states that cannot be wired or violate hard constraints.
 
-// Compute SA cost for a placement list (non-wire components only).
-// Cost gradient (lower = better):
-//   - valid wired layout:       -scoreLayout(wired)                  ≈ -400k..-200k
-//   - wired but constraint-bad: baseCost + 30000                     ≈ -370k..-170k
-//   - unwireable (no path):     pseudo-base + unpowered * 5000       ≈ -100k..+200k
-//
-// The unwireable branch needs a gradient — count how many energy components
-// can't be powered by direct port/bus access, and penalise per-unpowered.
-// This way SA can move from "many isolated" → "fewer isolated" → "wired" →
-// "valid" without facing infinite cliffs.
+// Compute SA cost for a placement list (may include cluster placements).
+// Clusters are expanded to their individual components before validation —
+// the search treats clusters as atomic placements, but scoring sees them
+// as the individual Spinner/Repeater components they actually are.
 function saComputeCost(nonWirePlacements, grid) {
-  const wired = tryAddWires(nonWirePlacements, grid);
+  // Expand any cluster placements to individuals (Spinner/Rep_2s/Rep_4s).
+  // If no clusters present, expandClustersInPlacements returns input unchanged.
+  const expanded = (typeof expandClustersInPlacements === 'function')
+    ? expandClustersInPlacements(nonWirePlacements)
+    : nonWirePlacements;
+
+  const wired = tryAddWires(expanded, grid);
   if (wired) {
     const baseCost = -scoreLayout(wired, grid);
     if (isLayoutValid(wired, grid)) return baseCost;
     return baseCost + 30000;
   }
-  // Unwireable — gradient based on count of un-powerable components
-  const poweredSet = computePoweredSet(nonWirePlacements, grid.rows, grid.cols);
+  const poweredSet = computePoweredSet(expanded, grid.rows, grid.cols);
   let unpowered = 0;
-  for (let i = 0; i < nonWirePlacements.length; i++) {
-    const p = nonWirePlacements[i];
+  for (let i = 0; i < expanded.length; i++) {
+    const p = expanded[i];
     const def = componentLib.find(d => d.id === p.componentId);
     if (def && def.energyPorts.length > 0 && !poweredSet.has(i)) unpowered++;
   }
-  // pseudo-baseline + linear penalty per unpowered component
   return 50000 + unpowered * 3000;
 }
 
@@ -82,7 +80,11 @@ function simulatedAnneal(initialNonWire, grid, options = {}) {
           lastImprovement = iter;
         }
         // Check if this neighbour is a VALID layout that beats our best-valid
-        const nWired = tryAddWires(neighbour, grid);
+        // Expand clusters before validating/wiring (they're aggregate placements)
+        const nExpanded = (typeof expandClustersInPlacements === 'function')
+          ? expandClustersInPlacements(neighbour)
+          : neighbour;
+        const nWired = tryAddWires(nExpanded, grid);
         if (nWired && isLayoutValid(nWired, grid)) {
           const validScore = scoreLayout(nWired, grid);
           if (-validScore < bestValidCost) {
