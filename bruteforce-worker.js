@@ -4,10 +4,11 @@
 // computeFreeSpaceQuality, findWirePath, etc. componentLib is sent from main on init.
 
 importScripts(
-  'src/constants.js?v=56',
-  'src/optimizer/rotation.js?v=56',
-  'src/optimizer/placement.js?v=56',
-  'optimizer.js?v=56'
+  'src/constants.js?v=57',
+  'src/optimizer/rotation.js?v=57',
+  'src/optimizer/bus.js?v=57',
+  'src/optimizer/placement.js?v=57',
+  'optimizer.js?v=57'
 );
 
 let componentLib = [];
