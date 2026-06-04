@@ -291,8 +291,8 @@
       "description": "Metal harvester 2x3. W on (1,0)."
     },
     {
-      "id": "smelter",
-      "name": "Smelter",
+      "id": "furnace",
+      "name": "Furnace",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
@@ -304,7 +304,7 @@
       "color": "#FF7043",
       "bgColor": "#1a0500",
       "icon": "⊙",
-      "description": "Smelter 2x3. W on (1,0). E on (1,2)."
+      "description": "Furnace 2x3. W on (1,0). E on (1,2)."
     },
     {
       "id": "disposable_biocell",
