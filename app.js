@@ -98,9 +98,9 @@ async function init() {
 
   // Verify drag handlers attached
   const dragHandlerCount = document.querySelectorAll('#body-grid [data-comp]').length;
-  console.log(`[init] ${dragHandlerCount} komponent v gridu, drag handlery připojené.`);
+  console.log(`[init] ${dragHandlerCount} komponent v gridu, carry handlery připojené.`);
 
-  showStatus('Ready · Drag = posun, R nebo prostřední tlačítko = rotace', 'ok');
+  showStatus('Ready · Klik = vzít/položit · R = otoč · Esc = zruš', 'ok');
 
   // Auto-resume brute force if a saved snapshot matches the current layout
   try {
@@ -367,43 +367,21 @@ function selectPlacement(idx) {
 
 function onComponentClick(idx) { selectPlacement(idx); }
 
-// ─── Drag & drop + R-key rotation ───────────────────────────────────────────
+// ─── Carry mode (click to pick up, R rotates, click to drop, Esc cancels) ──
 
-let dragState = null; // { idx, startMouseX, startMouseY, lastRow, lastCol, dragging }
-const DRAG_THRESHOLD = 5; // px before mousedown becomes drag
-
-function onComponentMouseDown(idx, e) {
-  console.log(`[drag] mousedown na komponentě #${idx} (${state.placements[idx]?.componentId}), button=${e.button}`);
-  if (e.button === 1) {
-    e.preventDefault();
-    tryRotatePlacement(idx, 90);
-    return;
-  }
-  if (e.button !== 0) return;
-  e.preventDefault();
-  e.stopPropagation();
-
-  _dragMoveCount = 0;
-  dragState = {
-    idx,
-    startMouseX: e.clientX,
-    startMouseY: e.clientY,
-    origRow: state.placements[idx].row,
-    origCol: state.placements[idx].col,
-    lastRow: state.placements[idx].row,
-    lastCol: state.placements[idx].col,
-    dragging: false
-  };
-  document.addEventListener('mousemove', onDragMove);
-  document.addEventListener('mouseup', onDragEnd);
-  console.log(`[drag] listenery připojeny, čekám na mousemove…`);
-}
+let carryState = null;
+// {
+//   idx: position of the carried placement in state.placements,
+//   origRow, origCol, origRotation, origShape, origPorts, origBioPorts, origPeri,
+//   savedWires: [],
+//   pickedUpAt: timestamp (suppress the same-event click that triggered pickup)
+// }
+const SNAP_PX = 5; // ghost snaps when cursor lies within this many SVG units of a cell center
 
 function _mouseToGridCell(e) {
   const svg = document.getElementById('body-grid');
   if (!svg) return null;
   const rect = svg.getBoundingClientRect();
-  // SVG scales to its viewBox — must apply scale factor
   const svgWidth = svg.viewBox.baseVal.width || rect.width;
   const svgHeight = svg.viewBox.baseVal.height || rect.height;
   const scaleX = svgWidth / rect.width;
@@ -415,76 +393,257 @@ function _mouseToGridCell(e) {
   return { row, col };
 }
 
-let _dragMoveCount = 0;
-function onDragMove(e) {
-  if (!dragState) return;
-  _dragMoveCount++;
-  if (_dragMoveCount === 1) {
-    console.log(`[drag] mousemove ZAREGISTROVÁN (#${dragState.idx}), dx=${e.clientX - dragState.startMouseX}, dy=${e.clientY - dragState.startMouseY}`);
-  }
-  const dx = e.clientX - dragState.startMouseX;
-  const dy = e.clientY - dragState.startMouseY;
-  if (!dragState.dragging) {
-    if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
-    dragState.dragging = true;
-    console.log(`[drag] vstoupil do drag módu (#${dragState.idx})`);
-    document.body.style.cursor = 'grabbing';
+function _mouseToSvgCoords(clientX, clientY) {
+  const svg = document.getElementById('body-grid');
+  if (!svg) return null;
+  const rect = svg.getBoundingClientRect();
+  const svgWidth = svg.viewBox.baseVal.width || rect.width;
+  const svgHeight = svg.viewBox.baseVal.height || rect.height;
+  return {
+    x: (clientX - rect.left) * (svgWidth / rect.width),
+    y: (clientY - rect.top) * (svgHeight / rect.height)
+  };
+}
 
-    // CRITICAL: wires block movement — remove them now so the user can drag
-    // the component freely. tryAddWires will recompute on mouseup.
-    const targetId = state.placements[dragState.idx].id;
-    const beforeCount = state.placements.length;
-    state.placements = state.placements.filter(p => p.componentId !== 'wire');
-    const removedWires = beforeCount - state.placements.length;
-    dragState.idx = state.placements.findIndex(p => p.id === targetId);
-    if (removedWires > 0) {
-      console.log(`[drag] odstraněno ${removedWires} wires (přepočítáme po drop)`);
-      renderAll();
-    }
-  }
+function onComponentClick(idx, e) {
+  // While carrying, all clicks (including on other components) are drop attempts.
+  if (carryState) return; // bubbles to document → onCarryClick handles drop
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  pickUpComponent(idx, e);
+}
 
+function pickUpComponent(idx, e) {
+  const p = state.placements[idx];
+  if (!p || p.componentId === 'wire') return;
+
+  // Remove wires — they'd block validation at the new position and will be
+  // recomputed when the component is dropped.
+  const targetId = p.id;
+  const wires = state.placements.filter(pp => pp.componentId === 'wire');
+  state.placements = state.placements.filter(pp => pp.componentId !== 'wire');
+  const newIdx = state.placements.findIndex(pp => pp.id === targetId);
+
+  state.placements[newIdx]._carrying = true;
+
+  carryState = {
+    idx: newIdx,
+    origRow: p.row,
+    origCol: p.col,
+    origRotation: p.rotation,
+    origShape: p.rotatedShape,
+    origPorts: p.rotatedPorts,
+    origBioPorts: p.rotatedBioPorts || [],
+    origPeri: p.rotatedPeripheral,
+    savedWires: wires,
+    pickedUpAt: Date.now()
+  };
+
+  document.addEventListener('mousemove', onCarryMove);
+  document.addEventListener('click', onCarryClick, true); // capture phase
+  document.addEventListener('keydown', onCarryKey);
+  document.body.classList.add('carry-mode');
+
+  const def = componentLib.find(d => d.id === p.componentId);
+  showStatus(`Neseš: ${def?.name || p.componentId}. Pohni myší, R = otoč, klik = polož, Esc = zruš.`, 'ok');
+  console.log(`[carry] pick up #${newIdx} (${p.componentId}) z [${p.origRow},${p.origCol}]`);
+
+  renderAll();
+  onCarryMove(e); // position ghost immediately
+}
+
+function onCarryMove(e) {
+  if (!carryState) return;
   const cell = _mouseToGridCell(e);
-  if (!cell) { console.log('[drag] _mouseToGridCell vrátil null'); return; }
-  const startCell = _mouseToGridCell({ clientX: dragState.startMouseX, clientY: dragState.startMouseY });
-  if (!startCell) return;
-  const newRow = dragState.origRow + (cell.row - startCell.row);
-  const newCol = dragState.origCol + (cell.col - startCell.col);
-  if (newRow === dragState.lastRow && newCol === dragState.lastCol) return;
-  const success = tryMovePlacement(dragState.idx, newRow, newCol);
-  console.log(`[drag] pokus [${newRow},${newCol}] → ${success ? '✓' : '✗ (overlap/bounds)'}`);
-  if (success) {
-    dragState.lastRow = newRow;
-    dragState.lastCol = newCol;
+  if (!cell) return;
+  // Clamp to grid (cursor outside grid → leave ghost at last in-bound position)
+  if (cell.row < 0 || cell.row >= state.grid.rows || cell.col < 0 || cell.col >= state.grid.cols) {
+    _applyGhostOffset(e.clientX, e.clientY);
+    return;
+  }
+  const p = state.placements[carryState.idx];
+  if (p.row !== cell.row || p.col !== cell.col) {
+    p.row = cell.row;
+    p.col = cell.col;
+    renderAll();
+  }
+  _applyGhostOffset(e.clientX, e.clientY);
+}
+
+// Apply a sub-cell SVG transform so the ghost visually follows the cursor
+// pixel-by-pixel within the snap zone. Outside SNAP_PX of cell center,
+// no offset is applied (ghost stays cell-aligned, like a snapped tile).
+function _applyGhostOffset(clientX, clientY) {
+  const g = document.querySelector('g[data-carrying="true"]');
+  if (!g) return;
+  const svgCoords = _mouseToSvgCoords(clientX, clientY);
+  if (!svgCoords) return;
+  const p = state.placements[carryState.idx];
+  // Anchor: top-left of the component's bounding box (where shape begins)
+  let minR = Infinity, minC = Infinity;
+  for (const [r, c] of p.rotatedShape) {
+    if (r < minR) minR = r;
+    if (c < minC) minC = c;
+  }
+  const anchorX = RENDERER_BUS_W + (p.col + minC) * RENDERER_CELL + RENDERER_CELL / 2;
+  const anchorY = RENDERER_PERI_V + (p.row + minR) * RENDERER_CELL + RENDERER_CELL / 2;
+  const dx = svgCoords.x - anchorX;
+  const dy = svgCoords.y - anchorY;
+  if (Math.abs(dx) < SNAP_PX && Math.abs(dy) < SNAP_PX) {
+    g.removeAttribute('transform');
+  } else {
+    g.setAttribute('transform', `translate(${dx} ${dy})`);
   }
 }
 
-function onDragEnd(e) {
-  console.log(`[drag] mouseup → konec, mousemove eventů: ${_dragMoveCount}, drag mode: ${dragState?.dragging}`);
-  document.removeEventListener('mousemove', onDragMove);
-  document.removeEventListener('mouseup', onDragEnd);
-  document.body.style.cursor = '';
-  if (!dragState) return;
-
-  if (dragState.dragging) {
-    // Drag was active — wires were removed at drag start. Recompute them now
-    // for the new layout so the dropped component is wired properly.
-    const wired = tryAddWires(state.placements, state.grid);
-    if (wired) {
-      state.placements = wired;
-      const newWireCount = wired.filter(p => p.componentId === 'wire').length;
-      console.log(`[drag] po drop přepočítáno ${newWireCount} nových wires`);
-    } else {
-      console.log('[drag] po drop: tryAddWires selhalo — komponenta zůstává nepřipojená');
-      showStatus('Komponenta umístěna, ale nelze ji napájet — zkus jiné místo.', 'warn');
-    }
-    bfClearSave();
-    saveState();
-    renderAll();
-  } else {
-    // Wasn't a drag — treat as plain click → select
-    selectPlacement(dragState.idx);
+function onCarryKey(e) {
+  if (!carryState) return;
+  // Don't intercept keys when user is typing in an input/textarea
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    _cancelCarry();
+  } else if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    _rotateCarried();
   }
-  dragState = null;
+}
+
+function _rotateCarried() {
+  const p = state.placements[carryState.idx];
+  const def = componentLib.find(d => d.id === p.componentId);
+  if (!def) return;
+  const degs = getUniqueDegs(def);
+  if (degs.length < 2) {
+    showStatus(`${def.name}: rotace nemá smysl (porty symetrické).`, 'warn');
+    return;
+  }
+  const i = degs.indexOf(p.rotation);
+  const nextRot = degs[((i < 0 ? 0 : i) + 1) % degs.length];
+  const rotated = rotateComponent(def, nextRot);
+  p.rotation = nextRot;
+  p.rotatedShape = rotated.shape;
+  p.rotatedPorts = rotated.energyPorts;
+  p.rotatedBioPorts = rotated.bioPorts;
+  p.rotatedPeripheral = buildRotatedPeri(def, nextRot);
+  renderAll();
+  console.log(`[carry] R → rotation ${nextRot}°`);
+}
+
+function onCarryClick(e) {
+  if (!carryState) return;
+  // Suppress the same click that initiated pickup
+  if (Date.now() - carryState.pickedUpAt < 150) return;
+  e.preventDefault();
+  e.stopPropagation();
+  _tryDropCarry();
+}
+
+function _tryDropCarry() {
+  const p = state.placements[carryState.idx];
+
+  // Bounds check (shape)
+  for (const [r, c] of p.rotatedShape) {
+    const gr = p.row + r, gc = p.col + c;
+    if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
+      showStatus('Mimo grid — zkus jiné místo.', 'warn');
+      return;
+    }
+  }
+  // Bounds check (peripheral)
+  if (p.rotatedPeripheral) {
+    const peri = p.rotatedPeripheral;
+    const d = SIDE_DELTA[peri.port.side];
+    const sR = p.row + peri.port.cell[0] + d.dr;
+    const sC = p.col + peri.port.cell[1] + d.dc;
+    for (const [r, c] of peri.shape) {
+      const gr = sR + r, gc = sC + c;
+      if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) {
+        showStatus('Peripheral by byl mimo grid.', 'warn');
+        return;
+      }
+    }
+  }
+  // Overlap check (against non-wire, non-carried)
+  const occupied = new Set();
+  for (let i = 0; i < state.placements.length; i++) {
+    if (i === carryState.idx) continue;
+    const other = state.placements[i];
+    if (other.componentId === 'wire') continue;
+    for (const [r, c] of other.rotatedShape) occupied.add(`${other.row + r},${other.col + c}`);
+    if (other.rotatedPeripheral) {
+      const peri = other.rotatedPeripheral;
+      const d = SIDE_DELTA[peri.port.side];
+      const sR = other.row + peri.port.cell[0] + d.dr;
+      const sC = other.col + peri.port.cell[1] + d.dc;
+      peri.shape.forEach(([pr, pc]) => occupied.add(`${sR + pr},${sC + pc}`));
+    }
+  }
+  for (const [r, c] of p.rotatedShape) {
+    if (occupied.has(`${p.row + r},${p.col + c}`)) {
+      showStatus('Kolize — tady něco stojí.', 'warn');
+      return;
+    }
+  }
+  if (p.rotatedPeripheral) {
+    const peri = p.rotatedPeripheral;
+    const d = SIDE_DELTA[peri.port.side];
+    const sR = p.row + peri.port.cell[0] + d.dr;
+    const sC = p.col + peri.port.cell[1] + d.dc;
+    for (const [r, c] of peri.shape) {
+      if (occupied.has(`${sR + r},${sC + c}`)) {
+        showStatus('Peripheral koliduje.', 'warn');
+        return;
+      }
+    }
+  }
+
+  // Commit drop
+  delete p._carrying;
+  console.log(`[carry] drop #${carryState.idx} (${p.componentId}) na [${p.row},${p.col}] r${p.rotation}°`);
+
+  // Recompute wires for the new layout
+  const wired = tryAddWires(state.placements, state.grid);
+  if (wired) {
+    state.placements = wired;
+    const newWireCount = wired.filter(pp => pp.componentId === 'wire').length;
+    console.log(`[carry] po dropu ${newWireCount} wires přepočítáno`);
+  } else {
+    showStatus('Položeno, ale nelze napájet — možná chybí cesta ke sběrnici.', 'warn');
+  }
+
+  _endCarry();
+  bfClearSave();
+  bfResultsClear();
+  saveState();
+  renderAll();
+}
+
+function _cancelCarry() {
+  const p = state.placements[carryState.idx];
+  // Restore original placement
+  p.row = carryState.origRow;
+  p.col = carryState.origCol;
+  p.rotation = carryState.origRotation;
+  p.rotatedShape = carryState.origShape;
+  p.rotatedPorts = carryState.origPorts;
+  p.rotatedBioPorts = carryState.origBioPorts;
+  p.rotatedPeripheral = carryState.origPeri;
+  delete p._carrying;
+  // Restore wires
+  state.placements = [...state.placements, ...carryState.savedWires];
+  _endCarry();
+  renderAll();
+  showStatus('Zrušeno — komponenta vrácena na původní místo.', 'ok');
+}
+
+function _endCarry() {
+  document.removeEventListener('mousemove', onCarryMove);
+  document.removeEventListener('click', onCarryClick, true);
+  document.removeEventListener('keydown', onCarryKey);
+  document.body.classList.remove('carry-mode');
+  carryState = null;
 }
 
 // Compute occupied-cells set excluding placement at excludeIdx.
@@ -505,44 +664,6 @@ function _occupiedExcept(excludeIdx) {
     }
   }
   return occupied;
-}
-
-function tryMovePlacement(idx, newRow, newCol) {
-  const p = state.placements[idx];
-  if (p.componentId === 'wire') return false; // wires are auto-managed
-  if (p.row === newRow && p.col === newCol) return false;
-
-  const shape = p.rotatedShape;
-  // Bounds check
-  for (const [r, c] of shape) {
-    const gr = newRow + r, gc = newCol + c;
-    if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) return false;
-  }
-  // Overlap check
-  const occupied = _occupiedExcept(idx);
-  for (const [r, c] of shape) {
-    if (occupied.has(`${newRow + r},${newCol + c}`)) return false;
-  }
-  // Peripheral bounds (if any) — must fit in grid
-  if (p.rotatedPeripheral) {
-    const peri = p.rotatedPeripheral;
-    const d = SIDE_DELTA[peri.port.side];
-    const sR = newRow + peri.port.cell[0] + d.dr;
-    const sC = newCol + peri.port.cell[1] + d.dc;
-    for (const [r, c] of peri.shape) {
-      const gr = sR + r, gc = sC + c;
-      if (gr < 0 || gr >= state.grid.rows || gc < 0 || gc >= state.grid.cols) return false;
-      if (occupied.has(`${gr},${gc}`)) return false;
-    }
-  }
-
-  // Commit
-  state.placements[idx].row = newRow;
-  state.placements[idx].col = newCol;
-  bfClearSave(); // layout changed → any running BF/SA invalid
-  saveState();
-  renderAll();
-  return true;
 }
 
 function tryRotatePlacement(idx, deltaRotation) {
