@@ -361,16 +361,16 @@ const DRAG_THRESHOLD = 5; // px before mousedown becomes drag
 
 function onComponentMouseDown(idx, e) {
   console.log(`[drag] mousedown na komponentě #${idx} (${state.placements[idx]?.componentId}), button=${e.button}`);
-  // Middle click → rotate the component in place (no drag)
   if (e.button === 1) {
     e.preventDefault();
     tryRotatePlacement(idx, 90);
     return;
   }
-  if (e.button !== 0) return; // only left button initiates drag
+  if (e.button !== 0) return;
   e.preventDefault();
   e.stopPropagation();
 
+  _dragMoveCount = 0;
   dragState = {
     idx,
     startMouseX: e.clientX,
@@ -383,6 +383,7 @@ function onComponentMouseDown(idx, e) {
   };
   document.addEventListener('mousemove', onDragMove);
   document.addEventListener('mouseup', onDragEnd);
+  console.log(`[drag] listenery připojeny, čekám na mousemove…`);
 }
 
 function _mouseToGridCell(e) {
@@ -401,40 +402,45 @@ function _mouseToGridCell(e) {
   return { row, col };
 }
 
+let _dragMoveCount = 0;
 function onDragMove(e) {
   if (!dragState) return;
+  _dragMoveCount++;
+  // Log first mousemove after each mousedown to confirm event flow
+  if (_dragMoveCount === 1) {
+    console.log(`[drag] mousemove ZAREGISTROVÁN (#${dragState.idx}), dx=${e.clientX - dragState.startMouseX}, dy=${e.clientY - dragState.startMouseY}`);
+  }
   const dx = e.clientX - dragState.startMouseX;
   const dy = e.clientY - dragState.startMouseY;
   if (!dragState.dragging) {
     if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
     dragState.dragging = true;
-    // Show grab cursor everywhere during drag
+    console.log(`[drag] vstoupil do drag módu (#${dragState.idx})`);
     document.body.style.cursor = 'grabbing';
   }
 
   const cell = _mouseToGridCell(e);
-  if (!cell) return;
-  // Snap component's top-left toward cursor relative to where the click began
-  const p = state.placements[dragState.idx];
-  // Cursor cell offset from original component top-left
-  const offsetRow = cell.row - dragState.origRow;
-  const offsetCol = cell.col - dragState.origCol;
-  const newRow = dragState.origRow + offsetRow;
-  const newCol = dragState.origCol + offsetCol;
+  if (!cell) { console.log('[drag] _mouseToGridCell vrátil null'); return; }
+  const startCell = _mouseToGridCell({ clientX: dragState.startMouseX, clientY: dragState.startMouseY });
+  if (!startCell) return;
+  const newRow = dragState.origRow + (cell.row - startCell.row);
+  const newCol = dragState.origCol + (cell.col - startCell.col);
   if (newRow === dragState.lastRow && newCol === dragState.lastCol) return;
-  if (tryMovePlacement(dragState.idx, newRow, newCol)) {
+  const success = tryMovePlacement(dragState.idx, newRow, newCol);
+  console.log(`[drag] pokus [${newRow},${newCol}] → ${success ? '✓' : '✗ (overlap/bounds)'}`);
+  if (success) {
     dragState.lastRow = newRow;
     dragState.lastCol = newCol;
   }
 }
 
 function onDragEnd(e) {
+  console.log(`[drag] mouseup → konec, mousemove eventů: ${_dragMoveCount}, drag mode: ${dragState?.dragging}`);
   document.removeEventListener('mousemove', onDragMove);
   document.removeEventListener('mouseup', onDragEnd);
   document.body.style.cursor = '';
   if (!dragState) return;
   if (!dragState.dragging) {
-    // Treat as plain click → select
     selectPlacement(dragState.idx);
   }
   dragState = null;
