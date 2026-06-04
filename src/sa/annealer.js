@@ -10,23 +10,21 @@
 // states that cannot be wired or violate hard constraints.
 
 // Compute SA cost for a placement list (non-wire components only).
-// Returns Infinity if the state is unsalvageable.
+// Penalty weights are calibrated so SA can probabilistically tunnel through
+// invalid regions at high T (e.g. e^(-100000/20000) = e^-5 ≈ 0.007).
 function saComputeCost(nonWirePlacements, grid) {
-  // Try to add wires to make every energy component reachable
   const wired = tryAddWires(nonWirePlacements, grid);
   if (!wired) {
-    // Layout cannot be wired — high penalty, but encode some gradient so SA
-    // can still feel its way toward improvement (more components = worse).
-    return 1e9 + nonWirePlacements.length;
+    // Cannot be wired — very high penalty, mostly unreachable for SA.
+    return 800000 + nonWirePlacements.length * 1000;
   }
+  // Soft cost from scoreLayout (negated so lower = better)
+  const baseCost = -scoreLayout(wired, grid);
   if (!isLayoutValid(wired, grid)) {
-    // Layout wires up but fails hard constraints (Spinner without Repeater etc.)
-    const wires = wired.filter(p => p.componentId === 'wire').length;
-    return 1e7 + wires * 100;
+    // Wired but fails Spinner-Repeater / Repeater-target constraints.
+    return baseCost + 100000;
   }
-  // Soft cost = negated scoreLayout (scoreLayout: higher = better)
-  // scoreLayout = quality * 4 - wires * 5000 + workingSet.size * 50000
-  return -scoreLayout(wired, grid);
+  return baseCost;
 }
 
 // Main SA loop. Returns { placements (non-wire), cost, wiredLayout, iters }.
@@ -52,7 +50,13 @@ function simulatedAnneal(initialNonWire, grid, options = {}) {
   for (let iter = 0; iter < maxIter; iter++) {
     if (shouldStop && shouldStop()) break;
 
-    const neighbour = saGenerateMove(current, grid);
+    // Retry move generation until we get a non-null neighbour — dense layouts
+    // produce lots of null moves (overlap/out-of-bounds), so we'd otherwise
+    // spin the iteration counter without doing real work.
+    let neighbour = null;
+    for (let attempt = 0; attempt < 30 && !neighbour; attempt++) {
+      neighbour = saGenerateMove(current, grid);
+    }
     if (neighbour) {
       const nCost = saComputeCost(neighbour, grid);
       const delta = nCost - currentCost;
