@@ -267,45 +267,30 @@ async function addComponent(componentId) {
 
   let result = findBestPlacement(def, state);
   if (!result) {
-    // No room with current layout – try async rearrangement (yields between components)
-    const allIds = ensureComponentOrder([
-      ...state.placements.filter(p => p.componentId !== 'wire').map(p => p.componentId),
-      componentId
-    ]);
-    showStatus(`Rearranging ${allIds.length} components…`, 'ok');
-    const rearranged = await runOptimizationAsync(allIds, state.grid);
-    const expectedCount = allIds.filter(id => id === componentId).length;
-    const actualCount   = rearranged.filter(p => p.componentId === componentId).length;
-    if (actualCount < expectedCount) {
-      // Last resort: place anywhere that fits geometrically, ignoring power connections
-      const anyResult = findAnyPlacement(def, state);
-      if (!anyResult) {
-        showStatus(`${def.icon} ${def.name}: no room even after rearrangement. Expand body.`, 'error');
-        return;
-      }
-      const rotPeri = buildRotatedPeri(def, anyResult.rotation);
-      state.placements.push({
-        id: state.nextId++,
-        componentId,
-        row: anyResult.row, col: anyResult.col,
-        rotation: anyResult.rotation,
-        rotatedShape: anyResult.rotatedShape,
-        rotatedPorts: anyResult.rotatedPorts,
-        rotatedBioPorts: anyResult.rotatedBioPorts || [],
-        rotatedPeripheral: rotPeri
-      });
-      state.nextId = state.placements.length + 1;
-      saveState();
-      renderAll();
-      showStatus(`${def.icon} ${def.name} added (not connected – use Re-Optimize or Brute).`, 'warn');
+    // No room with optimal (wire-aware) placement — try ANY geometric fit
+    // without disturbing existing components. Auto-rearrangement of the whole
+    // layout is intentionally NOT triggered: it destroyed user-crafted layouts.
+    const anyResult = findAnyPlacement(def, state);
+    if (!anyResult) {
+      showStatus(`${def.icon} ${def.name}: no room. Expand body or move existing components.`, 'error');
       return;
     }
-    state.placements = rearranged;
-    state.nextId = rearranged.length + 1;
-    selectedPlacementIdx = null;
+    const rotPeri = buildRotatedPeri(def, anyResult.rotation);
+    state.placements.push({
+      id: state.nextId++,
+      componentId,
+      row: anyResult.row, col: anyResult.col,
+      rotation: anyResult.rotation,
+      rotatedShape: anyResult.rotatedShape,
+      rotatedPorts: anyResult.rotatedPorts,
+      rotatedBioPorts: anyResult.rotatedBioPorts || [],
+      rotatedPeripheral: rotPeri
+    });
+    bfClearSave();
+    bfResultsClear();
     saveState();
     renderAll();
-    showStatus(`${def.icon} ${def.name} added – components rearranged.`, 'ok');
+    showStatus(`${def.icon} ${def.name} placed unpowered — connect it via carry/drag or run Re-Optimize.`, 'warn');
     return;
   }
 
@@ -1389,7 +1374,7 @@ function scheduleBruteForceOpt() {
   // Spawn N workers
   currentBfWorkers = [];
   for (let i = 0; i < N; i++) {
-    const w = new Worker('bruteforce-worker.js?v=91');
+    const w = new Worker('bruteforce-worker.js?v=92');
     currentBfWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1807,7 +1792,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=91');
+    const w = new Worker('sa-worker.js?v=92');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
