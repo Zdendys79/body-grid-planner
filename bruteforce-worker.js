@@ -4,14 +4,14 @@
 // componentLib is sent from main on init.
 
 importScripts(
-  'src/constants.js?v=91',
-  'src/optimizer/rotation.js?v=91',
-  'src/optimizer/bus.js?v=91',
-  'src/optimizer/placement.js?v=91',
-  'src/optimizer/score.js?v=91',
-  'src/optimizer/validate.js?v=91',
-  'src/bruteforce/generator.js?v=91',
-  'optimizer.js?v=91'
+  'src/constants.js?v=92',
+  'src/optimizer/rotation.js?v=92',
+  'src/optimizer/bus.js?v=92',
+  'src/optimizer/placement.js?v=92',
+  'src/optimizer/score.js?v=92',
+  'src/optimizer/validate.js?v=92',
+  'src/bruteforce/generator.js?v=92',
+  'optimizer.js?v=92'
 );
 
 let componentLib = [];
