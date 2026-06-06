@@ -78,19 +78,19 @@ async function init() {
   }
 
   // Load persisted SA results (top-20)
-  bfResults = bfResultsLoad();
-  if (bfResults.length > 0) {
+  optResults = optResultsLoad();
+  if (optResults.length > 0) {
     // Validate against current component set — old results from different
     // component layouts would lose components when applied.
     const currentKey = _componentSetKey(state.placements);
-    const before = bfResults.length;
-    bfResults = bfResults.filter(r => _componentSetKey(r.layout) === currentKey);
-    if (bfResults.length !== before) {
-      console.log(`[init] ${before - bfResults.length} SA results discarded (different component set), kept ${bfResults.length}.`);
-      bfResultsSave();
+    const before = optResults.length;
+    optResults = optResults.filter(r => _componentSetKey(r.layout) === currentKey);
+    if (optResults.length !== before) {
+      console.log(`[init] ${before - optResults.length} SA results discarded (different component set), kept ${optResults.length}.`);
+      optResultsSave();
     }
-    if (bfResults.length > 0) {
-      console.log(`[init] ${bfResults.length} SA results loaded from memory.`);
+    if (optResults.length > 0) {
+      console.log(`[init] ${optResults.length} SA results loaded from memory.`);
     }
   }
 
@@ -109,7 +109,7 @@ async function init() {
   document.addEventListener('keydown', onGlobalKeydown);
 
   renderAll();
-  renderBfResults();
+  renderOptResults();
 
   // Verify drag handlers attached
   const dragHandlerCount = document.querySelectorAll('#body-grid [data-comp]').length;
@@ -280,7 +280,7 @@ async function addComponent(componentId) {
       rotatedPeripheral: rotPeri
     });
     stopOptimization();
-    bfResultsClear();
+    optResultsClear();
     saveState();
     renderAll();
     showStatus(`${def.icon} ${def.name} placed unpowered — connect it via carry/drag or run Re-Optimize.`, 'warn');
@@ -320,7 +320,7 @@ async function addComponent(componentId) {
   debugLayoutStatus(state.placements, state.grid, `after adding ${def.name}`);
 
   stopOptimization(); // component set changed → discard resume snapshot
-  bfResultsClear(); // component set changed → discard SA result history
+  optResultsClear(); // component set changed → discard SA result history
   saveState();
   renderAll();
   showStatus(`${def.icon} ${def.name} → [${result.row},${result.col}] r${result.rotation}°${wireMsg}`, 'ok');
@@ -332,7 +332,7 @@ function removePlacement(event, idx) {
   if (selectedPlacementIdx === idx) selectedPlacementIdx = null;
   else if (selectedPlacementIdx > idx) selectedPlacementIdx--;
   stopOptimization(); // component set changed → discard resume snapshot
-  bfResultsClear(); // component set changed → discard SA result history
+  optResultsClear(); // component set changed → discard SA result history
   saveState();
   renderAll();
   showStatus('Component removed.', 'ok');
@@ -593,7 +593,7 @@ function _tryDropCarry() {
 
   _endCarry();
   stopOptimization();
-  bfResultsClear();
+  optResultsClear();
   saveState();
   renderAll();
 }
@@ -754,7 +754,7 @@ function expandBody() {
   if (grid.rows < grid.maxRows) grid.rows = Math.min(grid.rows + 2, grid.maxRows);
   if (grid.cols < grid.maxCols) grid.cols = Math.min(grid.cols + 2, grid.maxCols);
   stopOptimization(); // grid dims changed → discard resume snapshot
-  bfResultsClear(); // grid dims changed → saved layouts may not fit anymore
+  optResultsClear(); // grid dims changed → saved layouts may not fit anymore
   saveState();
   renderAll();
   showStatus(`Body expanded to ${grid.rows}×${grid.cols}.`, 'ok');
@@ -770,7 +770,7 @@ function resetLayout() {
   hideBetterLayoutOffer();
   bgOptId++;
   stopOptimization(); // layout cleared → discard resume snapshot
-  bfResultsClear(); // layout cleared → no saved layouts are relevant
+  optResultsClear(); // layout cleared → no saved layouts are relevant
   saveState();
   renderAll();
   showStatus('Layout reset to default size (3×4).', 'ok');
@@ -978,10 +978,10 @@ function debugLayoutStatus(placements, grid, label) {
 let currentSaWorkers = [];
 
 // Top-K best VALID layouts found by SA — newest improvements go on top.
-// Persisted to localStorage (key BF_RESULTS_KEY) so they survive reloads.
-const BF_RESULTS_MAX = 20;
-const BF_RESULTS_KEY = 'bf_results_v1';
-let bfResults = []; // [{ layout, score, foundAt, workerId }] sorted by score desc
+// Persisted to localStorage (key OPT_RESULTS_KEY) so they survive reloads.
+const OPT_RESULTS_MAX = 20;
+const OPT_RESULTS_KEY = 'opt_results_v1';
+let optResults = []; // [{ layout, score, foundAt, workerId }] sorted by score desc
 
 // Canonical key for a component set (non-wires only, sorted). Two layouts
 // with the same key are interchangeable in SA terms; mismatched keys mean
@@ -998,41 +998,41 @@ function _componentSetKey(placements) {
 // whenever a better one arrives. Browsing a different slot turns this off
 // (so the user's chosen layout isn't replaced behind their back). Clicking
 // the "TOP" button re-enables it and snaps back to #1.
-let bfAutoFollowTop = true;
+let autoFollowTop = true;
 
-function bfResultsLoad() {
+function optResultsLoad() {
   try {
-    const raw = localStorage.getItem(BF_RESULTS_KEY);
+    const raw = localStorage.getItem(OPT_RESULTS_KEY);
     if (!raw) return [];
     const data = JSON.parse(raw);
     return Array.isArray(data) ? data : [];
   } catch (e) { return []; }
 }
 
-function bfResultsSave() {
+function optResultsSave() {
   try {
-    localStorage.setItem(BF_RESULTS_KEY, JSON.stringify(bfResults));
+    localStorage.setItem(OPT_RESULTS_KEY, JSON.stringify(optResults));
   } catch (e) {
     // Quota exceeded — drop oldest until it fits
-    console.warn('[bfResults] LocalStorage full — trimming oldest:', e.message);
-    while (bfResults.length > 5) {
-      bfResults.pop();
-      try { localStorage.setItem(BF_RESULTS_KEY, JSON.stringify(bfResults)); return; } catch (e2) {}
+    console.warn('[optResults] LocalStorage full — trimming oldest:', e.message);
+    while (optResults.length > 5) {
+      optResults.pop();
+      try { localStorage.setItem(OPT_RESULTS_KEY, JSON.stringify(optResults)); return; } catch (e2) {}
     }
   }
 }
 
-function bfResultsClear() {
-  bfResults = [];
-  try { localStorage.removeItem(BF_RESULTS_KEY); } catch (e) {}
-  renderBfResults();
+function optResultsClear() {
+  optResults = [];
+  try { localStorage.removeItem(OPT_RESULTS_KEY); } catch (e) {}
+  renderOptResults();
 }
 
 function startAnneal() {
-  // Note: don't clear bfResults — they persist across runs (up to 20) so the
+  // Note: don't clear optResults — they persist across runs (up to 20) so the
   // user can compare new SA output against earlier sessions.
-  bfAutoFollowTop = true;
-  renderBfResults();
+  autoFollowTop = true;
+  renderOptResults();
   scheduleAnnealOpt();
   showStatus('SA started — shell pack + greedy fill, then 6 workers with different strategies.', 'ok');
 }
@@ -1046,14 +1046,14 @@ function stopAllWorkers() {
     stopped++;
   }
   currentSaWorkers = [];
-  const bfEl = document.getElementById('bf-progress');
-  if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
+  const optEl = document.getElementById('opt-progress');
+  if (optEl) { optEl.style.display = 'none'; optEl.textContent = ''; }
   showStatus(stopped > 0 ? `Stopped ${stopped} workers.` : 'No worker was running.', 'ok');
 }
 
-function addBfResult(layout, score, workerId) {
+function addOptResult(layout, score, workerId) {
   // Reject duplicates by score (within 1 point) — SA can re-find same plateau
-  if (bfResults.some(r => Math.abs(r.score - score) < 1)) return;
+  if (optResults.some(r => Math.abs(r.score - score) < 1)) return;
 
   // Defensive: reject any leaf whose component set differs from current state.
   // Catches bugs like greedy.js silently dropping components that can't be
@@ -1068,35 +1068,35 @@ function addBfResult(layout, score, workerId) {
   }
 
   const entry = { layout, score, foundAt: Date.now(), workerId };
-  const oldTopScore = bfResults.length > 0 ? bfResults[0].score : -Infinity;
+  const oldTopScore = optResults.length > 0 ? optResults[0].score : -Infinity;
 
-  bfResults.unshift(entry);
-  bfResults.sort((a, b) => (b.score - a.score) || (b.foundAt - a.foundAt));
+  optResults.unshift(entry);
+  optResults.sort((a, b) => (b.score - a.score) || (b.foundAt - a.foundAt));
 
   // Trim to MAX but always preserve the oldest entry (anchor)
-  if (bfResults.length > BF_RESULTS_MAX) {
+  if (optResults.length > OPT_RESULTS_MAX) {
     let oldestIdx = 0;
-    for (let i = 1; i < bfResults.length; i++) {
-      if (bfResults[i].foundAt < bfResults[oldestIdx].foundAt) oldestIdx = i;
+    for (let i = 1; i < optResults.length; i++) {
+      if (optResults[i].foundAt < optResults[oldestIdx].foundAt) oldestIdx = i;
     }
-    const oldest = bfResults[oldestIdx];
-    const top = bfResults.slice(0, BF_RESULTS_MAX - 1);
+    const oldest = optResults[oldestIdx];
+    const top = optResults.slice(0, OPT_RESULTS_MAX - 1);
     if (top.includes(oldest)) {
-      bfResults = bfResults.slice(0, BF_RESULTS_MAX);
+      optResults = optResults.slice(0, OPT_RESULTS_MAX);
     } else {
-      bfResults = [...top, oldest];
+      optResults = [...top, oldest];
     }
   }
-  bfResultsSave();
-  renderBfResults();
+  optResultsSave();
+  renderOptResults();
 
   // Auto-follow: only fire if BOTH conditions hold:
-  //   (a) new entry is at #1 AND beats previous bfResults top
+  //   (a) new entry is at #1 AND beats previous optResults top
   //   (b) new score beats the user's currently displayed layout
   // (b) is critical — protects against downgrading the user's valid state
-  // with an inferior SA result (e.g. when bfResults was empty so oldTopScore
+  // with an inferior SA result (e.g. when optResults was empty so oldTopScore
   // = -Infinity and any new entry trivially "wins").
-  if (bfAutoFollowTop && bfResults[0] === entry && score > oldTopScore) {
+  if (autoFollowTop && optResults[0] === entry && score > oldTopScore) {
     const currentScore = scoreLayout(state.placements, state.grid);
     if (score > currentScore) {
       state.placements = layout.map(rehydratePlacement);
@@ -1107,22 +1107,22 @@ function addBfResult(layout, score, workerId) {
   }
 }
 
-function renderBfResults() {
-  const container = document.getElementById('bf-results');
+function renderOptResults() {
+  const container = document.getElementById('opt-results');
   if (!container) return;
-  if (bfResults.length === 0) {
+  if (optResults.length === 0) {
     container.style.display = 'none';
     return;
   }
   container.style.display = 'flex';
   // Header with TOP follow-mode toggle
-  const topBtnClass = bfAutoFollowTop ? 'top-btn active' : 'top-btn';
-  const topBtnText = bfAutoFollowTop ? '★ TOP (auto-follow ON)' : '★ TOP (click to enable auto-follow)';
+  const topBtnClass = autoFollowTop ? 'top-btn active' : 'top-btn';
+  const topBtnText = autoFollowTop ? '★ TOP (auto-follow ON)' : '★ TOP (click to enable auto-follow)';
   let html = `<button class="${topBtnClass}" onclick="enableTopFollow()" title="Auto-switch to the best result">${topBtnText}</button>`;
-  html += bfResults.map((r, i) => {
+  html += optResults.map((r, i) => {
     const ageSec = Math.floor((Date.now() - r.foundAt) / 1000);
     const ageStr = ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec/60)}m`;
-    return `<div class="result-slot" onclick="applyBfResult(${i})" title="W${r.workerId} · ${ageStr} ago · score ${r.score}">
+    return `<div class="result-slot" onclick="applyOptResult(${i})" title="W${r.workerId} · ${ageStr} ago · score ${r.score}">
       <span class="result-rank">#${i+1}</span>
       <span class="result-score">${r.score.toLocaleString()}</span>
       <span class="result-age">${ageStr}</span>
@@ -1131,29 +1131,29 @@ function renderBfResults() {
   container.innerHTML = html;
 }
 
-function applyBfResult(idx) {
-  const r = bfResults[idx];
+function applyOptResult(idx) {
+  const r = optResults[idx];
   if (!r || !r.layout) return;
   // User chose a specific slot — disable auto-follow so we don't override their pick
-  bfAutoFollowTop = false;
+  autoFollowTop = false;
   state.placements = r.layout.map(rehydratePlacement);
   state.nextId = state.placements.length + 1;
   saveState();
   renderAll();
-  renderBfResults();
+  renderOptResults();
   showStatus(`Layout #${idx+1} applied (score ${r.score.toLocaleString()}). Auto-follow off — click TOP to re-enable.`, 'ok');
 }
 
 // Re-enable auto-follow mode and snap to current #1 result
 function enableTopFollow() {
-  if (bfResults.length === 0) return;
-  bfAutoFollowTop = true;
-  const top = bfResults[0];
+  if (optResults.length === 0) return;
+  autoFollowTop = true;
+  const top = optResults[0];
   state.placements = top.layout.map(rehydratePlacement);
   state.nextId = state.placements.length + 1;
   saveState();
   renderAll();
-  renderBfResults();
+  renderOptResults();
   showStatus(`Auto-follow on. Current #1: score ${top.score.toLocaleString()}.`, 'ok');
 }
 
@@ -1190,8 +1190,8 @@ function scheduleAnnealOpt() {
   let bestSourceWorker = -1;
   console.log(`[Anneal] Seed score = ${bestScore} (goal: improve)`);
 
-  const bfEl = document.getElementById('bf-progress');
-  if (bfEl) { bfEl.style.display = 'inline'; bfEl.textContent = '⚡³ …'; }
+  const optEl = document.getElementById('opt-progress');
+  if (optEl) { optEl.style.display = 'inline'; optEl.textContent = '⚡³ …'; }
 
   // Worker state
   const workerStats = Array.from({ length: N }, () => ({
@@ -1201,19 +1201,19 @@ function scheduleAnnealOpt() {
   let finishedWorkers = 0;
 
   function renderProgress() {
-    if (!bfEl) return;
+    if (!optEl) return;
     const elapsedSec = (Date.now() - startTime) / 1000;
     const totalIter = workerStats.reduce((s, w) => s + (w.iter || 0), 0);
     const avgBest = workerStats.reduce((m, w) => Math.min(m, w.bestCost || Infinity), Infinity);
     const fmt = (v) => v === Infinity ? '?' : Math.round(v);
     const elStr = elapsedSec < 60 ? `${elapsedSec.toFixed(0)}s` : `${(elapsedSec/60).toFixed(1)}m`;
-    bfEl.textContent = `⚡³ ${N}× SA · iter ${fmtBfNum(totalIter)} · best cost ${fmt(avgBest)} · ${elStr} elapsed`;
+    optEl.textContent = `⚡³ ${N}× SA · iter ${fmtBfNum(totalIter)} · best cost ${fmt(avgBest)} · ${elStr} elapsed`;
   }
 
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=94');
+    const w = new Worker('sa-worker.js?v=95');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1262,7 +1262,7 @@ function scheduleAnnealOpt() {
             const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
             console.log(`[Anneal] New top layout (worker ${i}) score=${score}, ${elapsedS}s`);
           }
-          addBfResult(layout, score, i);
+          addOptResult(layout, score, i);
           break;
         }
         case 'stopped': {
@@ -1271,12 +1271,12 @@ function scheduleAnnealOpt() {
           console.log(`[Anneal] Worker ${i} stopped (${finishedWorkers}/${N}).`);
           if (finishedWorkers >= N) {
             const elapsedS = ((Date.now() - startTime) / 1000).toFixed(1);
-            const completeMsg = bfResults.length > 0
-              ? `SA finished (${N}× workers, ${elapsedS}s). ${bfResults.length} valid results found, best score ${bestScore.toLocaleString()}.`
+            const completeMsg = optResults.length > 0
+              ? `SA finished (${N}× workers, ${elapsedS}s). ${optResults.length} valid results found, best score ${bestScore.toLocaleString()}.`
               : `SA finished (${N}× workers, ${elapsedS}s). No valid layout found — try expanding grid or adjusting components.`;
             console.log(`[Anneal] ${completeMsg}`);
-            if (bfEl) { bfEl.style.display = 'none'; bfEl.textContent = ''; }
-            showStatus(completeMsg, bfResults.length > 0 ? 'ok' : 'warn');
+            if (optEl) { optEl.style.display = 'none'; optEl.textContent = ''; }
+            showStatus(completeMsg, optResults.length > 0 ? 'ok' : 'warn');
             currentSaWorkers = [];
           }
           break;

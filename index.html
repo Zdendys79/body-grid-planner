@@ -28,7 +28,7 @@
       <button id="btn-stop"    onclick="stopAllWorkers()">■ STOP</button>
     </div>
 
-    <div id="bf-results" style="display:none"></div>
+    <div id="opt-results" style="display:none"></div>
 
     <div id="component-library">
       <h2>COMPONENTS</h2>
@@ -61,7 +61,7 @@
 
     <div id="status-bar">
       <span id="status-msg" class="status-ok">Ready</span>
-      <span id="bf-progress" style="display:none;font-size:11px;color:#80CBC4;margin-left:8px"></span>
+      <span id="opt-progress" style="display:none;font-size:11px;color:#80CBC4;margin-left:8px"></span>
       <span id="power-status"></span>
     </div>
   </main>
@@ -87,7 +87,7 @@
     <h3>Settings</h3>
 
     <div class="settings-section">
-      <label for="setting-threads">Thread count for brute force</label>
+      <label for="setting-threads">SA worker thread count</label>
       <div class="threads-control">
         <input type="range" id="setting-threads" min="1" max="6" step="1" value="4" oninput="onThreadsChange()">
         <span id="setting-threads-value">4</span>
@@ -101,7 +101,7 @@
         <button onclick="exportLayout()">⇪ Export</button>
         <button onclick="openImportLayout()">⇩ Import</button>
       </div>
-      <div class="setting-hint">Export includes the current layout (and a running brute force, if started ≥ 60 s ago). Import overwrites the layout.</div>
+      <div class="setting-hint">Export encodes the current layout as a base64 string. Import overwrites the layout.</div>
     </div>
 
     <div class="settings-section">
@@ -118,22 +118,22 @@
   </div>
 </div>
 
-<script src="src/constants.js?v=94"></script>
-<script src="src/optimizer/rotation.js?v=94"></script>
-<script src="src/optimizer/bus.js?v=94"></script>
-<script src="src/optimizer/placement.js?v=94"></script>
-<script src="src/optimizer/score.js?v=94"></script>
-<script src="src/optimizer/validate.js?v=94"></script>
-<script src="src/sa/shell.js?v=94"></script>
-<script src="src/sa/moves.js?v=94"></script>
-<script src="src/sa/clusters.js?v=94"></script>
-<script src="src/sa/greedy.js?v=94"></script>
-<script src="src/sa/annealer.js?v=94"></script>
-<script src="src/ui/settings.js?v=94"></script>
-<script src="src/ui/export.js?v=94"></script>
-<script src="optimizer.js?v=94"></script>
-<script src="renderer.js?v=94"></script>
-<script src="app.js?v=94"></script>
+<script src="src/constants.js?v=95"></script>
+<script src="src/optimizer/rotation.js?v=95"></script>
+<script src="src/optimizer/bus.js?v=95"></script>
+<script src="src/optimizer/placement.js?v=95"></script>
+<script src="src/optimizer/score.js?v=95"></script>
+<script src="src/optimizer/validate.js?v=95"></script>
+<script src="src/sa/shell.js?v=95"></script>
+<script src="src/sa/moves.js?v=95"></script>
+<script src="src/sa/clusters.js?v=95"></script>
+<script src="src/sa/greedy.js?v=95"></script>
+<script src="src/sa/annealer.js?v=95"></script>
+<script src="src/ui/settings.js?v=95"></script>
+<script src="src/ui/export.js?v=95"></script>
+<script src="optimizer.js?v=95"></script>
+<script src="renderer.js?v=95"></script>
+<script src="app.js?v=95"></script>
 
 </body>
 </html>

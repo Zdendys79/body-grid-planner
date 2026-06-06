@@ -623,7 +623,7 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 }
 
 /* Top-K SA results panel */
-#bf-results {
+#opt-results {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -694,12 +694,12 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 }
 
 /* Scrollable results panel — up to 20 entries */
-#bf-results {
+#opt-results {
   max-height: 280px;
   overflow-y: auto;
 }
-#bf-results::-webkit-scrollbar { width: 6px; }
-#bf-results::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+#opt-results::-webkit-scrollbar { width: 6px; }
+#opt-results::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
 
 /* Carry mode — component is "lifted" from grid and follows cursor */
 g[data-carrying="true"] {
