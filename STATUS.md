@@ -1,21 +1,21 @@
 # Idle Directive – Body Optimizer – STATUS
 
-**Date:** 2026-06-04
-**Version:** v=90
+**Date:** 2026-06-06
+**Version:** v=93
 **URL:** https://idle-directive.zdendys79.website
 **GitHub:** https://github.com/Zdendys/idle-directive
 
 ---
 
-## Enhancement ideas
+## Current state
 
-### ✅ saChainMove (v=89) — chain translate + rotate as an atomic group
+Production. SA + BF run in 1–6 Web Workers, results are streamed to a Top-20 panel with auto-follow, layouts persist in localStorage, user-crafted positions are preserved on Add, carry-and-drop interaction is live, every UI surface and console log is in English.
 
-Implemented in `src/sa/moves.js`. `_saFindChains` detects connected components of port-touching Spinners and Repeaters (BFS over adjacency). `saChainTranslate` shifts the whole chain by 1–4 cells in a random direction. `saChainRotate` rotates the chain by 90/180/270° around the bbox top-left (each component + its anchor rotate consistently). Wired into `saGenerateMove` as the `chain` category with weight 0.10 (balanced/swap/rotate/local), 0.20 (jump). Chain rotation leverages the fact that the component rotation logic is shape-wise equivalent to the chain rotation transform (90 CW on the bbox = 90 CW on each shape with the anchor shifted).
+---
 
-### Enhancement ideas (not implemented yet)
+## Enhancement ideas (parked)
 
-### 1. Bent/diagonal cluster variants for Spinner-Repeater chains
+### 1. Bent / diagonal cluster variants for Spinner-Repeater chains
 
 `src/sa/clusters.js` currently defines only the **linear** I-shape chain (`buildClusterDef('A', n)` = horizontal `S-R₂-S-R₂-…`, in 4 rotations via `_precomputeRotationVariants`). With these atomic clusters SA can only place "straight" shapes; bent/diagonal arrangements have to be assembled from individual components via `shift/swap/relocate` moves — orders of magnitude slower.
 
@@ -25,209 +25,102 @@ Proposal: add more `buildClusterDef` variants with identical outer ports `(2,0) 
 - `A_diag_up_n` — diagonal step-up (S bottom-left, S top-right → 5h × 5w)
 - `A_diag_down_n` — diagonal step-down (mirror of diag_up)
 
-Each new variant requires its own `_internalPlacements` array and goes through `_precomputeRotationVariants` → 4 rotations per variant. Total +12 cluster variants for `n=2`.
+Each new variant needs its own `_internalPlacements` array and goes through `_precomputeRotationVariants` → 4 rotations per variant. Total +12 cluster variants for `n=2`.
 
 Benefit: SA can atomically place "L at the top edge + I inside" or "two diagonals in the corners" instead of converging on these configurations via dozens of individual moves.
 
 ### 2. Island migration — cross-worker sync of the best layout
 
-Currently SA workers are independent islands: `bestValidLayout` is per-worker, the main thread collects leaves but does not broadcast them back. A stuck worker (e.g., at score 75k while another is at 100k) keeps going from its local maximum.
+SA workers are independent islands today: `bestValidLayout` is per-worker, the main thread collects leaves but does not broadcast them back. A stuck worker (e.g., at score 75k while another is at 100k) keeps going from its local maximum.
 
-Proposal: every N iterations (e.g., 1000) the main thread broadcasts the current `bfResults[0].layout` to all workers as `{type:'migrate', layout, score}`. If a worker has `bestValidCost > globalCost`, it swaps its `current` + `best` for the global best and reheats T back to ~50% of `tStart`. Each worker still carries its per-worker `WORKER_PROFILES` (move bias + perturb), so it explores a **different path** from the same start.
+Proposal: every N iterations (e.g., 1000) the main thread broadcasts the current `bfResults[0].layout` to all workers as `{type:'migrate', layout, score}`. If a worker has `bestValidCost > globalCost`, it swaps its `current` + `best` for the global best and reheats T back to ~50 % of `tStart`. Each worker still carries its `WORKER_PROFILES` (move bias + perturb), so it explores a **different path** from the same start.
 
 Trade-off:
 - ✅ Faster convergence to the global optimum
 - ⚠️ Risk of premature convergence (everyone in one basin)
-- ⚠️ Requires broadcast logic in `scheduleAnnealOpt` + a `migrate` handler in sa-worker
+- ⚠️ Requires broadcast logic in `scheduleAnnealOpt` + a `migrate` handler in `sa-worker`
 
-Implementation size: ~80 LOC, low-risk (no scoring changes).
+Implementation size: ~80 LOC, low-risk (no scoring changes). Needs the worker's `simulatedAnneal` loop to yield periodically so queued `migrate` messages can be processed.
 
 ---
 
-## v=53–62 — Multi-worker brute force + modularization
-
-### v=53 — Phase 2 Multi-worker
-- `scheduleBruteForceOpt` spawns `N = getThreadCount()` workers, each takes a `[branchStart, branchEnd)` slice of `totalBranches`
-- `bfSaveStateV2` format captures per-worker state for resume
-- Reset moved into the Settings modal as "System reset" (danger style)
-- Glassmorphism modal styling
-
-### v=54–62 — Modularization (refactor steps 1–9)
-Completely broke up the monolithic app.js (~1900 lines) + duplicate worker (~600 lines) into a logical layout:
+## Optimizer architecture
 
 ```
-src/
-  constants.js                — STATE_KEY, BF_SAVE_KEY, SETTINGS_KEY, MAX_THREADS, _SIDE_IDX
-  optimizer/
-    rotation.js                — rotateSide/rotateCoord/rotateComponent/rotatePeriShape
-                                 getBounds, getUniqueDegs (+ cache)
-    bus.js                     — SIDE_DELTA, OPPOSITE, computePoweredSet, findWirePath
-                                 wouldConnectToComponent/Bus, wouldBePowered
-    placement.js               — getOccupiedMap, hasOverlap, fitsInGrid
-                                 addPeripheralReserved
-    score.js                   — computeFreeSpaceQuality, computeWorkingSet, scoreLayout
-    validate.js                — isLayoutValid, tryAddWires
-  bruteforce/
-    generator.js               — bruteForcePlacements (shared between main + worker)
-    save.js                    — bfSaveState, bfSaveStateV2, bfLoadSave, bfClearSave
-                                 export/import bundle, _bfEncode/Decode, _computeBranchRanges
-  ui/
-    settings.js                — loadSettings/saveSettings/getThreadCount/openSettings…
-```
+Add component (addComponent)
+    ├── findBestPlacement (wire-aware, port-on-bus bonus)
+    │       └── existing components unchanged
+    └── (fallback) findAnyPlacement — geometric fit only, no wires
+            └── existing components still unchanged
+                    └── (last resort) error: "no room — expand body"
 
-**Benefits:**
-- No code duplication between main and worker (they share `src/`)
-- Clear API boundaries
-- Easy unit-testing (each module on its own)
-- IDE navigation + jump-to-definition
+Re-Optimize (optimizeAll)
+    └── ensureComponentOrder → findBestPlacement per id
+            └── rollback if any component is skipped or final layout invalid
 
-**Big refactor commit:** step 7 (`generator.js`) — −862/+438 lines (the shared generator removed two copies).
+SMART (scheduleAnnealOpt)
+    └── 1..N workers via new Worker('sa-worker.js?v=…')
+            ├── seed: user state (if sane) or multi-strategy greedy chain
+            ├── perturb: 0..25 moves per WORKER_PROFILES
+            └── simulatedAnneal → leaf messages → bfResults panel + auto-follow
 
-### Dependency rules (script load order)
-1. `src/constants.js` (no dependencies)
-2. `src/optimizer/rotation.js` (no dependencies)
-3. `src/optimizer/bus.js` (no dependencies — defines SIDE_DELTA, OPPOSITE)
-4. `src/optimizer/placement.js` (depends on bus.js: SIDE_DELTA for addPeripheralReserved)
-5. `src/optimizer/score.js` (depends on bus.js, placement.js)
-6. `src/optimizer/validate.js` (depends on bus.js, score.js)
-7. `src/bruteforce/generator.js` (depends on all optimizer/* + constants)
-8. `src/bruteforce/save.js` (no optimizer dependencies, but needs the state.js object)
-9. `src/ui/settings.js` (needs SETTINGS_KEY, MAX_THREADS)
-10. `optimizer.js`, `renderer.js` (legacy — remaining non-extracted functions: scorePositionAndCompact, buildRotatedPeri, findBestPlacement, etc.)
-11. `app.js` (entry point + state, init, scheduleBruteForceOpt)
-
-## v=52 — Settings overlay
-
-- **⚙ icon** next to the "BODY OPTIMIZER" title → opens a settings modal
-- **Thread count** for brute force (slider 1–6, default `min(hardwareConcurrency, 6)`)
-- **Max is 6** even if the HW has more — to not overload the target machine
-- Value persisted in `localStorage['app_settings']`, read via `getThreadCount()` — ready for Phase 2 (multi-worker dispatcher)
-- **Export/Import moved** from the main panel into the settings modal
-- **Glassmorphism modal**: `backdrop-filter: blur(10px) saturate(140%)`, semi-transparent background, fade-in animation, slight scale-up of content
-
-## v=51 — Export bundle = layout + BF save
-
-Export always includes the layout; the BF save is added if it exists. Import overwrites the layout and optionally restores the BF save (auto-restart of the worker). Backward-compatible with the v=49/50 legacy format (BF save only).
-
-## v=50 — Repeater must have a target (Spinner or Pulser)
-
-- **New validation rule** in `isLayoutValid` (app.js and worker): every placed Repeater must have a port match with at least one Spinner or Pulser
-- **Placement-time pruning**: `targetCoverKeyCount: Map<int, count>` keeps the union of Spinner + Pulser cover keys; a Repeater without a match is rejected immediately after pushPlacement (before canReachBus)
-- **Pulser tracking**: new `pushPulserTracking` / `popPulserTracking` update `targetCoverKeyCount`
-- **Helper `computeCoverKeys`** shared by Spinner and Pulser
-- The Spinner-Rep coverage counter (Opt #2) is unchanged
-
-## v=49 — Save state export/import
-
-- **Export button** in the left panel → modal with base64-encoded save state
-- **Import button** → paste a string → validation → resume on the target machine
-- Use case: server (4 cores) → desktop (24 threads) without losing progress
-- On layout mismatch the dialog offers to overwrite the current layout with the layout from the save
-- String format: `base64(utf8(JSON))` — typically ~10-15 KB for a 35-component search
-
----
-
-## TODO: Brute force parallelization (Web Workers)
-
-**Motivation:** Brute force for 35-40 components runs for days. The depth-1 branch search space is 800-3000 independent branches — an ideal candidate for parallelization.
-
-**Implementation plan in phases:**
-
-### Phase 1 — Refactor into worker (1 thread, control case) ✅ DONE (v=48)
-- ✅ `bruteforce-worker.js` created with `importScripts('optimizer.js?v=48')`
-- ✅ Worker carries its own copy of `bruteForcePlacements`, `isLayoutValid`, `tryAddWires`, `scoreLayout`, `getUniqueDegs`
-- ✅ Main thread: `scheduleBruteForceOpt` creates a `Worker`, sends `{type:'init', componentLib}` → `{type:'start', nonWireIds, grid, resumePath, resumeStats}`
-- ✅ Worker sends: `progress` (every second), `leaf` (better layout), `done`, `stopped`
-- ✅ `currentBfWorker` module-level state for terminate on layout change or new scheduleBruteForceOpt
-- ✅ Resume works through the worker — main passes `resumePath` in the `start` message
-- ✅ Save works — main on a 60s tick in the `progress` message saves `path` + stats
-- ✅ `bfClearSave()` kills the running worker on layout/grid change
-- ✅ Auto-resume on page load (init detects a saved state, calls scheduleBruteForceOpt)
-- **Bonus speedup ~2×** — worker has a 50ms batch deadline (vs. 8ms in main with UI sync), higher CPU utilization.
-
-### Phase 2 — N workers, naive partitioning
-- `navigator.hardwareConcurrency` reports the core count (typically 4-16)
-- Main splits `totalBranches` (depth-1) evenly: each worker gets a `[start, end)` range
-- Workers run independently, send the best-found layout
-- Main aggregates and shows the globally best result
-- **Expected speedup: 5-7× on 8 cores** (linear with messaging overhead).
-
-### Phase 3 — Shared bestScore (optional, advanced)
-- `SharedArrayBuffer + Atomics` for a global bestScore across workers
-- Workers use the shared best to prune branches they cannot beat
-- Requires COOP+COEP HTTP headers and `crossOriginIsolated` (Apache configuration needed)
-
-### What adapts
-- **Resume** — per-worker state or aggregated snapshot. The save format must contain a per-worker path.
-- **UI progress** — sum the progress across all workers.
-- **Timings** — aggregate from workers via messages.
-
-### What stays
-- Prunings #1-#5 work per-worker (state is local).
-- Bus reachability works per-worker.
-- Cell-budget works per-worker.
-
----
-
-## Current state: WORKING
-
-### What shipped in v=22
-
-**Major optimizer refactor** — artificial cluster system removed, hard constraints added.
-
-#### Removed (was unnecessarily complex)
-- `buildSpinnerClusters` — template generator for clusters
-- `placeClusterAt` — placer of cluster templates
-- `runClusterOptimization` — cluster phase of the background optimizer
-- `removeUsed` + `greedyFillRemaining` — cluster-phase helpers
-
-#### Added / fixed
-
-**optimizer.js:**
-- Hard constraint #1 — Spinner must have free adjacent cells for pending Repeaters
-- Hard constraint #2 — Repeater MUST connect to a non-working Spinner (if one exists)
-- Reservation of peripheral slots in `occupiedMap` (sentinel -1) — fix for the biocell bug
-
-**app.js:**
-- `isLayoutValid` — validates the full layout (powering + Spinner working state)
-- `scheduleBackgroundOpt` — simplified: only ordering sampling + `isLayoutValid` filter
-- `ensureComponentOrder` — order fixed: Rep BEFORE Spin (used to be reversed)
-- `generateClusterOrdering` — fixed: Repeaters pushed BEFORE their Spinner
-- `debugLayoutStatus` — debug helper with console.group output
-- Reference `generateRepFirstOrdering` → `generateClusterOrdering` fixed
-
----
-
-## Optimizer architecture (after the refactor)
-
-```
-addComponent / optimizeAll
-    └── findBestPlacement (greedy, hard constraints)
-            ├── Hard: Spinner must have room for Repeaters
-            └── Hard: Repeater must go to a non-working Spinner
-
-scheduleBackgroundOpt (async batched)
-    ├── N ≤ 7: allPermutations (N!)
-    └── N > 7: 800× generateClusterOrdering + ensureComponentOrder
-            └── runOptimizationOnCopy
-                    └── isLayoutValid → discards invalid
-                            └── scoreLayout → stores the best
+BRUTE (scheduleBruteForceOpt)
+    └── 1..N workers via new Worker('bruteforce-worker.js?v=…')
+            ├── partition totalBranches across workers
+            ├── per-worker resume state (bfSave v=2)
+            └── stream leaf messages on every improvement
 ```
 
 ---
 
 ## Known limitations
 
-- Background optimizer may not find a valid layout if the grid is too small
-  (proper message: "no room found — expand body")
-- For N > 7 components: 800 samples may not cover the optimal order (stochastic)
+- The cluster system covers linear Spinner-Repeater chains only. Bent/diagonal arrangements (enhancement #1) must be re-assembled by SA's per-component moves; this is slower for layouts that genuinely need a bend.
+- SA workers do not synchronize their bests (enhancement #2). A worker stuck in a low local optimum cannot benefit from another worker's discovery in the same session.
+- `bruteforce-worker.js` and `sa-worker.js` URLs in `app.js` are hard-coded with `?v=N` strings; the sed bump script must touch `app.js` as well as the three top-level files, or workers stall on a stale cached blob.
 
 ---
 
-## Version history (recent)
+## Version history
 
 | Version | Date | Change |
 |---|---|---|
-| v=22 | 2026-06-03 | Cluster system removed, hard constraints, Rep→Spin order fix |
-| v=21 | 2026-06-03 | Debug logging, biocell reservation fix, Repeater hard constraint |
-| v=20 | earlier | Cluster template system (replaced) |
+| v=93 | 2026-06-06 | Component icons 3× larger on left panel + grid (font-size 13→36 inline, 15→45 placed list, 15→45 SVG) |
+| v=92 | 2026-06-05 | `addComponent` no longer triggers full layout rearrangement on fallback — only `findAnyPlacement` is tried |
+| v=91 | 2026-06-05 | All Czech text translated to English (code, console logs, UI labels, README, STATUS) |
+| v=90 | 2026-06-05 | Worker URL versions in `app.js` were stale (v=64 / v=53); bumped + sed pattern now touches `app.js` |
+| v=89 | 2026-06-05 | `saChainTranslate` + `saChainRotate` atomic chain moves implemented in `src/sa/moves.js` |
+| v=88 | 2026-06-05 | Bio Generator: peripheral merged into 3×3 body shape, biocell reservation dropped |
+| v=87 | 2026-06-05 | Modal: removed nested `backdrop-filter`, fixes Firefox paste freeze in import dialog |
+| v=86 | 2026-06-05 | Export/Import auto-closes settings modal before opening save modal |
+| v=85 | 2026-06-05 | Drag-and-drop replaced with click-to-pick-up / carry / click-to-drop, R rotates, Esc cancels |
+| v=84 | 2026-06-04 | `tryRotatePlacement` ignores wires in overlap check + recomputes via `tryAddWires` on success |
+| v=83 | 2026-06-04 | Peripheral bounds + overlap validated in every SA placement check |
+| v=82 | 2026-06-04 | sa-worker: accept structurally sane user seed + multi-strategy greedy fallback chain |
+| v=81 | 2026-06-04 | `addBfResult` rejects leaves with mismatched component set + greedy logs dropped IDs |
+| v=80 | 2026-06-04 | `getUniqueDegs` now keys by shape + ports, so square components with directional ports get 4 rotations |
+| v=79 | 2026-06-04 | bfResults validated against current component set on load; cleared when set changes |
+| v=78 | 2026-06-04 | Drag: remove wires at drag start, recompute via `tryAddWires` on drop |
+| v=62 | 2026-06-04 | Modularization complete; monolithic `app.js` + duplicate worker split into `src/*` modules |
+| v=53 | 2026-06-04 | Multi-worker brute force, `bfSaveStateV2` format, glassmorphism modals |
+| v=52 | 2026-06-04 | Settings modal: thread-count slider, export/import moved off main panel |
+| v=51 | 2026-06-03 | Export bundle = layout + BF save |
+| v=50 | 2026-06-03 | Repeater hard constraint: must port-match a Spinner or Pulser |
+| v=49 | 2026-06-03 | Save state export/import via base64 string |
+| v=48 | 2026-06-03 | Brute force moved into a dedicated `bruteforce-worker.js` |
+| v=22 | 2026-06-03 | Artificial cluster system removed; hard constraints + `isLayoutValid` introduced |
+
+---
+
+## Components
+
+Total: **21** (after v=92 additions of `metal_scavenger`, `furnace`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+
+| Category | Components |
+|---|---|
+| infrastructure | wire |
+| power | battery_1x1, battery_1x2, battery_2x2, bio_generator (3×3 self-contained), energy_cells |
+| timing | pulser, spinner, repeater_2s, repeater_4s |
+| processing | grabber, collector, decomposer, harvester, salvager, metal_scavenger, furnace, fuser_i |
+| detection | sensor |
+| bio | disposable_biocell, biocell |
