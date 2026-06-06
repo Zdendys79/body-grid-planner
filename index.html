@@ -25,7 +25,6 @@
       <button id="btn-expand"  onclick="expandBody()">▣ EXPAND BODY</button>
       <button id="btn-auto"    onclick="optimizeAll()">⚡ RE-OPTIMIZE</button>
       <button id="btn-anneal"  onclick="startAnneal()">⚡³ SMART (SA)</button>
-      <button id="btn-brute"   onclick="startBruteForce()">⚡² BRUTE</button>
       <button id="btn-stop"    onclick="stopAllWorkers()">■ STOP</button>
     </div>
 
@@ -99,8 +98,8 @@
     <div class="settings-section">
       <h4>State transfer between machines</h4>
       <div class="settings-buttons">
-        <button onclick="exportBfSave()">⇪ Export</button>
-        <button onclick="openImportBfSave()">⇩ Import</button>
+        <button onclick="exportLayout()">⇪ Export</button>
+        <button onclick="openImportLayout()">⇩ Import</button>
       </div>
       <div class="setting-hint">Export includes the current layout (and a running brute force, if started ≥ 60 s ago). Import overwrites the layout.</div>
     </div>
@@ -119,23 +118,22 @@
   </div>
 </div>
 
-<script src="src/constants.js?v=93"></script>
-<script src="src/optimizer/rotation.js?v=93"></script>
-<script src="src/optimizer/bus.js?v=93"></script>
-<script src="src/optimizer/placement.js?v=93"></script>
-<script src="src/optimizer/score.js?v=93"></script>
-<script src="src/optimizer/validate.js?v=93"></script>
-<script src="src/bruteforce/generator.js?v=93"></script>
-<script src="src/bruteforce/save.js?v=93"></script>
-<script src="src/sa/shell.js?v=93"></script>
-<script src="src/sa/moves.js?v=93"></script>
-<script src="src/sa/clusters.js?v=93"></script>
-<script src="src/sa/greedy.js?v=93"></script>
-<script src="src/sa/annealer.js?v=93"></script>
-<script src="src/ui/settings.js?v=93"></script>
-<script src="optimizer.js?v=93"></script>
-<script src="renderer.js?v=93"></script>
-<script src="app.js?v=93"></script>
+<script src="src/constants.js?v=94"></script>
+<script src="src/optimizer/rotation.js?v=94"></script>
+<script src="src/optimizer/bus.js?v=94"></script>
+<script src="src/optimizer/placement.js?v=94"></script>
+<script src="src/optimizer/score.js?v=94"></script>
+<script src="src/optimizer/validate.js?v=94"></script>
+<script src="src/sa/shell.js?v=94"></script>
+<script src="src/sa/moves.js?v=94"></script>
+<script src="src/sa/clusters.js?v=94"></script>
+<script src="src/sa/greedy.js?v=94"></script>
+<script src="src/sa/annealer.js?v=94"></script>
+<script src="src/ui/settings.js?v=94"></script>
+<script src="src/ui/export.js?v=94"></script>
+<script src="optimizer.js?v=94"></script>
+<script src="renderer.js?v=94"></script>
+<script src="app.js?v=94"></script>
 
 </body>
 </html>
