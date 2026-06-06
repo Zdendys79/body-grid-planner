@@ -294,7 +294,15 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 .placed-item.powered  { border-left-color: #5abf6088; }
 .placed-item.unpowered { opacity: 0.55; }
 
-.placed-icon { font-size: 15px; }
+.placed-icon { font-size: 45px; line-height: 1; font-family: serif; }
+.comp-icon-inline {
+  font-size: 36px;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+  font-family: serif;
+}
 .placed-name {
   flex: 1;
   font-size: 12px;

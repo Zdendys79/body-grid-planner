@@ -173,7 +173,7 @@ function renderComponent(placement, def, isPowered, idx) {
   const cy = cellY(placement.row + (Math.min(...rows)+Math.max(...rows))/2) + CELL/2;
 
   html += `<text x="${cx}" y="${cy - 7}" fill="${def.color}${alpha || 'bb'}"
-           font-size="15" text-anchor="middle" dominant-baseline="middle"
+           font-size="45" text-anchor="middle" dominant-baseline="middle"
            font-family="serif" pointer-events="none">${def.icon}</text>`;
 
   if (placement.rotatedShape.length === 1) {

@@ -169,7 +169,7 @@ function renderComponentList() {
       html += `<div class="comp-item">
         <div class="comp-preview">${renderMiniShape(def.shape, def.color, def.bgColor, def.energyPorts, def.bioPorts)}</div>
         <div class="comp-info">
-          <div class="comp-name" style="color:${def.color}">${def.icon} ${def.name}</div>
+          <div class="comp-name" style="color:${def.color}"><span class="comp-icon-inline">${def.icon}</span>${def.name}</div>
         </div>
         <div class="comp-actions">
           ${countPlaced > 0 ? `<span class="comp-count">${countPlaced}×</span>` : ''}
@@ -1374,7 +1374,7 @@ function scheduleBruteForceOpt() {
   // Spawn N workers
   currentBfWorkers = [];
   for (let i = 0; i < N; i++) {
-    const w = new Worker('bruteforce-worker.js?v=92');
+    const w = new Worker('bruteforce-worker.js?v=93');
     currentBfWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1792,7 +1792,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=92');
+    const w = new Worker('sa-worker.js?v=93');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
