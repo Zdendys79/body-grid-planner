@@ -66,6 +66,12 @@ async function init() {
     try {
       const parsed = JSON.parse(saved);
       state.grid       = parsed.grid       || state.grid;
+      // Defensive: a persisted state from an older build may be missing
+      // maxRows / maxCols. Without them every comparison in expandBody
+      // ('grid.rows < grid.maxRows', etc.) silently evaluates to false and
+      // the button looks broken — clicks 'succeed' but nothing changes.
+      if (typeof state.grid.maxRows !== 'number') state.grid.maxRows = 19;
+      if (typeof state.grid.maxCols !== 'number') state.grid.maxCols = 12;
       state.nextId     = parsed.nextId     || 1;
       state.placements = (parsed.placements || []).map(p => rehydratePlacement(p));
       const summary = {};
@@ -790,14 +796,20 @@ function onGlobalKeydown(e) {
 
 function expandBody() {
   const { grid } = state;
-  if (grid.rows >= grid.maxRows && grid.cols >= grid.maxCols) return;
+  const oldRows = grid.rows, oldCols = grid.cols;
+  if (oldRows >= grid.maxRows && oldCols >= grid.maxCols) {
+    showStatus(`Body already at maximum ${grid.maxRows}×${grid.maxCols} — cannot expand further.`, 'warn');
+    console.log(`[Expand] No-op: already at max ${grid.maxRows}×${grid.maxCols}.`);
+    return;
+  }
   if (grid.rows < grid.maxRows) grid.rows = Math.min(grid.rows + 2, grid.maxRows);
   if (grid.cols < grid.maxCols) grid.cols = Math.min(grid.cols + 2, grid.maxCols);
+  console.log(`[Expand] ${oldRows}×${oldCols} → ${grid.rows}×${grid.cols}`);
   stopOptimization(); // grid dims changed → discard resume snapshot
   optResultsClear(); // grid dims changed → saved layouts may not fit anymore
   saveState();
   renderAll();
-  showStatus(`Body expanded to ${grid.rows}×${grid.cols}.`, 'ok');
+  showStatus(`Body expanded ${oldRows}×${oldCols} → ${grid.rows}×${grid.cols}.`, 'ok');
 }
 
 function resetLayout() {
@@ -834,8 +846,9 @@ async function optimizeAll() {
       .map(p => p.componentId)
   );
 
+  console.log(`[Optimize] Start: grid ${state.grid.rows}×${state.grid.cols}, ${ids.length} components`);
   console.log('[Optimize] Order:', ids.join(' → '));
-  showStatus(`Optimizing ${ids.length} components…`, 'ok');
+  showStatus(`Optimizing ${ids.length} components on ${state.grid.rows}×${state.grid.cols} grid…`, 'ok');
 
   // Save original for rollback — non-wire components must NEVER disappear
   const savedPlacements = state.placements.slice();
@@ -1253,7 +1266,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=97');
+    const w = new Worker('sa-worker.js?v=98');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
