@@ -1,7 +1,7 @@
 # Idle Directive – Body Optimizer – STATUS
 
 **Date:** 2026-06-06
-**Version:** v=93
+**Version:** v=95
 **URL:** https://idle-directive.zdendys79.website
 **GitHub:** https://github.com/Zdendys/idle-directive
 
@@ -9,7 +9,7 @@
 
 ## Current state
 
-Production. SA + BF run in 1–6 Web Workers, results are streamed to a Top-20 panel with auto-follow, layouts persist in localStorage, user-crafted positions are preserved on Add, carry-and-drop interaction is live, every UI surface and console log is in English.
+Production. SA runs in 1–6 Web Workers, results are streamed to a Top-20 panel with auto-follow, layouts persist in localStorage, user-crafted positions are preserved on Add, carry-and-drop interaction is live, every UI surface and console log is in English. Brute force was retired in v=94 — SMART (SA) is the sole optimizer; the explicit RE-OPTIMIZE button covers the deterministic-greedy use case.
 
 ---
 
@@ -62,14 +62,10 @@ SMART (scheduleAnnealOpt)
     └── 1..N workers via new Worker('sa-worker.js?v=…')
             ├── seed: user state (if sane) or multi-strategy greedy chain
             ├── perturb: 0..25 moves per WORKER_PROFILES
-            └── simulatedAnneal → leaf messages → bfResults panel + auto-follow
-
-BRUTE (scheduleBruteForceOpt)
-    └── 1..N workers via new Worker('bruteforce-worker.js?v=…')
-            ├── partition totalBranches across workers
-            ├── per-worker resume state (bfSave v=2)
-            └── stream leaf messages on every improvement
+            └── simulatedAnneal → leaf messages → optResults panel + auto-follow
 ```
+
+Any layout-mutating action (add/remove/expand/import/drop) calls `stopOptimization()` first — it bumps `bgOptId` so in-flight worker messages drop themselves on arrival and terminates any active SA workers.
 
 ---
 
@@ -77,7 +73,7 @@ BRUTE (scheduleBruteForceOpt)
 
 - The cluster system covers linear Spinner-Repeater chains only. Bent/diagonal arrangements (enhancement #1) must be re-assembled by SA's per-component moves; this is slower for layouts that genuinely need a bend.
 - SA workers do not synchronize their bests (enhancement #2). A worker stuck in a low local optimum cannot benefit from another worker's discovery in the same session.
-- `bruteforce-worker.js` and `sa-worker.js` URLs in `app.js` are hard-coded with `?v=N` strings; the sed bump script must touch `app.js` as well as the three top-level files, or workers stall on a stale cached blob.
+- The `sa-worker.js` URL in `app.js` is hard-coded with `?v=N`; the sed bump script must touch `app.js` as well as `index.html` and `sa-worker.js`, or workers stall on a stale cached blob.
 
 ---
 
@@ -85,6 +81,8 @@ BRUTE (scheduleBruteForceOpt)
 
 | Version | Date | Change |
 |---|---|---|
+| v=95 | 2026-06-06 | Renamed `bfResults*`/`bfAutoFollowTop`/`BF_RESULTS_KEY`/`#bf-results`/`#bf-progress`/`bfEl` → `opt*` equivalents now that BF is gone |
+| v=94 | 2026-06-06 | Brute force completely removed (~1500 LOC); `src/bruteforce/` deleted; layout export/import extracted to `src/ui/export.js`; new `stopOptimization()` helper |
 | v=93 | 2026-06-06 | Component icons 3× larger on left panel + grid (font-size 13→36 inline, 15→45 placed list, 15→45 SVG) |
 | v=92 | 2026-06-05 | `addComponent` no longer triggers full layout rearrangement on fallback — only `findAnyPlacement` is tried |
 | v=91 | 2026-06-05 | All Czech text translated to English (code, console logs, UI labels, README, STATUS) |
@@ -114,7 +112,7 @@ BRUTE (scheduleBruteForceOpt)
 
 ## Components
 
-Total: **21** (after v=92 additions of `metal_scavenger`, `furnace`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **21** (incl. `metal_scavenger`, `furnace`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
