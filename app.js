@@ -422,8 +422,13 @@ function pickUpComponent(idx, e) {
   document.addEventListener('keydown', onCarryKey);
   document.body.classList.add('carry-mode');
 
+  // Reveal the floating trash button so the user can discard the picked-up
+  // component without putting it back somewhere first.
+  const trashBtn = document.getElementById('carry-trash');
+  if (trashBtn) trashBtn.classList.remove('hidden');
+
   const def = componentLib.find(d => d.id === p.componentId);
-  showStatus(`Carrying: ${def?.name || p.componentId}. Move mouse, R = rotate, click = drop, Esc = cancel.`, 'ok');
+  showStatus(`Carrying: ${def?.name || p.componentId}. Move mouse, R = rotate, click = drop, Del = delete, Esc = cancel.`, 'ok');
   console.log(`[carry] pick up #${newIdx} (${p.componentId}) from [${p.origRow},${p.origCol}]`);
 
   renderAll();
@@ -485,6 +490,9 @@ function onCarryKey(e) {
   } else if (e.key === 'r' || e.key === 'R') {
     e.preventDefault();
     _rotateCarried();
+  } else if (e.key === 'Delete') {
+    e.preventDefault();
+    _deleteCarriedComponent();
   }
 }
 
@@ -513,6 +521,8 @@ function onCarryClick(e) {
   if (!carryState) return;
   // Suppress the same click that initiated pickup
   if (Date.now() - carryState.pickedUpAt < 150) return;
+  // Let clicks on the trash button reach its own onclick handler.
+  if (e.target && e.target.closest && e.target.closest('.carry-trash')) return;
   e.preventDefault();
   e.stopPropagation();
   _tryDropCarry();
@@ -616,11 +626,41 @@ function _cancelCarry() {
   showStatus('Cancelled — component returned to original spot.', 'ok');
 }
 
+// Triggered by the floating trash button or by pressing Delete while carrying.
+// Removes the carried placement from state, recomputes wires for the rest of
+// the layout, and clears optimizer caches so SA cannot reintroduce it.
+function _deleteCarriedComponent() {
+  if (!carryState) return;
+  const p = state.placements[carryState.idx];
+  const def = componentLib.find(d => d.id === p.componentId);
+  const name = def?.name || p.componentId;
+  const icon = def?.icon || '';
+  console.log(`[carry] DELETE #${carryState.idx} (${p.componentId})`);
+
+  // Drop the carried placement and any wires that were lifted with it.
+  state.placements = state.placements.filter((_, i) => i !== carryState.idx);
+
+  // Recompute wires for the remaining layout (the saved wires were routed
+  // to the now-removed component, so they're stale — let tryAddWires build
+  // fresh paths for whoever's left).
+  const wired = tryAddWires(state.placements, state.grid);
+  if (wired) state.placements = wired;
+
+  _endCarry();
+  stopOptimization();
+  optResultsClear();
+  saveState();
+  renderAll();
+  showStatus(`${icon} ${name} deleted.`, 'ok');
+}
+
 function _endCarry() {
   document.removeEventListener('mousemove', onCarryMove);
   document.removeEventListener('click', onCarryClick, true);
   document.removeEventListener('keydown', onCarryKey);
   document.body.classList.remove('carry-mode');
+  const trashBtn = document.getElementById('carry-trash');
+  if (trashBtn) trashBtn.classList.add('hidden');
   carryState = null;
 }
 
@@ -1213,7 +1253,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=96');
+    const w = new Worker('sa-worker.js?v=97');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
