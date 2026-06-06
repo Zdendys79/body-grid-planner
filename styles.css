@@ -717,3 +717,29 @@ body.carry-mode {
 body.carry-mode g[data-comp] {
   cursor: crosshair !important;
 }
+
+/* Carry-mode trash button — fixed top-right, only visible while carrying. */
+.carry-trash {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 200;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  font-weight: bold;
+  letter-spacing: 1px;
+  background: rgba(240, 80, 80, 0.92);
+  color: white;
+  border: 2px solid #ff5050;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(240, 80, 80, 0.45);
+  pointer-events: auto;
+  transition: background 0.15s, transform 0.15s;
+}
+.carry-trash:hover {
+  background: rgba(255, 60, 60, 1);
+  transform: scale(1.05);
+}
+.carry-trash.hidden { display: none; }
