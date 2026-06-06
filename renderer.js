@@ -136,43 +136,102 @@ const RENDERER_CELL    = CELL;
 const RENDERER_BUS_W   = BUS_W;
 const RENDERER_PERI_V  = PERI_V;
 
+// Bio Generator special: the cells that used to be the biocell peripheral
+// (cells (0,0) and (1,0) in the canonical rotation) are now part of the
+// merged shape but should still read as a distinct sub-module. We render
+// them with a lower fill alpha, suppress bridges between biocell and body
+// cells, label them BIO / CELL, and bias the centre glyph downward so it
+// sits on the body cells instead of overflowing into the empty top corner.
+const BIO_BIOCELL_ORIGINAL = [[0,0],[1,0]];
+const BIO_BBOX_MAX_R = 2;
+const BIO_BBOX_MAX_C = 2;
+function _bioBiocellSet(rotation) {
+  const rot = rotation || 0;
+  const cells = (rot === 0)
+    ? BIO_BIOCELL_ORIGINAL
+    : BIO_BIOCELL_ORIGINAL.map(([r, c]) => rotateCoord(r, c, BIO_BBOX_MAX_R, BIO_BBOX_MAX_C, rot));
+  return cells;
+}
+
 function renderComponent(placement, def, isPowered, idx) {
   const alpha = isPowered ? '' : '66';
   const fill  = def.bgColor + (isPowered ? 'ee' : '88');
   const stroke = def.color + (isPowered ? '' : '55');
   const cellSet = new Set(placement.rotatedShape.map(([r,c]) => `${r},${c}`));
 
+  // Bio Generator: identify which of the cells in this placement are the
+  // biocell sub-module so they can be styled differently below.
+  const isBio = def.id === 'bio_generator';
+  let biocellSet = null;
+  let biocellList = null;
+  if (isBio) {
+    const cells = _bioBiocellSet(placement.rotation);
+    biocellSet = new Set(cells.map(([r, c]) => `${r},${c}`));
+    // Stable order (row asc, col asc) so the BIO label always lands on the
+    // first cell of the rotated sub-module.
+    biocellList = cells.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  }
+  const biocellFill = def.bgColor + (isPowered ? '55' : '33');
+  const biocellStroke = def.color + (isPowered ? '88' : '44');
+
   const carryAttr = placement._carrying ? ' data-carrying="true"' : '';
   let html = `<g data-comp="${idx}" data-comp-id="${def.id}"${carryAttr}>`;
 
   placement.rotatedShape.forEach(([r,c]) => {
     const x = cellX(placement.col + c), y = cellY(placement.row + r);
+    const isBiocellCell = biocellSet && biocellSet.has(`${r},${c}`);
+    const cellFill   = isBiocellCell ? biocellFill   : fill;
+    const cellStroke = isBiocellCell ? biocellStroke : stroke;
 
     html += `<rect x="${x+COMP_PAD}" y="${y+COMP_PAD}"
              width="${CELL-COMP_PAD*2}" height="${CELL-COMP_PAD*2}"
-             fill="${fill}" stroke="${stroke}" stroke-width="1.5" rx="4"/>`;
+             fill="${cellFill}" stroke="${cellStroke}" stroke-width="1.5" rx="4"/>`;
 
-    // Bridge right
-    if (cellSet.has(`${r},${c+1}`)) {
+    // Bridges only between cells of the same kind — keeps the biocell
+    // sub-module visually separated from the body even though they belong
+    // to the same component group.
+    const rightKey = `${r},${c+1}`;
+    const downKey  = `${r+1},${c}`;
+    const rightIsBio = biocellSet && biocellSet.has(rightKey);
+    const downIsBio  = biocellSet && biocellSet.has(downKey);
+    if (cellSet.has(rightKey) && (!isBio || isBiocellCell === rightIsBio)) {
+      const bridgeFill = (isBio && isBiocellCell) ? biocellFill : fill;
       html += `<rect x="${x+CELL-COMP_PAD-1}" y="${y+COMP_PAD+4}"
                width="${COMP_PAD*2+2}" height="${CELL-COMP_PAD*2-8}"
-               fill="${fill}" stroke="none"/>`;
+               fill="${bridgeFill}" stroke="none"/>`;
     }
-    // Bridge down
-    if (cellSet.has(`${r+1},${c}`)) {
+    if (cellSet.has(downKey) && (!isBio || isBiocellCell === downIsBio)) {
+      const bridgeFill = (isBio && isBiocellCell) ? biocellFill : fill;
       html += `<rect x="${x+COMP_PAD+4}" y="${y+CELL-COMP_PAD-1}"
                width="${CELL-COMP_PAD*2-8}" height="${COMP_PAD*2+2}"
-               fill="${fill}" stroke="none"/>`;
+               fill="${bridgeFill}" stroke="none"/>`;
     }
   });
 
-  // Outer label – centre of bounding box
+  // Biocell labels — BIO on the first sub-cell, CELL on the second.
+  if (biocellList) {
+    biocellList.forEach(([r, c], i) => {
+      const lx = cellX(placement.col + c) + CELL/2;
+      const ly = cellY(placement.row + r) + CELL/2;
+      const text = (i === 0) ? 'BIO' : 'CELL';
+      html += `<text x="${lx}" y="${ly}" fill="${def.color}dd"
+               font-size="11" text-anchor="middle" dominant-baseline="middle"
+               font-family="monospace" font-weight="bold" letter-spacing="1"
+               pointer-events="none">${text}</text>`;
+    });
+  }
+
+  // Outer label – centre of bounding box. Bio Generator's bounding box has
+  // an empty top-right quadrant (rows 0 of cols 1-2), so the centred glyph
+  // sticks out beyond the actual body cells. Push it down by ~1/3 of a cell
+  // for bio_generator only, so it lands on the body rows.
   const rows = placement.rotatedShape.map(([r]) => r);
   const cols = placement.rotatedShape.map(([,c]) => c);
   const cx = cellX(placement.col + (Math.min(...cols)+Math.max(...cols))/2) + CELL/2;
   const cy = cellY(placement.row + (Math.min(...rows)+Math.max(...rows))/2) + CELL/2;
+  const iconYOffset = isBio ? Math.round(CELL / 3) - 7 : -7;
 
-  html += `<text x="${cx}" y="${cy - 7}" fill="${def.color}${alpha || 'bb'}"
+  html += `<text x="${cx}" y="${cy + iconYOffset}" fill="${def.color}${alpha || 'bb'}"
            font-size="45" text-anchor="middle" dominant-baseline="middle"
            font-family="serif" pointer-events="none">${def.icon}</text>`;
 
@@ -183,7 +242,7 @@ function renderComponent(placement, def, isPowered, idx) {
              >${def.name.substring(0,8).toUpperCase()}</text>`;
   }
 
-  // Peripheral
+  // Peripheral (dormant since v=88; no live component uses it)
   if (placement.rotatedPeripheral) {
     html += renderPeripheral(placement, def);
   }

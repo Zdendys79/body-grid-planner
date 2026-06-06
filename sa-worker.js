@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=98',
-  'src/optimizer/rotation.js?v=98',
-  'src/optimizer/bus.js?v=98',
-  'src/optimizer/placement.js?v=98',
-  'src/optimizer/score.js?v=98',
-  'src/optimizer/validate.js?v=98',
-  'src/sa/shell.js?v=98',
-  'src/sa/moves.js?v=98',
-  'src/sa/clusters.js?v=98',
-  'src/sa/greedy.js?v=98',
-  'src/sa/annealer.js?v=98',
-  'optimizer.js?v=98'
+  'src/constants.js?v=99',
+  'src/optimizer/rotation.js?v=99',
+  'src/optimizer/bus.js?v=99',
+  'src/optimizer/placement.js?v=99',
+  'src/optimizer/score.js?v=99',
+  'src/optimizer/validate.js?v=99',
+  'src/sa/shell.js?v=99',
+  'src/sa/moves.js?v=99',
+  'src/sa/clusters.js?v=99',
+  'src/sa/greedy.js?v=99',
+  'src/sa/annealer.js?v=99',
+  'optimizer.js?v=99'
 );
 
 let componentLib = [];
