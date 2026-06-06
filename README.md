@@ -18,12 +18,7 @@ Place power-, processing- and bio-components on a finite rectangular grid so tha
 - wires are routed automatically (and minimized),
 - free-space connectivity is maximized for future additions.
 
-Two solvers reach a valid layout:
-
-- **SMART (Simulated Annealing)** — primary, ~10 seconds for a 35-component grid.
-- **BRUTE (depth-first search)** — exhaustive, hours-to-days for ≥ 20 components.
-
-Both run in Web Workers (up to 6 threads, configurable). Results stream into a Top-20 panel and the best one snaps onto the grid via "auto-follow".
+Solver: **SMART (Simulated Annealing)** — runs in 1–6 Web Workers, ~10 seconds for a 35-component grid. Results stream into a Top-20 panel and the best one snaps onto the grid via "auto-follow". A separate **RE-OPTIMIZE** button runs a synchronous single-pass greedy when the user wants a deterministic tidy-up.
 
 ---
 
@@ -34,25 +29,23 @@ Both run in Web Workers (up to 6 threads, configurable). Results stream into a T
 | `index.html` | HTML shell; script tags carry the `?v=N` cache buster |
 | `styles.css` | Layout, color tokens, modal + carry-mode CSS |
 | `components.json` | Component definitions (shape, ports, colors) — **authoritative**, never edit without an explicit request |
-| `app.js` | Entry point: state, init, carry-mode interaction, SA/BF dispatchers, result panel, modals |
+| `app.js` | Entry point: state, init, carry-mode, SA dispatcher, results panel, `stopOptimization` helper |
 | `renderer.js` | SVG grid renderer (cells, ports, glow, glyphs) |
-| `optimizer.js` | Legacy module with `findBestPlacement` (greedy, hard-constraint-aware) and `findAnyPlacement` (geometry only) |
-| `bruteforce-worker.js` | BF worker entry; loads `src/*` via `importScripts` |
-| `sa-worker.js` | SA worker entry; same loader pattern |
-| `src/constants.js` | localStorage keys, MAX_THREADS, side index |
+| `optimizer.js` | `findBestPlacement` (greedy + hard constraints) and `findAnyPlacement` (geometry only) |
+| `sa-worker.js` | SA worker entry; loads `src/*` via `importScripts` |
+| `src/constants.js` | `STATE_KEY`, `SETTINGS_KEY`, `MAX_THREADS` |
 | `src/optimizer/rotation.js` | `rotateComponent`, `rotateCoord`, `rotateSide`, `getUniqueDegs` (shape + port aware) |
 | `src/optimizer/bus.js` | `SIDE_DELTA`, `OPPOSITE`, `computePoweredSet`, `findWirePath` |
 | `src/optimizer/placement.js` | `getOccupiedMap`, `hasOverlap`, `fitsInGrid`, `addPeripheralReserved` |
 | `src/optimizer/score.js` | `computeFreeSpaceQuality`, `computeWorkingSet`, `scoreLayout` |
 | `src/optimizer/validate.js` | `isLayoutValid`, `tryAddWires` |
-| `src/bruteforce/generator.js` | Shared `bruteForcePlacements` (DFS with prunings) |
-| `src/bruteforce/save.js` | v=2 multi-worker save format, export/import bundle (base64) |
 | `src/sa/shell.js` | Shell-packing heuristic for the SA seed |
 | `src/sa/moves.js` | `saShiftMove`/`saRotateMove`/`saSwapMove`/`saRelocateMove`/`saChainTranslate`/`saChainRotate` + bias profiles |
 | `src/sa/clusters.js` | Spinner-Repeater chain pre-baking (`buildClusterDef`, `_precomputeRotationVariants`) |
 | `src/sa/greedy.js` | `buildShellThenGreedy`, `buildGreedyInitial`, `perturbInitial` |
 | `src/sa/annealer.js` | Main `simulatedAnneal` loop with Metropolis acceptance |
-| `src/ui/settings.js` | Settings modal: thread-count slider, export/import buttons, system reset |
+| `src/ui/settings.js` | Settings modal: thread-count slider, system reset |
+| `src/ui/export.js` | Cross-machine layout transfer (base64 bundle), save-modal handlers |
 
 ---
 
@@ -96,9 +89,6 @@ Per worker:
 2. **Perturb.** Worker-specific perturbation count (0–25 random moves) to spread the population.
 3. **Anneal.** Metropolis acceptance with worker-specific cooling rate and restart-after threshold. Best valid layouts stream out as `leaf` messages.
 
-### Brute force pipeline
-DFS over depth-1 branch slices, distributed across N workers. Prunings: occupancy, peripheral reservation, cell budget, bus reachability (BFS), unique rotations only, Repeater→target match. Resume is persisted as `bfSave` v=2 (per-worker `branchRange` + `currentBranchIdx` + `path`).
-
 ### Cluster system (SA only)
 Spinner-Repeater chains are pre-baked as synthetic components (`cluster_An` = n Spinners + (n-1) `repeater_2s`, linear horizontal). All 4 rotations are precomputed via `_precomputeRotationVariants`, so SA's relocate-move places clusters as atoms and never needs to rebuild adjacency.
 
@@ -109,9 +99,9 @@ For workers that operate on individual S+R (no clusters) `saChainTranslate` / `s
 
 ## Cache buster
 
-Every script in `index.html`, both worker `importScripts` calls and the two `new Worker('…?v=N')` URLs in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `bruteforce-worker.js`, `sa-worker.js`, `app.js`.
+Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=93**
+Current version: **v=95**
 
 ---
 
@@ -121,5 +111,5 @@ Current version: **v=93**
 - Debug connectivity bugs by inspecting `computePoweredSet` / `computeWorkingSet` output for the failing layout, not by tweaking port definitions.
 - Layout validation belongs in `isLayoutValid`, not in scoring tricks.
 - Adding a component must not rearrange existing placements (user-crafted layouts are sacred).
-- When changing the SA or BF protocol, bump the cache buster and update worker URL versions in `app.js`.
+- When changing the SA protocol, bump the cache buster and update the worker URL version in `app.js`.
 - Run `node --check` on any touched `.js` before committing — the syntax errors surface late otherwise.
