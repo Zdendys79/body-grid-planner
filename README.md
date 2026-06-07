@@ -18,7 +18,11 @@ Place power-, processing- and bio-components on a finite rectangular grid so tha
 - wires are routed automatically (and minimized),
 - free-space connectivity is maximized for future additions.
 
-Solver: **SMART (Simulated Annealing)** — runs in 1–6 Web Workers, ~10 seconds for a 35-component grid. Results stream into a Top-20 panel and the best one snaps onto the grid via "auto-follow". A separate **RE-OPTIMIZE** button runs a synchronous single-pass greedy when the user wants a deterministic tidy-up.
+Solver: **SMART (Simulated Annealing)** — runs in 1–6 Web Workers and keeps searching until you press STOP. Small layouts (10–20 components) typically improve within seconds. Mid-size layouts (25–35) may need a few minutes to settle. **Dense grids with 35+ components, or layouts that are already near optimum, can run for hours without a significant improvement** — that's normal SA behaviour, not a bug. The Top-20 panel streams every improvement as soon as a worker finds it, so you can watch progress live and stop whenever you're satisfied.
+
+**Tip:** leave a little free space on the grid. A grid packed to 95 %+ leaves SA almost no room to swap or shift components, so it gets stuck in the local minimum your seed started in. Expanding the body by one step (▣ EXPAND BODY SPACE) often unlocks dramatically better layouts.
+
+A separate **RE-OPTIMIZE LAYOUT** button runs a synchronous single-pass greedy when you want a deterministic tidy-up — 1–2 seconds regardless of component count.
 
 ---
 
