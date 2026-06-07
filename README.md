@@ -24,6 +24,10 @@ Solver: **SMART (Simulated Annealing)** — runs in 1–6 Web Workers and keeps 
 
 A separate **RE-OPTIMIZE LAYOUT** button runs a synchronous single-pass greedy when you want a deterministic tidy-up — 1–2 seconds regardless of component count.
 
+## Privacy
+
+This tool **sends nothing to any server** and **collects no information about you**. It loads the page from Apache once, then everything — your layout, the Top-20 results panel, the thread-count setting — lives in your browser's `localStorage` and never leaves your machine. No analytics, no cookies, no tracking pixels, no third-party scripts. The optimizer's Web Workers run locally in your browser. Clearing your browser's site data wipes everything.
+
 ---
 
 ## Architecture
