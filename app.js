@@ -1280,7 +1280,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=102');
+    const w = new Worker('sa-worker.js?v=103');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
