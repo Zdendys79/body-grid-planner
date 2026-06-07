@@ -1,7 +1,7 @@
 # Idle Directive – Body Optimizer – STATUS
 
-**Date:** 2026-06-06
-**Version:** v=95
+**Date:** 2026-06-07
+**Version:** v=99
 **URL:** https://idle-directive.zdendys79.website
 **GitHub:** https://github.com/Zdendys/idle-directive
 
@@ -9,7 +9,7 @@
 
 ## Current state
 
-Production. SA runs in 1–6 Web Workers, results are streamed to a Top-20 panel with auto-follow, layouts persist in localStorage, user-crafted positions are preserved on Add, carry-and-drop interaction is live, every UI surface and console log is in English. Brute force was retired in v=94 — SMART (SA) is the sole optimizer; the explicit RE-OPTIMIZE button covers the deterministic-greedy use case.
+Production. SA runs in 1–6 Web Workers, results are streamed to a Top-20 panel with auto-follow, layouts persist in localStorage, user-crafted positions are preserved on Add, carry-and-drop interaction is live (with a trash button + Delete key to discard from carry), every UI surface and console log is in English. Brute force was retired in v=94 — SMART (SA) is the sole optimizer; the explicit RE-OPTIMIZE button covers the deterministic-greedy use case. SA scoring now also rewards powered free rectangles (v=96) so SMART prefers layouts that keep open space against the W/S bus for future batteries / clusters.
 
 ---
 
@@ -65,7 +65,32 @@ SMART (scheduleAnnealOpt)
             └── simulatedAnneal → leaf messages → optResults panel + auto-follow
 ```
 
-Any layout-mutating action (add/remove/expand/import/drop) calls `stopOptimization()` first — it bumps `bgOptId` so in-flight worker messages drop themselves on arrival and terminates any active SA workers.
+Any layout-mutating action (add/remove/expand/import/drop/delete) calls `stopOptimization()` first — it bumps `bgOptId` so in-flight worker messages drop themselves on arrival and terminates any active SA workers.
+
+### scoreLayout signals (v=96)
+
+`scoreLayout(placements, grid)` aggregates four signals, biggest first:
+
+| Signal | Magnitude | Source |
+|---|---|---|
+| `workingSet.size × 50000` | per working Spinner | `computeWorkingSet` |
+| `computeFreeBlockBonus` | super-linear in block area, ×2 at bus | windowed sweep over Uint8Array occupied/portTarget grids |
+| `wires × −5000` | penalty per auto-routed wire cell | `tryAddWires` |
+| `quality × 4` | per free-cell-pair connectivity | `computeFreeSpaceQuality` |
+
+The free-block table escalates 200 (2×2) → 25000 (4×4) → 60000 (5×5), doubled when the window touches the W bus (col 0) or S bus (row R−1). Windows overlap on purpose: a 4×4 powered area at the bus is counted as one 4×4 + four 3×3 + nine 2×2, so total bonus scales quadratically with free-block size without explicit max-rectangle dedup.
+
+### Carry interaction (v=85, refined v=97)
+
+Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel within ±5 SVG units of a cell centre and snap-aligns outside that zone. Wires drop and are recomputed on a valid placement. Controls while carrying:
+
+| Action | Result |
+|---|---|
+| Move mouse | Ghost follows cell-by-cell |
+| `R` key | Rotate to next geometrically distinct orientation |
+| Click on grid | Drop at current cell (bounds + collision validated) |
+| `Delete` key OR floating 🗑 button | Remove the carried component, recompute wires for the rest |
+| `Esc` key | Cancel, restore original position + wires |
 
 ---
 
@@ -81,6 +106,10 @@ Any layout-mutating action (add/remove/expand/import/drop) calls `stopOptimizati
 
 | Version | Date | Change |
 |---|---|---|
+| v=99 | 2026-06-07 | Bio Generator visual: BIOCELL labels in cells (0,0) and (1,0), lower-alpha fills + suppressed bridges to body, ☘ glyph offset down ~1/3 cell |
+| v=98 | 2026-06-07 | `expandBody` logs old → new dims + warns when at max; `optimizeAll` logs grid; defensive maxRows/maxCols coercion on init for legacy persisted state |
+| v=97 | 2026-06-07 | Carry mode: floating 🗑 Delete button + `Delete` key remove the picked-up component and recompute wires |
+| v=96 | 2026-06-07 | `scoreLayout` adds powered free-block bonus — escalates 200 (2×2) → 60000 (5×5), ×2 multiplier when block touches W or S bus |
 | v=95 | 2026-06-06 | Renamed `bfResults*`/`bfAutoFollowTop`/`BF_RESULTS_KEY`/`#bf-results`/`#bf-progress`/`bfEl` → `opt*` equivalents now that BF is gone |
 | v=94 | 2026-06-06 | Brute force completely removed (~1500 LOC); `src/bruteforce/` deleted; layout export/import extracted to `src/ui/export.js`; new `stopOptimization()` helper |
 | v=93 | 2026-06-06 | Component icons 3× larger on left panel + grid (font-size 13→36 inline, 15→45 placed list, 15→45 SVG) |
