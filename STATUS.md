@@ -1,7 +1,7 @@
-# Idle Directive – Body Optimizer – STATUS
+# Body Grid Planner – STATUS
 
 **Date:** 2026-06-07
-**Version:** v=99
+**Version:** v=103
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
