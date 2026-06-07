@@ -22,12 +22,18 @@ let pendingBetterLayout = null;
 // race against user edits.
 function stopOptimization() {
   bgOptId++;
-  if (typeof currentSaWorkers !== 'undefined' && currentSaWorkers.length > 0) {
+  const wasRunning = (typeof currentSaWorkers !== 'undefined' && currentSaWorkers.length > 0);
+  if (wasRunning) {
     for (const w of currentSaWorkers) {
       try { w.postMessage({ type: 'stop' }); } catch (e) {}
       try { w.terminate(); } catch (e) {}
     }
     currentSaWorkers = [];
+    // Worker.terminate() doesn't yield a 'stopped' message back, so the
+    // progress badge would stay visible. Clear it here too.
+    const optEl = document.getElementById('opt-progress');
+    if (optEl) { optEl.style.display = 'none'; optEl.textContent = ''; }
+    console.log('[Anneal] Auto-stopped (layout change or restart)');
   }
 }
 
@@ -831,6 +837,11 @@ function resetLayout() {
 async function optimizeAll() {
   if (state.placements.length === 0) return;
 
+  // Re-Optimize Layout rebuilds every placement from scratch; any SA
+  // run still streaming leaves would overwrite the new arrangement, so
+  // terminate it first.
+  stopOptimization();
+
   const ids = ensureComponentOrder(
     state.placements
       .filter(p => p.componentId !== 'wire')
@@ -846,9 +857,9 @@ async function optimizeAll() {
       .map(p => p.componentId)
   );
 
-  console.log(`[Optimize] Start: grid ${state.grid.rows}×${state.grid.cols}, ${ids.length} components`);
-  console.log('[Optimize] Order:', ids.join(' → '));
-  showStatus(`Optimizing ${ids.length} components on ${state.grid.rows}×${state.grid.cols} grid…`, 'ok');
+  console.log(`[Re-Optimize Layout] Start: grid ${state.grid.rows}×${state.grid.cols}, ${ids.length} components`);
+  console.log('[Re-Optimize Layout] Order:', ids.join(' → '));
+  showStatus(`Re-Optimize Layout: ${ids.length} components on ${state.grid.rows}×${state.grid.cols} grid…`, 'ok');
 
   // Save original for rollback — non-wire components must NEVER disappear
   const savedPlacements = state.placements.slice();
@@ -1082,12 +1093,15 @@ function optResultsClear() {
 }
 
 function startAnneal() {
+  // Stop any in-flight run first so clicking SMART acts as a clean
+  // restart — the previous batch is terminated before the new one spawns.
+  stopOptimization();
   // Note: don't clear optResults — they persist across runs (up to 20) so the
   // user can compare new SA output against earlier sessions.
   autoFollowTop = true;
   renderOptResults();
   scheduleAnnealOpt();
-  showStatus('SA started — shell pack + greedy fill, then 6 workers with different strategies.', 'ok');
+  showStatus('SMART (Simulated Annealing) started — shell pack + greedy fill, then 6 workers with different strategies.', 'ok');
 }
 
 function stopAllWorkers() {
@@ -1266,7 +1280,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=101');
+    const w = new Worker('sa-worker.js?v=102');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {

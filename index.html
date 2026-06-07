@@ -22,9 +22,9 @@
     </div>
 
     <div id="body-controls">
-      <button id="btn-expand"  onclick="expandBody()">▣ EXPAND BODY</button>
-      <button id="btn-auto"    onclick="optimizeAll()">⚡ RE-OPTIMIZE</button>
-      <button id="btn-anneal"  onclick="startAnneal()">⚡³ SMART (SA)</button>
+      <button id="btn-expand"  onclick="expandBody()">▣ EXPAND BODY SPACE</button>
+      <button id="btn-auto"    onclick="optimizeAll()">⚡ RE-OPTIMIZE LAYOUT</button>
+      <button id="btn-anneal"  onclick="startAnneal()">⚡³ SMART (Simulated Annealing)</button>
       <button id="btn-stop"    onclick="stopAllWorkers()">■ STOP</button>
     </div>
 
@@ -147,17 +147,17 @@
     <div class="help-section">
       <h4>Top buttons</h4>
       <dl>
-        <dt><span class="kbd">▣ EXPAND BODY</span></dt>
+        <dt><span class="kbd">▣ EXPAND BODY SPACE</span></dt>
         <dd>Grow the grid by +2 rows and +2 cols, up to the in-game maximum 19 × 12. Disabled once the grid is at max.</dd>
 
-        <dt><span class="kbd">⚡ RE-OPTIMIZE</span></dt>
+        <dt><span class="kbd">⚡ RE-OPTIMIZE LAYOUT</span></dt>
         <dd>Greedy single-pass arrangement. Throws away current positions and re-places each component in a fixed priority order. Deterministic, fast (1–2 s), but only finds a local optimum. Use this to tidy up a messy grid; use SMART for a thorough search.</dd>
 
-        <dt><span class="kbd">⚡³ SMART (SA)</span></dt>
-        <dd>Simulated Annealing across N worker threads (set in Settings). Each worker starts from your current layout (if structurally sane) or a multi-strategy greedy seed, then explores neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely until you click STOP.</dd>
+        <dt><span class="kbd">⚡³ SMART (Simulated Annealing)</span></dt>
+        <dd>Simulated Annealing across N worker threads (set in Settings). Each worker starts from your current layout (if structurally sane) or a multi-strategy greedy seed, then explores neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely until you click STOP. Pressing the button again terminates the existing run and starts a fresh batch.</dd>
 
         <dt><span class="kbd">■ STOP</span></dt>
-        <dd>Terminate every running SA worker immediately.</dd>
+        <dd>Terminate every running Simulated Annealing worker immediately. <em>Add</em>, <em>remove</em>, <em>expand</em>, <em>drop</em>, and <em>delete</em> actions also auto-stop any in-flight calculation, so you don't have to click STOP first when editing the layout.</dd>
       </dl>
     </div>
 
@@ -228,7 +228,7 @@
     <div class="help-section">
       <h4>About the game &amp; credits</h4>
       <p><strong>IDLE_DIRECTIVE</strong> is a grid-based inventory and resource management idle game by <a href="https://kevinfu510.itch.io/" target="_blank" rel="noopener">kevinfu510</a>. You scavenge ruins, manage a body inventory of components, and push back against a decaying world. This tool exists because hand-arranging the body grid by trial-and-error becomes painful once you own 20+ components.</p>
-      <p>This optimizer is an <strong>independent, unofficial fan project</strong>, built as a tribute and a thank-you to kevinfu510 for the game. None of the design, art, or naming conventions in the game itself belong to this project — they are the developer's work. If this tool saved you some clicks, please support the actual game:</p>
+      <p>This optimizer is an <strong>independent, unofficial fan project</strong>, built as a tribute and a thank-you to kevinfu510 for the game. The interface design and visuals of this tool are our own work. The <strong>component shapes, names, and the in-project terminology</strong> follow the game so layouts here map directly to the game's body grid — those belong to kevinfu510. If this tool saved you some clicks, please support the actual game:</p>
       <ul>
         <li><a href="https://store.steampowered.com/app/4599710/IDLE_DIRECTIVE/" target="_blank" rel="noopener">IDLE_DIRECTIVE on Steam</a></li>
         <li><a href="https://kevinfu510.itch.io/idle-directive" target="_blank" rel="noopener">IDLE_DIRECTIVE on itch.io</a></li>
@@ -242,23 +242,23 @@
   </div>
 </div>
 
-<script src="src/constants.js?v=101"></script>
-<script src="src/optimizer/rotation.js?v=101"></script>
-<script src="src/optimizer/bus.js?v=101"></script>
-<script src="src/optimizer/placement.js?v=101"></script>
-<script src="src/optimizer/score.js?v=101"></script>
-<script src="src/optimizer/validate.js?v=101"></script>
-<script src="src/sa/shell.js?v=101"></script>
-<script src="src/sa/moves.js?v=101"></script>
-<script src="src/sa/clusters.js?v=101"></script>
-<script src="src/sa/greedy.js?v=101"></script>
-<script src="src/sa/annealer.js?v=101"></script>
-<script src="src/ui/settings.js?v=101"></script>
-<script src="src/ui/export.js?v=101"></script>
-<script src="src/ui/help.js?v=101"></script>
-<script src="optimizer.js?v=101"></script>
-<script src="renderer.js?v=101"></script>
-<script src="app.js?v=101"></script>
+<script src="src/constants.js?v=102"></script>
+<script src="src/optimizer/rotation.js?v=102"></script>
+<script src="src/optimizer/bus.js?v=102"></script>
+<script src="src/optimizer/placement.js?v=102"></script>
+<script src="src/optimizer/score.js?v=102"></script>
+<script src="src/optimizer/validate.js?v=102"></script>
+<script src="src/sa/shell.js?v=102"></script>
+<script src="src/sa/moves.js?v=102"></script>
+<script src="src/sa/clusters.js?v=102"></script>
+<script src="src/sa/greedy.js?v=102"></script>
+<script src="src/sa/annealer.js?v=102"></script>
+<script src="src/ui/settings.js?v=102"></script>
+<script src="src/ui/export.js?v=102"></script>
+<script src="src/ui/help.js?v=102"></script>
+<script src="optimizer.js?v=102"></script>
+<script src="renderer.js?v=102"></script>
+<script src="app.js?v=102"></script>
 
 </body>
 </html>
