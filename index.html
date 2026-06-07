@@ -14,7 +14,7 @@
   <aside id="left-panel">
 
     <div id="panel-header">
-      <h1>BODY OPTIMIZER<button id="btn-settings" onclick="openSettings()" title="Settings">⚙</button></h1>
+      <h1>BODY OPTIMIZER<button id="btn-help" onclick="openHelp()" title="Help">📖</button><button id="btn-settings" onclick="openSettings()" title="Settings">⚙</button></h1>
       <div id="grid-info">
         <span id="grid-size-label">3 × 4</span>
         <span id="grid-level-label">LVL 1</span>
@@ -121,22 +121,129 @@
   </div>
 </div>
 
-<script src="src/constants.js?v=99"></script>
-<script src="src/optimizer/rotation.js?v=99"></script>
-<script src="src/optimizer/bus.js?v=99"></script>
-<script src="src/optimizer/placement.js?v=99"></script>
-<script src="src/optimizer/score.js?v=99"></script>
-<script src="src/optimizer/validate.js?v=99"></script>
-<script src="src/sa/shell.js?v=99"></script>
-<script src="src/sa/moves.js?v=99"></script>
-<script src="src/sa/clusters.js?v=99"></script>
-<script src="src/sa/greedy.js?v=99"></script>
-<script src="src/sa/annealer.js?v=99"></script>
-<script src="src/ui/settings.js?v=99"></script>
-<script src="src/ui/export.js?v=99"></script>
-<script src="optimizer.js?v=99"></script>
-<script src="renderer.js?v=99"></script>
-<script src="app.js?v=99"></script>
+<!-- ── Help modal ─────────────────────────────────────────────────── -->
+<div id="help-modal" class="modal hidden" onclick="if(event.target===this)closeHelp()">
+  <div class="modal-content help-content">
+    <h3>Body Optimizer — Help</h3>
+
+    <div class="help-section">
+      <p>This is a planning tool for the <strong>body / inventory grid</strong> in the game <a href="https://store.steampowered.com/app/4599710/IDLE_DIRECTIVE/" target="_blank" rel="noopener">IDLE_DIRECTIVE</a> (Steam) — also available on <a href="https://kevinfu510.itch.io/idle-directive" target="_blank" rel="noopener">itch.io</a>. Place every component you own onto a virtual grid, let the optimizer arrange them so every Spinner is powered, every Repeater has a target, and as much open space as possible stays accessible for future upgrades.</p>
+    </div>
+
+    <div class="help-section">
+      <h4>Top buttons</h4>
+      <dl>
+        <dt><span class="kbd">▣ EXPAND BODY</span></dt>
+        <dd>Grow the grid by +2 rows and +2 cols, up to the in-game maximum 19 × 12. Disabled once the grid is at max.</dd>
+
+        <dt><span class="kbd">⚡ RE-OPTIMIZE</span></dt>
+        <dd>Greedy single-pass arrangement. Throws away current positions and re-places each component in a fixed priority order. Deterministic, fast (1–2 s), but only finds a local optimum. Use this to tidy up a messy grid; use SMART for a thorough search.</dd>
+
+        <dt><span class="kbd">⚡³ SMART (SA)</span></dt>
+        <dd>Simulated Annealing across N worker threads (set in Settings). Each worker starts from your current layout (if structurally sane) or a multi-strategy greedy seed, then explores neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely until you click STOP.</dd>
+
+        <dt><span class="kbd">■ STOP</span></dt>
+        <dd>Terminate every running SA worker immediately.</dd>
+      </dl>
+    </div>
+
+    <div class="help-section">
+      <h4>Left panel</h4>
+      <dl>
+        <dt><strong>COMPONENTS</strong></dt>
+        <dd>Library of every component definition (loaded from <code>components.json</code>). Click the <span class="kbd">+</span> button to add one to the grid. The counter shows how many of each are already placed.</dd>
+
+        <dt><strong>PLACED</strong></dt>
+        <dd>List of currently placed components, sorted by id. Each row shows the component icon, name, position, power/working state. Click a row to highlight it on the grid.</dd>
+
+        <dt><strong>Top-20 results panel</strong></dt>
+        <dd>Appears as soon as SA reports a valid layout. Each slot shows worker number, age, and score. The TOP button toggles auto-follow — when on, the grid snaps to the best result as soon as it arrives.</dd>
+      </dl>
+    </div>
+
+    <div class="help-section">
+      <h4>Grid interaction</h4>
+      <dl>
+        <dt><strong>Click a placed component</strong></dt>
+        <dd>Picks it up into <em>carry mode</em>. Wires drop and will recompute on placement.</dd>
+
+        <dt><strong>Move mouse while carrying</strong></dt>
+        <dd>The ghost follows the cursor pixel-by-pixel inside ±5 SVG units of a cell centre, and snap-aligns to the cell outside that zone.</dd>
+
+        <dt><span class="kbd">R</span></dt>
+        <dd>Rotate the carried component to the next geometrically distinct orientation. Square components with directional ports (e.g. battery_2x2) get four rotations; symmetric components get fewer.</dd>
+
+        <dt><strong>Click on grid while carrying</strong></dt>
+        <dd>Drop at the current cell. Bounds + collisions are validated; wires recompute. Invalid drop → status bar warns, you keep carrying.</dd>
+
+        <dt><span class="kbd">Delete</span> or the floating <span class="kbd">🗑 Delete</span> button</dt>
+        <dd>Discard the carried component completely. Wires recompute for the remaining layout.</dd>
+
+        <dt><span class="kbd">Esc</span></dt>
+        <dd>Cancel carry: restore the original position and the wires you had before pickup.</dd>
+      </dl>
+    </div>
+
+    <div class="help-section">
+      <h4>Settings (⚙)</h4>
+      <dl>
+        <dt><strong>SA worker thread count</strong></dt>
+        <dd>How many parallel SA workers SMART spawns. Default is <code>min(navigator.hardwareConcurrency, 6)</code>. Capped at 6 to keep the target machine responsive.</dd>
+
+        <dt><strong>Export / Import</strong></dt>
+        <dd>Encodes the current grid + every placement into a base64 string (~10–15 KB for a 35-component layout). Useful for transferring state between machines or sharing a layout. Import overwrites the local state after a confirm.</dd>
+
+        <dt><strong>System reset</strong></dt>
+        <dd>Removes every component and resets the grid to the default 3 × 4. Hard to recover from — there is no undo.</dd>
+      </dl>
+    </div>
+
+    <div class="help-section">
+      <h4>How a layout is scored</h4>
+      <p>The optimizer ranks layouts with a single number (higher is better), built from four signals:</p>
+      <table class="help-table">
+        <tr><th>Signal</th><th>Weight</th><th>Why</th></tr>
+        <tr><td>Working Spinners</td><td>+ 50000 each</td><td>Most valuable atom — Spinners drive the game's idle production.</td></tr>
+        <tr><td>Powered free rectangles</td><td>+200 (2×2) → +60000 (5×5), ×2 at the bus</td><td>Rewards keeping open space accessible to power, so future batteries / clusters fit without rearranging.</td></tr>
+        <tr><td>Auto-routed wires</td><td>−5000 each</td><td>Penalty per wire cell. SA prefers layouts where ports sit directly on the bus.</td></tr>
+        <tr><td>Free-cell connectivity</td><td>+4 per free-neighbour pair</td><td>Fine-grained tiebreaker.</td></tr>
+      </table>
+      <p>A layout is <em>valid</em> when every energy-bearing component is powered, every Spinner has its required Repeater adjacency, and every Repeater is port-matched to a Spinner or Pulser. Invalid layouts get a heavy penalty so SA gradually anneals away from them.</p>
+    </div>
+
+    <div class="help-section">
+      <h4>About the game</h4>
+      <p><strong>IDLE_DIRECTIVE</strong> is a grid-based inventory and resource management idle game. You scavenge ruins, manage a body inventory of components, and push back against a decaying world. This tool exists because hand-arranging the body grid by trial-and-error becomes painful once you own 20+ components.</p>
+      <p>If this helped your run, support the developer:</p>
+      <ul>
+        <li><a href="https://store.steampowered.com/app/4599710/IDLE_DIRECTIVE/" target="_blank" rel="noopener">IDLE_DIRECTIVE on Steam</a></li>
+        <li><a href="https://kevinfu510.itch.io/idle-directive" target="_blank" rel="noopener">IDLE_DIRECTIVE on itch.io</a></li>
+      </ul>
+    </div>
+
+    <div class="modal-buttons">
+      <button onclick="closeHelp()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="src/constants.js?v=100"></script>
+<script src="src/optimizer/rotation.js?v=100"></script>
+<script src="src/optimizer/bus.js?v=100"></script>
+<script src="src/optimizer/placement.js?v=100"></script>
+<script src="src/optimizer/score.js?v=100"></script>
+<script src="src/optimizer/validate.js?v=100"></script>
+<script src="src/sa/shell.js?v=100"></script>
+<script src="src/sa/moves.js?v=100"></script>
+<script src="src/sa/clusters.js?v=100"></script>
+<script src="src/sa/greedy.js?v=100"></script>
+<script src="src/sa/annealer.js?v=100"></script>
+<script src="src/ui/settings.js?v=100"></script>
+<script src="src/ui/export.js?v=100"></script>
+<script src="src/ui/help.js?v=100"></script>
+<script src="optimizer.js?v=100"></script>
+<script src="renderer.js?v=100"></script>
+<script src="app.js?v=100"></script>
 
 </body>
 </html>
