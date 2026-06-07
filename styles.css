@@ -743,3 +743,113 @@ body.carry-mode g[data-comp] {
   transform: scale(1.05);
 }
 .carry-trash.hidden { display: none; }
+
+/* Help button matches the settings gear: a small inline button in the panel header */
+#btn-help {
+  background: none; border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  line-height: 1;
+}
+#btn-help:hover { color: var(--text-bright); }
+
+/* Help modal content: wider than settings, scrollable, semantic typography */
+.help-content {
+  width: min(720px, 92vw) !important;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+.help-section {
+  margin: 14px 0 18px;
+}
+.help-section h4 {
+  color: var(--accent);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.help-section p {
+  margin: 6px 0;
+  line-height: 1.5;
+  color: var(--text);
+}
+.help-section p strong { color: var(--text-bright); }
+.help-section a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.help-section a:hover { color: var(--text-bright); }
+.help-section dl {
+  margin: 6px 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 14px;
+  row-gap: 8px;
+  align-items: start;
+}
+.help-section dt {
+  white-space: nowrap;
+  color: var(--text-bright);
+  font-size: 12px;
+  padding-top: 2px;
+}
+.help-section dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.help-section ul {
+  margin: 6px 0 6px 22px;
+  padding: 0;
+}
+.help-section ul li {
+  margin: 4px 0;
+  font-size: 12px;
+}
+.help-section code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-deep);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text-bright);
+}
+.help-section .kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-hi);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.help-table th, .help-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.help-table th {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.help-table td:first-child {
+  color: var(--text-bright);
+  font-weight: 600;
+}
