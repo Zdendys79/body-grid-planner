@@ -2,7 +2,3 @@ backup_v*/
 node_modules/
 *.log
 .DS_Store
-
-# Private draft — letter to the game's author before any wider
-# announcement. Stays on the server but excluded from Git.
-LETTER_TO_AUTHOR.md
