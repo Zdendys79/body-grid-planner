@@ -45,8 +45,8 @@ A few things up front:
   **component shapes, names, and terminology come from your game**.
 - The Help modal and Settings → About panel both **link back to your
   Steam and itch.io pages** and credit you by name.
-- Source: <https://github.com/Zdendys79/idle-directive>
-- Live build: <https://idle-directive.zdendys79.website>
+- Source: <https://github.com/Zdendys79/body-grid-planner>
+- Live build: <https://body-grid-planner.zdendys79.website>
 
 **If you'd prefer it taken down, renamed, or restricted in any way**,
 please just say so and I'll act on it — no questions asked, it's your
