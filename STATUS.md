@@ -2,8 +2,8 @@
 
 **Date:** 2026-06-07
 **Version:** v=99
-**URL:** https://idle-directive.zdendys79.website
-**GitHub:** https://github.com/Zdendys/idle-directive
+**URL:** https://body-grid-planner.zdendys79.website
+**GitHub:** https://github.com/Zdendys79/body-grid-planner
 
 ---
 

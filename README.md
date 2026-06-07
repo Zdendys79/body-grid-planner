@@ -2,9 +2,9 @@
 
 Web app for optimizing component placement on a body grid.
 
-**URL:** `https://idle-directive.zdendys79.website`
-**Files:** `/var/www/html/idle_directive/`
-**GitHub:** `https://github.com/Zdendys/idle-directive`
+**URL:** `https://body-grid-planner.zdendys79.website`
+**Files:** `/var/www/html/body_grid_planner/`
+**GitHub:** `https://github.com/Zdendys79/body-grid-planner`
 
 ---
 
