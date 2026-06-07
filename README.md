@@ -1,6 +1,6 @@
-# Idle Directive – Body Optimizer
+# Body Grid Planner
 
-Web app for optimizing component placement on a body grid.
+Web app for optimizing component placement on a body grid. Independent fan project for the indie game **IDLE_DIRECTIVE** by [kevinfu510](https://kevinfu510.itch.io/) — see Help → About the game & credits in the app for details.
 
 **URL:** `https://body-grid-planner.zdendys79.website`
 **Files:** `/var/www/html/body_grid_planner/`
