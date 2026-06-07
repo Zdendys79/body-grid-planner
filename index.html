@@ -155,7 +155,7 @@
         <dd>Greedy single-pass arrangement. Throws away current positions and re-places each component in a fixed priority order. Deterministic, fast (1–2 s), but only finds a local optimum. Use this to tidy up a messy grid; use SMART for a thorough search.</dd>
 
         <dt><span class="kbd">⚡³ SMART (Simulated Annealing)</span></dt>
-        <dd>Simulated Annealing across N worker threads (set in Settings). Each worker starts from your current layout (if structurally sane) or a multi-strategy greedy seed, then explores neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely until you click STOP. Pressing the button again terminates the existing run and starts a fresh batch.</dd>
+        <dd>Simulated Annealing across N worker threads (set in Settings). Each worker starts from your current layout (if structurally sane) or a multi-strategy greedy seed, then explores neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely until you click STOP. Pressing the button again terminates the existing run and starts a fresh batch. <strong>Runtime varies wildly:</strong> small layouts settle in seconds, mid-size (~25–35 components) in minutes, dense or near-optimum layouts may run for hours without a visible improvement. <strong>Tip:</strong> if SA seems stuck, try EXPAND BODY SPACE — a little extra free space often unlocks much better arrangements.</dd>
 
         <dt><span class="kbd">■ STOP</span></dt>
         <dd>Terminate every running Simulated Annealing worker immediately. <em>Add</em>, <em>remove</em>, <em>expand</em>, <em>drop</em>, and <em>delete</em> actions also auto-stop any in-flight calculation, so you don't have to click STOP first when editing the layout.</dd>
@@ -243,23 +243,23 @@
   </div>
 </div>
 
-<script src="src/constants.js?v=103"></script>
-<script src="src/optimizer/rotation.js?v=103"></script>
-<script src="src/optimizer/bus.js?v=103"></script>
-<script src="src/optimizer/placement.js?v=103"></script>
-<script src="src/optimizer/score.js?v=103"></script>
-<script src="src/optimizer/validate.js?v=103"></script>
-<script src="src/sa/shell.js?v=103"></script>
-<script src="src/sa/moves.js?v=103"></script>
-<script src="src/sa/clusters.js?v=103"></script>
-<script src="src/sa/greedy.js?v=103"></script>
-<script src="src/sa/annealer.js?v=103"></script>
-<script src="src/ui/settings.js?v=103"></script>
-<script src="src/ui/export.js?v=103"></script>
-<script src="src/ui/help.js?v=103"></script>
-<script src="optimizer.js?v=103"></script>
-<script src="renderer.js?v=103"></script>
-<script src="app.js?v=103"></script>
+<script src="src/constants.js?v=104"></script>
+<script src="src/optimizer/rotation.js?v=104"></script>
+<script src="src/optimizer/bus.js?v=104"></script>
+<script src="src/optimizer/placement.js?v=104"></script>
+<script src="src/optimizer/score.js?v=104"></script>
+<script src="src/optimizer/validate.js?v=104"></script>
+<script src="src/sa/shell.js?v=104"></script>
+<script src="src/sa/moves.js?v=104"></script>
+<script src="src/sa/clusters.js?v=104"></script>
+<script src="src/sa/greedy.js?v=104"></script>
+<script src="src/sa/annealer.js?v=104"></script>
+<script src="src/ui/settings.js?v=104"></script>
+<script src="src/ui/export.js?v=104"></script>
+<script src="src/ui/help.js?v=104"></script>
+<script src="optimizer.js?v=104"></script>
+<script src="renderer.js?v=104"></script>
+<script src="app.js?v=104"></script>
 
 </body>
 </html>
