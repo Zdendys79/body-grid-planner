@@ -235,7 +235,7 @@ function updateGridInfo() {
   const el2 = document.getElementById('grid-level-label');
   if (el1) el1.textContent = `${state.grid.rows} × ${state.grid.cols}`;
   if (el2) {
-    const level = Math.max((state.grid.rows - 3) / 2, (state.grid.cols - 4) / 2) + 1;
+    const level = Math.floor((Math.max(state.grid.rows, state.grid.cols) - 3) / 2) + 1;
     el2.textContent = `LVL ${level}`;
   }
 }
@@ -808,8 +808,12 @@ function expandBody() {
     console.log(`[Expand] No-op: already at max ${grid.maxRows}×${grid.maxCols}.`);
     return;
   }
-  if (grid.rows < grid.maxRows) grid.rows = Math.min(grid.rows + 2, grid.maxRows);
-  if (grid.cols < grid.maxCols) grid.cols = Math.min(grid.cols + 2, grid.maxCols);
+  // Both axes step to the next odd number above the current larger dimension,
+  // so asymmetric starts (3×4) snap to square (5×5) on the first upgrade.
+  const currentMax = Math.max(grid.rows, grid.cols);
+  const next = currentMax % 2 === 0 ? currentMax + 1 : currentMax + 2;
+  grid.rows = Math.min(next, grid.maxRows);
+  grid.cols = Math.min(next, grid.maxCols);
   console.log(`[Expand] ${oldRows}×${oldCols} → ${grid.rows}×${grid.cols}`);
   stopOptimization(); // grid dims changed → discard resume snapshot
   optResultsClear(); // grid dims changed → saved layouts may not fit anymore
@@ -1280,7 +1284,7 @@ function scheduleAnnealOpt() {
   console.log(`[Anneal] Start: ${nonWireIds.length} components, grid ${state.grid.rows}×${state.grid.cols}, ${N} workers`);
 
   for (let i = 0; i < N; i++) {
-    const w = new Worker('sa-worker.js?v=105');
+    const w = new Worker('sa-worker.js?v=106');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
