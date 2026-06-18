@@ -172,7 +172,75 @@ function computeFreeBlockBonus(placements, gridRows, gridCols) {
   return total;
 }
 
-// Final layout score — combines four signals into one number that SA and
+// Aesthetic bonus: same-type components placed next to each other score +100
+// per pair; +200 if they are also port-to-port connected.
+// Spinners, Repeaters and wires are excluded — their adjacency rules are
+// governed by the working-set logic, not by aesthetics.
+const CLUSTER_EXCLUDED  = new Set(['spinner', 'repeater_2s', 'repeater_4s', 'wire']);
+const CLUSTER_BONUS_BASE = 100;
+
+function computeClusterBonus(placements) {
+  // Cell → placement index map for eligible components.
+  const cellMap = new Map();
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (CLUSTER_EXCLUDED.has(p.componentId)) continue;
+    for (const [r, c] of (p.rotatedShape || [])) {
+      cellMap.set(`${p.row + r},${p.col + c}`, i);
+    }
+  }
+
+  // Port-to-port connected pairs (normalised i < j).
+  const portConnected = new Set();
+  const portMap = new Map();
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (CLUSTER_EXCLUDED.has(p.componentId)) continue;
+    for (const { cell, side } of (p.rotatedPorts || [])) {
+      const key = `${p.row + cell[0]},${p.col + cell[1]},${side}`;
+      if (!portMap.has(key)) portMap.set(key, []);
+      portMap.get(key).push(i);
+    }
+  }
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (CLUSTER_EXCLUDED.has(p.componentId)) continue;
+    for (const { cell, side } of (p.rotatedPorts || [])) {
+      const gr = p.row + cell[0], gc = p.col + cell[1];
+      const d = SIDE_DELTA[side];
+      const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[side]}`;
+      if (!portMap.has(adjKey)) continue;
+      for (const j of portMap.get(adjKey)) {
+        if (j > i) portConnected.add(`${i},${j}`);
+      }
+    }
+  }
+
+  // Sum bonus for each unique same-type cell-adjacent pair.
+  const counted = new Set();
+  let bonus = 0;
+  const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (CLUSTER_EXCLUDED.has(p.componentId)) continue;
+    for (const [r, c] of (p.rotatedShape || [])) {
+      for (const [dr, dc] of DIRS) {
+        const j = cellMap.get(`${p.row + r + dr},${p.col + c + dc}`);
+        if (j === undefined || j === i) continue;
+        if (placements[j].componentId !== p.componentId) continue;
+        const pairKey = i < j ? `${i},${j}` : `${j},${i}`;
+        if (counted.has(pairKey)) continue;
+        counted.add(pairKey);
+        bonus += portConnected.has(i < j ? `${i},${j}` : `${j},${i}`)
+          ? CLUSTER_BONUS_BASE * 2
+          : CLUSTER_BONUS_BASE;
+      }
+    }
+  }
+  return bonus;
+}
+
+// Final layout score — combines five signals into one number that SA and
 // the synchronous greedy share. Higher is better. The components, in
 // rough magnitude order from largest to smallest:
 //   workingSet.size * 50000  — a working Spinner is the most valuable atom
@@ -180,10 +248,12 @@ function computeFreeBlockBonus(placements, gridRows, gridCols) {
 //                              (single 4x4 at bus ≈ 50000)
 //   wires * 5000             — penalty: every auto-routed wire costs score
 //   quality * 4              — fine-grained connectivity of remaining free cells
+//   clusterBonus             — aesthetic: same-type neighbours +100, +200 if port-connected
 function scoreLayout(placements, grid) {
-  const wires      = placements.filter(p => p.componentId === 'wire').length;
-  const quality    = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
-  const workingSet = computeWorkingSet(placements);
-  const blockBonus = computeFreeBlockBonus(placements, grid.rows, grid.cols);
-  return quality * 4 - wires * 5000 + workingSet.size * 50000 + blockBonus;
+  const wires        = placements.filter(p => p.componentId === 'wire').length;
+  const quality      = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
+  const workingSet   = computeWorkingSet(placements);
+  const blockBonus   = computeFreeBlockBonus(placements, grid.rows, grid.cols);
+  const clusterBonus = computeClusterBonus(placements);
+  return quality * 4 - wires * 5000 + workingSet.size * 50000 + blockBonus + clusterBonus;
 }
