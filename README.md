@@ -112,11 +112,35 @@ For workers that operate on individual S+R (no clusters) `saChainTranslate` / `s
 
 ---
 
+## Running locally (without a web server)
+
+Download or clone the repository and open `index.html` directly in your browser — no server required.
+
+Two pre-generated files (`components-data.js`, `sa-worker-bundle.js`) make this possible: they inline the component definitions and the full SA worker code so the browser never needs to `fetch()` or spawn a Worker from a `file://` URL.
+
+After any change to source files, regenerate them with:
+
+```bash
+node build.js
+```
+
+Files that trigger a rebuild:
+
+| Changed file | Rebuild needed |
+|---|---|
+| `components.json` | yes |
+| `src/*.js`, `optimizer.js`, `sa-worker.js` | yes |
+| `app.js`, `renderer.js`, `styles.css`, `index.html` | no |
+
+The generated files are committed to the repository, so end users who just download the ZIP can open `index.html` immediately without running anything.
+
+---
+
 ## Cache buster
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=99**
+Current version: **v=108**
 
 ---
 
