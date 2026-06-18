@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-06-07
-**Version:** v=103
+**Date:** 2026-06-18
+**Version:** v=106
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=106 | 2026-06-18 | `expandBody` fixed: both axes step to next odd number above `max(rows,cols)` — 3×4 → 5×5 → 7×7 → … → 19×12; level label formula aligned |
 | v=99 | 2026-06-07 | Bio Generator visual: BIOCELL labels in cells (0,0) and (1,0), lower-alpha fills + suppressed bridges to body, ☘ glyph offset down ~1/3 cell |
 | v=98 | 2026-06-07 | `expandBody` logs old → new dims + warns when at max; `optimizeAll` logs grid; defensive maxRows/maxCols coercion on init for legacy persisted state |
 | v=97 | 2026-06-07 | Carry mode: floating 🗑 Delete button + `Delete` key remove the picked-up component and recompute wires |
