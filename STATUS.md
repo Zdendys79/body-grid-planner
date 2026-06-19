@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-06-18
-**Version:** v=108
+**Date:** 2026-06-19
+**Version:** v=109
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=109 | 2026-06-19 | `expandBody`: new rows added at top (matching game behaviour) — all components shift down by `deltaRows`, wires recomputed |
 | v=108 | 2026-06-18 | `file://` support: `build.js` generates `components-data.js` + `sa-worker-bundle.js`; app uses Blob worker + inline JSON, no web server needed |
 | v=107 | 2026-06-18 | `scoreLayout`: aesthetic cluster bonus — same-type neighbours +100, port-connected +200 (spinners/repeaters/wires excluded) |
 | v=106 | 2026-06-18 | `expandBody` fixed: both axes step to next odd number above `max(rows,cols)` — 3×4 → 5×5 → 7×7 → … → 19×12; level label formula aligned |
