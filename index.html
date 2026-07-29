@@ -121,6 +121,10 @@
         <label for="weight-cluster">Aesthetic clustering <span class="hint-icon" title="Score per pair of same-type components placed next to each other (doubled if they're also port-to-port connected). Purely cosmetic — doesn't affect power or validity, just makes SA prefer tidy same-type groupings. Spinners, Repeaters and wires are excluded, since their adjacency is already governed by the power rules.">[?]</span></label>
         <input type="number" id="weight-cluster" min="0" step="10" oninput="onWeightChange('cluster', this.value)">
       </div>
+      <div class="weight-row">
+        <label for="weight-amplifier">Amplifier bonus <span class="hint-icon" title="Score per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager, which the amplifier boosts in-game. Optional — not required for layout validity, but this weight makes SA try to wire a Harvester/Salvager up to an Amplifier when the grid allows it.">[?]</span></label>
+        <input type="number" id="weight-amplifier" min="0" step="500" oninput="onWeightChange('amplifier', this.value)">
+      </div>
 
       <div class="settings-buttons">
         <button onclick="resetScoreWeights()">↺ Reset to defaults</button>
@@ -279,25 +283,25 @@
   </div>
 </div>
 
-<script src="components-data.js?v=118"></script>
-<script src="sa-worker-bundle.js?v=118"></script>
-<script src="src/constants.js?v=118"></script>
-<script src="src/optimizer/rotation.js?v=118"></script>
-<script src="src/optimizer/bus.js?v=118"></script>
-<script src="src/optimizer/placement.js?v=118"></script>
-<script src="src/optimizer/score.js?v=118"></script>
-<script src="src/optimizer/validate.js?v=118"></script>
-<script src="src/sa/shell.js?v=118"></script>
-<script src="src/sa/moves.js?v=118"></script>
-<script src="src/sa/clusters.js?v=118"></script>
-<script src="src/sa/greedy.js?v=118"></script>
-<script src="src/sa/annealer.js?v=118"></script>
-<script src="src/ui/settings.js?v=118"></script>
-<script src="src/ui/export.js?v=118"></script>
-<script src="src/ui/help.js?v=118"></script>
-<script src="optimizer.js?v=118"></script>
-<script src="renderer.js?v=118"></script>
-<script src="app.js?v=118"></script>
+<script src="components-data.js?v=119"></script>
+<script src="sa-worker-bundle.js?v=119"></script>
+<script src="src/constants.js?v=119"></script>
+<script src="src/optimizer/rotation.js?v=119"></script>
+<script src="src/optimizer/bus.js?v=119"></script>
+<script src="src/optimizer/placement.js?v=119"></script>
+<script src="src/optimizer/score.js?v=119"></script>
+<script src="src/optimizer/validate.js?v=119"></script>
+<script src="src/sa/shell.js?v=119"></script>
+<script src="src/sa/moves.js?v=119"></script>
+<script src="src/sa/clusters.js?v=119"></script>
+<script src="src/sa/greedy.js?v=119"></script>
+<script src="src/sa/annealer.js?v=119"></script>
+<script src="src/ui/settings.js?v=119"></script>
+<script src="src/ui/export.js?v=119"></script>
+<script src="src/ui/help.js?v=119"></script>
+<script src="optimizer.js?v=119"></script>
+<script src="renderer.js?v=119"></script>
+<script src="app.js?v=119"></script>
 
 </body>
 </html>
