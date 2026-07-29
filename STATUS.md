@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-29
-**Version:** v=115
+**Version:** v=116
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=116 | 2026-07-29 | Settings/Help "About" text updated for the 29 July 2026 Steam release (was still saying "demo, full release scheduled") — added a Steam purchase recommendation, kept the itch.io demo link |
 | v=115 | 2026-07-29 | H1 now shows the app version (`v${APP_VERSION}`), derived at runtime from `app.js`'s own `?v=N` cache-buster via `document.currentScript` — no separate version string to maintain |
 | v=114 | 2026-07-29 | New component: Power Amplifier — 2x2, W on bottom-left, E+S on bottom-right |
 | v=113 | 2026-07-29 | New component: Collector (II) — 1×3 vertical, W+E on middle cell; original Collector renamed to Collector (I) (id unchanged) |
