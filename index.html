@@ -142,6 +142,15 @@
     </div>
 
     <div class="settings-section">
+      <h4>RE-OPTIMIZE debug stats</h4>
+      <div class="settings-buttons">
+        <button onclick="openReoptStats()">⇪ Export stats</button>
+        <button onclick="reoptStatsClear()">✗ Clear</button>
+      </div>
+      <div class="setting-hint">Every RE-OPTIMIZE run records a before/after score locally (last 50 runs) — never sent anywhere, same as everything else here. Export as a base64 string, same format as layout export, if you want to share it for debugging.</div>
+    </div>
+
+    <div class="settings-section">
       <h4>Dangerous actions</h4>
       <div class="settings-buttons">
         <button class="danger" onclick="resetLayout()">↺ System reset</button>
@@ -263,7 +272,7 @@
 
     <div class="help-section">
       <h4>Privacy</h4>
-      <p>This tool <strong>sends nothing to any server</strong> and <strong>collects no information about you</strong>. The page loads from Apache once, then everything — your layout, the Top-20 results panel, the thread-count setting — lives in your browser's <code>localStorage</code> and never leaves your machine. No analytics, no cookies, no tracking pixels, no third-party scripts. The optimizer's Web Workers run locally in your browser. Clearing your browser's site data for this domain wipes everything.</p>
+      <p>This tool <strong>sends nothing to any server</strong> and <strong>collects no information about you</strong>. The page loads from Apache once, then everything — your layout, the Top-20 results panel, the thread-count setting, the RE-OPTIMIZE debug stats — lives in your browser's <code>localStorage</code> and never leaves your machine. No analytics, no cookies, no tracking pixels, no third-party scripts. The optimizer's Web Workers run locally in your browser. Clearing your browser's site data for this domain wipes everything.</p>
     </div>
 
     <div class="help-section">
@@ -283,25 +292,26 @@
   </div>
 </div>
 
-<script src="components-data.js?v=122"></script>
-<script src="sa-worker-bundle.js?v=122"></script>
-<script src="src/constants.js?v=122"></script>
-<script src="src/optimizer/rotation.js?v=122"></script>
-<script src="src/optimizer/bus.js?v=122"></script>
-<script src="src/optimizer/placement.js?v=122"></script>
-<script src="src/optimizer/score.js?v=122"></script>
-<script src="src/optimizer/validate.js?v=122"></script>
-<script src="src/sa/shell.js?v=122"></script>
-<script src="src/sa/moves.js?v=122"></script>
-<script src="src/sa/clusters.js?v=122"></script>
-<script src="src/sa/greedy.js?v=122"></script>
-<script src="src/sa/annealer.js?v=122"></script>
-<script src="src/ui/settings.js?v=122"></script>
-<script src="src/ui/export.js?v=122"></script>
-<script src="src/ui/help.js?v=122"></script>
-<script src="optimizer.js?v=122"></script>
-<script src="renderer.js?v=122"></script>
-<script src="app.js?v=122"></script>
+<script src="components-data.js?v=123"></script>
+<script src="sa-worker-bundle.js?v=123"></script>
+<script src="src/constants.js?v=123"></script>
+<script src="src/optimizer/rotation.js?v=123"></script>
+<script src="src/optimizer/bus.js?v=123"></script>
+<script src="src/optimizer/placement.js?v=123"></script>
+<script src="src/optimizer/score.js?v=123"></script>
+<script src="src/optimizer/validate.js?v=123"></script>
+<script src="src/sa/shell.js?v=123"></script>
+<script src="src/sa/moves.js?v=123"></script>
+<script src="src/sa/clusters.js?v=123"></script>
+<script src="src/sa/greedy.js?v=123"></script>
+<script src="src/sa/annealer.js?v=123"></script>
+<script src="src/ui/settings.js?v=123"></script>
+<script src="src/ui/export.js?v=123"></script>
+<script src="src/ui/debug-stats.js?v=123"></script>
+<script src="src/ui/help.js?v=123"></script>
+<script src="optimizer.js?v=123"></script>
+<script src="renderer.js?v=123"></script>
+<script src="app.js?v=123"></script>
 
 </body>
 </html>

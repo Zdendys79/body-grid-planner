@@ -26,7 +26,7 @@ A separate **RE-OPTIMIZE LAYOUT** button runs a synchronous single-pass greedy w
 
 ## Privacy
 
-This tool **sends nothing to any server** and **collects no information about you**. It loads the page from Apache once, then everything — your layout, the Top-20 results panel, the thread-count setting — lives in your browser's `localStorage` and never leaves your machine. No analytics, no cookies, no tracking pixels, no third-party scripts. The optimizer's Web Workers run locally in your browser. Clearing your browser's site data wipes everything.
+This tool **sends nothing to any server** and **collects no information about you**. It loads the page from Apache once, then everything — your layout, the Top-20 results panel, the thread-count setting, the RE-OPTIMIZE debug stats — lives in your browser's `localStorage` and never leaves your machine. No analytics, no cookies, no tracking pixels, no third-party scripts. The optimizer's Web Workers run locally in your browser. Clearing your browser's site data wipes everything.
 
 ---
 
@@ -54,6 +54,7 @@ This tool **sends nothing to any server** and **collects no information about yo
 | `src/sa/annealer.js` | Main `simulatedAnneal` loop with Metropolis acceptance |
 | `src/ui/settings.js` | Settings modal: thread-count slider, system reset |
 | `src/ui/export.js` | Cross-machine layout transfer (base64 bundle), save-modal handlers |
+| `src/ui/debug-stats.js` | Local RE-OPTIMIZE before/after stats (v=123), exported as a base64 bundle via the same save-modal |
 
 ---
 
@@ -158,7 +159,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=122**
+Current version: **v=123**
 
 ---
 

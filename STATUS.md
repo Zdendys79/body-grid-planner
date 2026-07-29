@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-29
-**Version:** v=122
+**Version:** v=123
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=123 | 2026-07-29 | New `src/ui/debug-stats.js`: every RE-OPTIMIZE run records a local before/after score (last 50, `localStorage[REOPT_STATS_KEY]`) — Settings → "RE-OPTIMIZE debug stats" exports them as the same kind of base64 string as layout export. Never sent anywhere, per the privacy promise |
 | v=122 | 2026-07-29 | New component: Battery (3x2) — 2×3 solid block, E ports on (0,2) and (1,2) |
 | v=121 | 2026-07-29 | `components.json`: reordered Battery (1x3) before Battery (2x2) in the power category |
 | v=120 | 2026-07-29 | RE-OPTIMIZE LAYOUT (`findBestPlacement`) now also rewards Power Amplifier <-> Harvester/Salvager port connections (`getAmplifierConnectionBonus`, reads live `scoreWeights.amplifier`) — previously only SMART (SA) considered this bonus |
