@@ -65,6 +65,7 @@ Every script loaded in `index.html`, every `importScripts(...)` call in `sa-work
 | `src/sa/annealer.js` | Metropolis acceptance loop (`simulatedAnneal`) |
 | `src/ui/settings.js` | Settings modal: thread-count slider, `scoreLayout` weight tuning, system reset |
 | `src/ui/export.js` | Cross-machine base64 layout transfer, save-modal handlers |
+| `src/ui/debug-stats.js` | Local RE-OPTIMIZE before/after stats, exported as a base64 bundle via the same save-modal |
 | `src/ui/help.js` | Help modal: buttons/interactions/scoring explanation, links to the game on Steam/itch.io |
 | `build.js` | Generates `components-data.js` + `sa-worker-bundle.js` for `file://` (local) usage — see below |
 
