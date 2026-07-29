@@ -51,7 +51,7 @@ function onThreadsChange() {
 // values scoreLayout reads on the main thread. localStorage[SETTINGS_KEY]
 // is just persistence — SA workers get their own copy via the 'init'
 // message (see scheduleAnnealOpt in app.js), since threads share no memory.
-const WEIGHT_FIELDS = ['workingSet', 'wirePenalty', 'quality', 'freeBlock', 'cluster'];
+const WEIGHT_FIELDS = ['workingSet', 'wirePenalty', 'quality', 'freeBlock', 'cluster', 'amplifier'];
 
 // Called once on app startup to seed the main thread's live weights from
 // whatever the player saved last time (falls back to DEFAULT_SCORE_WEIGHTS).

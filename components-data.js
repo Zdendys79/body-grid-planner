@@ -144,7 +144,11 @@ window.COMPONENTS_DATA = {
       "color": "#FFD54F",
       "bgColor": "#332400",
       "icon": "⚡",
-      "description": "Power Amplifier, 2x2. W on (1,0). E+S on (1,1)."
+      "optimizerRules": {
+        "connectsTo": ["harvester", "salvager"],
+        "note": "Boosts the output of any port-connected Harvester or Salvager. Optional — not required for layout validity, but scoreLayout rewards each connection (Settings → Layout scoring weights → Amplifier bonus)."
+      },
+      "description": "Power Amplifier, 2x2. W on (1,0). E+S on (1,1). Boosts output of a port-connected Harvester or Salvager."
     },
     {
       "id": "pulser",

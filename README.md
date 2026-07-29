@@ -92,9 +92,10 @@ If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlap
 Click a placed component to lift it (wires drop). Mouse moves the ghost (pixel-precise within ±5 px of cell center, otherwise grid-snapped). `R` rotates through unique orientations. Click on the grid to drop; bounds + collision (including peripherals) are validated, wires recompute. `Delete` key or the floating 🗑 button discards the carried component and recomputes wires for the rest. `Esc` cancels and restores the original position with wires.
 
 ### scoreLayout signals
-`scoreLayout` is the single number SA and the synchronous greedy share. Five contributions, biggest first at default weights — all five are player-tunable in Settings → "Layout scoring weights" (v=117), persisted in `localStorage[SETTINGS_KEY]`, reset via a dedicated button:
+`scoreLayout` is the single number SA and the synchronous greedy share. Six contributions, biggest first at default weights — all six are player-tunable in Settings → "Layout scoring weights" (v=117), persisted in `localStorage[SETTINGS_KEY]`, reset via a dedicated button:
 - `workingSet.size × weights.workingSet` (default 50000) — every working Spinner is the most valuable atom.
 - `computeFreeBlockBonus × weights.freeBlock` (default multiplier 1) — sums a per-window bonus over every all-free rectangle of selected sizes that has at least one cell on the W/S bus or fed by a placed component's port. The table escalates 200 (2×2) → 25000 (4×4) → 60000 (5×5), and a window touching the W (col 0) or S (row R−1) bus doubles. Overlap is intentional so larger free areas grow super-linearly without explicit max-rectangle dedup. The per-size table itself isn't exposed as individual weights — only this overall multiplier is.
+- `computeAmplifierBonus` (v=119) — `weights.amplifier` (default 8000) per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager. Optional, unlike Repeater↔Spinner — not required for layout validity, purely an SA incentive.
 - `wires × −weights.wirePenalty` (default 5000) — penalty per auto-routed wire cell.
 - `quality × weights.quality` (default 4) — per-cell free-neighbour count, fine-grained connectivity of remaining free cells.
 - `computeClusterBonus` (v=107) — `weights.cluster` (default 100) per same-type neighbour pair, doubled if also port-to-port connected. Spinners, Repeaters and wires are excluded.
@@ -157,7 +158,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=118**
+Current version: **v=119**
 
 ---
 
