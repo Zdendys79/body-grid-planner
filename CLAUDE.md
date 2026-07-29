@@ -27,6 +27,16 @@ node --check src/constants.js
 
 There is no bundler, linter config, or test suite.
 
+## Local (file://) build step
+
+`components-data.js` and `sa-worker-bundle.js` are **generated files, committed to the repo**, that let `index.html` be opened directly from disk (no `fetch()`/Worker restrictions under `file://`). After changing `components.json`, any `src/*.js`, `optimizer.js`, or `sa-worker.js`, regenerate them:
+
+```bash
+node build.js
+```
+
+No rebuild needed for changes to `app.js`, `renderer.js`, `styles.css`, or `index.html` alone.
+
 ## Cache buster — critical
 
 Every script loaded in `index.html`, every `importScripts(...)` call in `sa-worker.js`, and the `new Worker('sa-worker.js?v=N')` URL in `app.js` **must all share the same `?v=N`**. After any code change, bump the version number in all three places. The current version is the number in `sa-worker.js` line 1–30.
@@ -55,6 +65,8 @@ Every script loaded in `index.html`, every `importScripts(...)` call in `sa-work
 | `src/sa/annealer.js` | Metropolis acceptance loop (`simulatedAnneal`) |
 | `src/ui/settings.js` | Settings modal: thread-count slider, system reset |
 | `src/ui/export.js` | Cross-machine base64 layout transfer, save-modal handlers |
+| `src/ui/help.js` | Help modal: buttons/interactions/scoring explanation, links to the game on Steam/itch.io |
+| `build.js` | Generates `components-data.js` + `sa-worker-bundle.js` for `file://` (local) usage — see below |
 
 `src/*` modules are loaded only in `sa-worker.js` (not in `index.html`) because the main thread needs `optimizer.js` + `renderer.js` + `app.js`; workers need the full `src/` stack.
 
