@@ -87,7 +87,7 @@ Greedy scorer for a single new component, used by both "add one component" and R
 3. Hard rejects: Spinner without room for its Repeater, Repeater without a non-working Spinner target.
 4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus + amplifierBonus` — `getAmplifierConnectionBonus` (v=120) adds `scoreWeights.amplifier` per direct port connection between a Power Amplifier and an already-placed Harvester/Salvager (or the reverse order), mirroring `computeAmplifierBonus` in `scoreLayout` so RE-OPTIMIZE and SMART agree.
 
-If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlapping geometric fit (no wire routing). Existing components are **never** rearranged when adding a new one — that is the role of the explicit RE-OPTIMIZE button.
+If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlapping geometric fit (no wire routing). Existing components are **never** rearranged when adding a new one — that is the role of the explicit RE-OPTIMIZE button. After placement, `addComponent` (v=125) re-runs `tryAddWires` over the whole layout — `findBestPlacement` only wires up the component just added, so this catches any other already-placed component that's now one hop from power thanks to the addition. Positions are never touched, only auto-placed wire cells are added.
 
 ### Carry-mode interaction
 Click a placed component to lift it (wires drop). Mouse moves the ghost (pixel-precise within ±5 px of cell center, otherwise grid-snapped). `R` rotates through unique orientations. Click on the grid to drop; bounds + collision (including peripherals) are validated, wires recompute. `Delete` key or the floating 🗑 button discards the carried component and recomputes wires for the rest. `Esc` cancels and restores the original position with wires.
@@ -159,7 +159,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=123**
+Current version: **v=127**
 
 ---
 
