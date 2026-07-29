@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-29
-**Version:** v=120
+**Version:** v=122
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,8 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=122 | 2026-07-29 | New component: Battery (3x2) — 2×3 solid block, E ports on (0,2) and (1,2) |
+| v=121 | 2026-07-29 | `components.json`: reordered Battery (1x3) before Battery (2x2) in the power category |
 | v=120 | 2026-07-29 | RE-OPTIMIZE LAYOUT (`findBestPlacement`) now also rewards Power Amplifier <-> Harvester/Salvager port connections (`getAmplifierConnectionBonus`, reads live `scoreWeights.amplifier`) — previously only SMART (SA) considered this bonus |
 | v=119 | 2026-07-29 | `scoreLayout`: new Power Amplifier bonus (`computeAmplifierBonus`, default 8000/connection) rewards port-connecting a Power Amplifier to a Harvester or Salvager — optional, not a validity requirement. New "Amplifier bonus" weight slider in Settings |
 | v=118 | 2026-07-29 | `expandBody`: skip the 13×12 step (game itself jumps straight from 11×11 to 15×12 once cols hit their 12 cap) |
@@ -156,12 +158,12 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **25** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **26** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, bio_generator (3×3 self-contained), energy_cells, power_amplifier |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, bio_generator (3×3 self-contained), energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
 | processing | grabber, collector (I), collector_ii (II), decomposer, harvester, salvager, metal_scavenger, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |

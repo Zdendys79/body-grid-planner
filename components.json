@@ -49,6 +49,22 @@
       "description": "S on (1,0)."
     },
     {
+      "id": "battery_1x3",
+      "name": "Battery (1x3)",
+      "category": "power",
+      "shape": [[0,0],[0,1],[0,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,2], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "W on (0,0). E on (0,2)."
+    },
+    {
       "id": "battery_2x2",
       "name": "Battery (2x2)",
       "category": "power",
@@ -64,20 +80,20 @@
       "description": "N on (0,0)."
     },
     {
-      "id": "battery_1x3",
-      "name": "Battery (1x3)",
+      "id": "battery_3x2",
+      "name": "Battery (3x2)",
       "category": "power",
-      "shape": [[0,0],[0,1],[0,2]],
+      "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
-        {"cell": [0,0], "side": "W"},
-        {"cell": [0,2], "side": "E"}
+        {"cell": [0,2], "side": "E"},
+        {"cell": [1,2], "side": "E"}
       ],
       "bioPorts": [],
       "peripheral": null,
       "color": "#EF5350",
       "bgColor": "#4a0f0f",
       "icon": "▓",
-      "description": "W on (0,0). E on (0,2)."
+      "description": "Battery (3x2). E on (0,2). E on (1,2)."
     },
     {
       "id": "sensor",
