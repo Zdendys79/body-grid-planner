@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-29
-**Version:** v=110
+**Version:** v=111
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=111 | 2026-07-29 | Progress bar: iteration count in scientific notation (`1.23e+5`), elapsed time as `M:SS`/`H:MM:SS` instead of decimal minutes |
 | v=110 | 2026-07-29 | New component: Battery (1x3) — 1×3 shape, W/E ports on short sides (`=BBB=`) |
 | v=109 | 2026-06-19 | `expandBody`: new rows added at top (matching game behaviour) — all components shift down by `deltaRows`, wires recomputed |
 | v=108 | 2026-06-18 | `file://` support: `build.js` generates `components-data.js` + `sa-worker-bundle.js`; app uses Blob worker + inline JSON, no web server needed |
