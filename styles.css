@@ -653,7 +653,9 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   color: #ffd0d0;
 }
 
-/* SMART (Simulated Annealing) button — primary action */
+/* SMART (Simulated Annealing) / STOP merged toggle button — primary action.
+   Idle state: green "start" styling. .running: switches to the red "stop"
+   styling that used to live on the separate #btn-stop button. */
 #btn-anneal {
   background: linear-gradient(135deg, #5abf6022, #80cbc422);
   color: #80cbc4;
@@ -665,6 +667,12 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   background: linear-gradient(135deg, #5abf6044, #80cbc444);
   color: #b0e0e0;
 }
+#btn-anneal.running {
+  background: #f0505022;
+  color: var(--err-color);
+  border: 1px solid #f0505055;
+}
+#btn-anneal.running:hover:not(:disabled) { background: #f0505044; }
 
 /* Top-K SA results panel */
 #opt-results {
@@ -706,15 +714,6 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   color: var(--text-dim);
   font-size: 10px;
 }
-
-/* STOP button */
-#btn-stop {
-  background: #f0505022;
-  color: var(--err-color);
-  border: 1px solid #f0505055;
-  padding: 8px 10px;
-}
-#btn-stop:hover:not(:disabled) { background: #f0505044; }
 
 /* TOP follow-mode button (header of results panel) */
 .top-btn {

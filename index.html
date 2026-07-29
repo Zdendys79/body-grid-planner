@@ -24,8 +24,7 @@
     <div id="body-controls">
       <button id="btn-expand"  onclick="expandBody()">▣ EXPAND BODY SPACE</button>
       <button id="btn-auto"    onclick="optimizeAll()">⚡ RE-OPTIMIZE LAYOUT</button>
-      <button id="btn-anneal"  onclick="startAnneal()">⚡³ SMART (Simulated Annealing)</button>
-      <button id="btn-stop"    onclick="stopAllWorkers()">■ STOP</button>
+      <button id="btn-anneal"  onclick="toggleAnneal()">⚡³ SMART (Simulated Annealing)</button>
     </div>
 
     <div id="opt-results" style="display:none"></div>
@@ -129,7 +128,7 @@
       <div class="settings-buttons">
         <button onclick="resetScoreWeights()">↺ Reset to defaults</button>
       </div>
-      <div class="setting-hint">Changes apply to the next SMART run or RE-OPTIMIZE. A SMART search already in progress keeps the weights it started with until stopped.</div>
+      <div class="setting-hint">Changing any weight stops a SMART search already in progress, same as editing the layout — click SMART again to restart it with the new values.</div>
     </div>
 
     <div class="settings-section">
@@ -198,11 +197,8 @@
         <dt><span class="kbd">⚡ RE-OPTIMIZE LAYOUT</span></dt>
         <dd>Greedy single-pass arrangement. Throws away current positions and re-places each component in a fixed priority order. Deterministic, fast (1–2 s), but only finds a local optimum. Use this to tidy up a messy grid; use SMART for a thorough search.</dd>
 
-        <dt><span class="kbd">⚡³ SMART (Simulated Annealing)</span></dt>
-        <dd>Simulated Annealing across N worker threads (set in Settings). Each worker starts from your current layout (if structurally sane) or a multi-strategy greedy seed, then explores neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely until you click STOP. Pressing the button again terminates the existing run and starts a fresh batch. <strong>Runtime varies wildly:</strong> small layouts settle in seconds, mid-size (~25–35 components) in minutes, dense or near-optimum layouts may run for hours without a visible improvement. <strong>Tip:</strong> if SA seems stuck, try EXPAND BODY SPACE — a little extra free space often unlocks much better arrangements.</dd>
-
-        <dt><span class="kbd">■ STOP</span></dt>
-        <dd>Terminate every running Simulated Annealing worker immediately. <em>Add</em>, <em>remove</em>, <em>expand</em>, <em>drop</em>, and <em>delete</em> actions also auto-stop any in-flight calculation, so you don't have to click STOP first when editing the layout.</dd>
+        <dt><span class="kbd">⚡³ SMART (Simulated Annealing)</span> / <span class="kbd">■ STOP SMART</span></dt>
+        <dd>One toggle button. Click to start: Simulated Annealing across N worker threads (set in Settings), each starting from your current layout (if structurally sane) or a multi-strategy greedy seed, then exploring neighbouring layouts. Best valid layouts stream into the Top-20 panel with auto-follow on by default. Runs indefinitely — the button turns red and the label switches to STOP SMART while it's running; click it again to terminate every worker immediately. <em>Add</em>, <em>remove</em>, <em>expand</em>, <em>drop</em>, <em>delete</em>, and changing a <em>Layout scoring weight</em> in Settings also auto-stop any in-flight run (the button flips back to idle), so a run never keeps optimizing against a layout or weights you've since changed. <strong>Runtime varies wildly:</strong> small layouts settle in seconds, mid-size (~25–35 components) in minutes, dense or near-optimum layouts may run for hours without a visible improvement. <strong>Tip:</strong> if SA seems stuck, try EXPAND BODY SPACE — a little extra free space often unlocks much better arrangements.</dd>
       </dl>
     </div>
 
@@ -292,26 +288,26 @@
   </div>
 </div>
 
-<script src="components-data.js?v=123"></script>
-<script src="sa-worker-bundle.js?v=123"></script>
-<script src="src/constants.js?v=123"></script>
-<script src="src/optimizer/rotation.js?v=123"></script>
-<script src="src/optimizer/bus.js?v=123"></script>
-<script src="src/optimizer/placement.js?v=123"></script>
-<script src="src/optimizer/score.js?v=123"></script>
-<script src="src/optimizer/validate.js?v=123"></script>
-<script src="src/sa/shell.js?v=123"></script>
-<script src="src/sa/moves.js?v=123"></script>
-<script src="src/sa/clusters.js?v=123"></script>
-<script src="src/sa/greedy.js?v=123"></script>
-<script src="src/sa/annealer.js?v=123"></script>
-<script src="src/ui/settings.js?v=123"></script>
-<script src="src/ui/export.js?v=123"></script>
-<script src="src/ui/debug-stats.js?v=123"></script>
-<script src="src/ui/help.js?v=123"></script>
-<script src="optimizer.js?v=123"></script>
-<script src="renderer.js?v=123"></script>
-<script src="app.js?v=123"></script>
+<script src="components-data.js?v=127"></script>
+<script src="sa-worker-bundle.js?v=127"></script>
+<script src="src/constants.js?v=127"></script>
+<script src="src/optimizer/rotation.js?v=127"></script>
+<script src="src/optimizer/bus.js?v=127"></script>
+<script src="src/optimizer/placement.js?v=127"></script>
+<script src="src/optimizer/score.js?v=127"></script>
+<script src="src/optimizer/validate.js?v=127"></script>
+<script src="src/sa/shell.js?v=127"></script>
+<script src="src/sa/moves.js?v=127"></script>
+<script src="src/sa/clusters.js?v=127"></script>
+<script src="src/sa/greedy.js?v=127"></script>
+<script src="src/sa/annealer.js?v=127"></script>
+<script src="src/ui/settings.js?v=127"></script>
+<script src="src/ui/export.js?v=127"></script>
+<script src="src/ui/debug-stats.js?v=127"></script>
+<script src="src/ui/help.js?v=127"></script>
+<script src="optimizer.js?v=127"></script>
+<script src="renderer.js?v=127"></script>
+<script src="app.js?v=127"></script>
 
 </body>
 </html>

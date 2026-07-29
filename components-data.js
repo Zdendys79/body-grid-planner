@@ -300,7 +300,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "decomposer",
-      "name": "Decomposer",
+      "name": "Decomposer (I)",
       "category": "processing",
       "shape": [[0,1],[0,2],[0,3],[1,0],[1,1],[1,2]],
       "energyPorts": [
@@ -312,7 +312,23 @@ window.COMPONENTS_DATA = {
       "color": "#CE93D8",
       "bgColor": "#1a0a22",
       "icon": "⊠",
-      "description": "W on (1,0). E on (1,2)."
+      "description": "Decomposer tier I. W on (1,0). E on (1,2)."
+    },
+    {
+      "id": "decomposer_ii",
+      "name": "Decomposer (II)",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[1,0],[1,1],[1,2],[1,3],[2,0],[2,1],[2,2],[2,3]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,1], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#CE93D8",
+      "bgColor": "#1a0a22",
+      "icon": "⊠",
+      "description": "Decomposer tier II. W on (0,0). E on (0,1)."
     },
     {
       "id": "harvester",

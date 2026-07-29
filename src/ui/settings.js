@@ -69,6 +69,11 @@ function renderWeightInputs() {
 }
 
 function onWeightChange(key, rawValue) {
+  // A running SA batch already has its own copy of the old weights (sent
+  // once via the worker 'init' message) and won't pick up the change — stop
+  // it, same as any layout-mutating action, so it never keeps optimizing
+  // against stale weights. The player has to explicitly restart SMART.
+  stopOptimization();
   let val = parseFloat(rawValue);
   if (!Number.isFinite(val) || val < 0) val = DEFAULT_SCORE_WEIGHTS[key];
   const s = loadSettings();
@@ -78,6 +83,7 @@ function onWeightChange(key, rawValue) {
 }
 
 function resetScoreWeights() {
+  stopOptimization();
   const s = loadSettings();
   delete s.weights;
   saveSettings(s);

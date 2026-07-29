@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-29
-**Version:** v=123
+**Version:** v=127
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,10 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=127 | 2026-07-29 | Decomposer (II) shape corrected: top row is (0,0)+(0,1) (was (0,1)+(0,2)); W port moved to (0,0), E to (0,1) |
+| v=126 | 2026-07-29 | New component: Decomposer (II) — 2x4 offset block, W on (0,1), E on (0,2); original Decomposer renamed to Decomposer (I) (id unchanged) |
+| v=125 | 2026-07-29 | `startAnneal` clears prior Top-20 results on every fresh SMART start (was preserved across runs). `addComponent` now re-scans the whole layout with `tryAddWires` after placing the new component, so previously-stranded unpowered components that are now one hop from power (e.g. a Battery dropped next to them) get wired too — `findBestPlacement` only wired the newly added component itself |
+| v=124 | 2026-07-29 | SMART and STOP merged into one toggle button (`toggleAnneal`, `updateAnnealButton`); changing a Layout scoring weight (or resetting) now also auto-stops an in-progress SMART search, same as editing the layout — button flips back to idle and must be explicitly restarted |
 | v=123 | 2026-07-29 | New `src/ui/debug-stats.js`: every RE-OPTIMIZE run records a local before/after score (last 50, `localStorage[REOPT_STATS_KEY]`) — Settings → "RE-OPTIMIZE debug stats" exports them as the same kind of base64 string as layout export. Never sent anywhere, per the privacy promise |
 | v=122 | 2026-07-29 | New component: Battery (3x2) — 2×3 solid block, E ports on (0,2) and (1,2) |
 | v=121 | 2026-07-29 | `components.json`: reordered Battery (1x3) before Battery (2x2) in the power category |
@@ -159,13 +163,13 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **26** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **27** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
 | power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, bio_generator (3×3 self-contained), energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
-| processing | grabber, collector (I), collector_ii (II), decomposer, harvester, salvager, metal_scavenger, furnace (I), furnace_ii (II), fuser_i |
+| processing | grabber, collector (I), collector_ii (II), decomposer (I), decomposer_ii (II), harvester, salvager, metal_scavenger, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |
 | bio | disposable_biocell, biocell |
