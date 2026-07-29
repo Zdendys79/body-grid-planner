@@ -64,6 +64,22 @@
       "description": "N on (0,0)."
     },
     {
+      "id": "battery_1x3",
+      "name": "Battery (1x3)",
+      "category": "power",
+      "shape": [[0,0],[0,1],[0,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,2], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "W on (0,0). E on (0,2)."
+    },
+    {
       "id": "sensor",
       "name": "Sensor",
       "category": "detection",

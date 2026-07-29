@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-06-19
-**Version:** v=109
+**Date:** 2026-07-29
+**Version:** v=110
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=110 | 2026-07-29 | New component: Battery (1x3) — 1×3 shape, W/E ports on short sides (`=BBB=`) |
 | v=109 | 2026-06-19 | `expandBody`: new rows added at top (matching game behaviour) — all components shift down by `deltaRows`, wires recomputed |
 | v=108 | 2026-06-18 | `file://` support: `build.js` generates `components-data.js` + `sa-worker-bundle.js`; app uses Blob worker + inline JSON, no web server needed |
 | v=107 | 2026-06-18 | `scoreLayout`: aesthetic cluster bonus — same-type neighbours +100, port-connected +200 (spinners/repeaters/wires excluded) |
@@ -145,12 +146,12 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **21** (incl. `metal_scavenger`, `furnace`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **22** (incl. `metal_scavenger`, `furnace`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_2x2, bio_generator (3×3 self-contained), energy_cells |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, bio_generator (3×3 self-contained), energy_cells |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
 | processing | grabber, collector, decomposer, harvester, salvager, metal_scavenger, furnace, fuser_i |
 | detection | sensor |
