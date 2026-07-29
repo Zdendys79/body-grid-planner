@@ -5,7 +5,7 @@
 //
 // Message protocol:
 //   Main → Worker:
-//     {type:'init', componentLib}                          → 'ready'
+//     {type:'init', componentLib, scoreWeights}             → 'ready'
 //     {type:'start', nonWireIds, grid, options, workerId}  — begin
 //     {type:'stop'}                                        — cancel
 //   Worker → Main:
@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=116',
-  'src/optimizer/rotation.js?v=116',
-  'src/optimizer/bus.js?v=116',
-  'src/optimizer/placement.js?v=116',
-  'src/optimizer/score.js?v=116',
-  'src/optimizer/validate.js?v=116',
-  'src/sa/shell.js?v=116',
-  'src/sa/moves.js?v=116',
-  'src/sa/clusters.js?v=116',
-  'src/sa/greedy.js?v=116',
-  'src/sa/annealer.js?v=116',
-  'optimizer.js?v=116'
+  'src/constants.js?v=118',
+  'src/optimizer/rotation.js?v=118',
+  'src/optimizer/bus.js?v=118',
+  'src/optimizer/placement.js?v=118',
+  'src/optimizer/score.js?v=118',
+  'src/optimizer/validate.js?v=118',
+  'src/sa/shell.js?v=118',
+  'src/sa/moves.js?v=118',
+  'src/sa/clusters.js?v=118',
+  'src/sa/greedy.js?v=118',
+  'src/sa/annealer.js?v=118',
+  'optimizer.js?v=118'
 );
 
 let componentLib = [];
@@ -39,6 +39,7 @@ self.onmessage = function (e) {
   switch (msg.type) {
     case 'init':
       componentLib = msg.componentLib;
+      if (msg.scoreWeights) setScoreWeights(msg.scoreWeights);
       self.postMessage({ type: 'ready' });
       break;
     case 'start':

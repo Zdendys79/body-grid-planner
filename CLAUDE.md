@@ -63,7 +63,7 @@ Every script loaded in `index.html`, every `importScripts(...)` call in `sa-work
 | `src/sa/clusters.js` | Pre-baked linear Spinner-Repeater cluster atoms |
 | `src/sa/greedy.js` | Greedy seed builders and `perturbInitial` |
 | `src/sa/annealer.js` | Metropolis acceptance loop (`simulatedAnneal`) |
-| `src/ui/settings.js` | Settings modal: thread-count slider, system reset |
+| `src/ui/settings.js` | Settings modal: thread-count slider, `scoreLayout` weight tuning, system reset |
 | `src/ui/export.js` | Cross-machine base64 layout transfer, save-modal handlers |
 | `src/ui/help.js` | Help modal: buttons/interactions/scoring explanation, links to the game on Steam/itch.io |
 | `build.js` | Generates `components-data.js` + `sa-worker-bundle.js` for `file://` (local) usage — see below |
@@ -86,7 +86,7 @@ Every script loaded in `index.html`, every `importScripts(...)` call in `sa-work
 
 ```
 Main → Worker:
-  {type:'init', componentLib}               → 'ready'
+  {type:'init', componentLib, scoreWeights}  → 'ready'
   {type:'start', nonWireIds, grid, options, workerId}
   {type:'stop'}
 Worker → Main:

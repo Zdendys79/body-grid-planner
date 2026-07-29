@@ -4,6 +4,28 @@
 // Spinners satisfied by their Repeater requirements. scoreLayout combines
 // these into the brute force's final layout ranking.
 
+// Player-tunable weights for scoreLayout's five signals (Settings modal).
+// Each JS context (main thread, each SA worker) holds its own copy — the
+// main thread calls setScoreWeights() directly from persisted settings;
+// workers receive the current values via the 'init' message, since threads
+// don't share memory. See src/ui/settings.js and sa-worker.js.
+const DEFAULT_SCORE_WEIGHTS = {
+  workingSet:  50000, // per working Spinner
+  wirePenalty:  5000, // per auto-routed wire cell (subtracted)
+  quality:         4, // per unit of free-neighbour connectivity
+  freeBlock:       1, // multiplier on computeFreeBlockBonus's raw total
+  cluster:       100  // per same-type neighbour pair (port-connected pairs get x2)
+};
+let scoreWeights = { ...DEFAULT_SCORE_WEIGHTS };
+
+function setScoreWeights(w) {
+  scoreWeights = { ...DEFAULT_SCORE_WEIGHTS, ...(w || {}) };
+}
+
+function getScoreWeights() {
+  return { ...scoreWeights };
+}
+
 function computeFreeSpaceQuality(extraShape, extraRow, extraCol, placements, gridRows, gridCols) {
   const occupied = new Set();
   placements.forEach(p => p.rotatedShape.forEach(([r,c]) => occupied.add(`${p.row+r},${p.col+c}`)));
@@ -177,7 +199,6 @@ function computeFreeBlockBonus(placements, gridRows, gridCols) {
 // Spinners, Repeaters and wires are excluded — their adjacency rules are
 // governed by the working-set logic, not by aesthetics.
 const CLUSTER_EXCLUDED  = new Set(['spinner', 'repeater_2s', 'repeater_4s', 'wire']);
-const CLUSTER_BONUS_BASE = 100;
 
 function computeClusterBonus(placements) {
   // Cell → placement index map for eligible components.
@@ -232,8 +253,8 @@ function computeClusterBonus(placements) {
         if (counted.has(pairKey)) continue;
         counted.add(pairKey);
         bonus += portConnected.has(i < j ? `${i},${j}` : `${j},${i}`)
-          ? CLUSTER_BONUS_BASE * 2
-          : CLUSTER_BONUS_BASE;
+          ? scoreWeights.cluster * 2
+          : scoreWeights.cluster;
       }
     }
   }
@@ -241,19 +262,25 @@ function computeClusterBonus(placements) {
 }
 
 // Final layout score — combines five signals into one number that SA and
-// the synchronous greedy share. Higher is better. The components, in
-// rough magnitude order from largest to smallest:
-//   workingSet.size * 50000  — a working Spinner is the most valuable atom
-//   freeBlockBonus           — powered free rectangles, escalates with area
-//                              (single 4x4 at bus ≈ 50000)
-//   wires * 5000             — penalty: every auto-routed wire costs score
-//   quality * 4              — fine-grained connectivity of remaining free cells
-//   clusterBonus             — aesthetic: same-type neighbours +100, +200 if port-connected
+// the synchronous greedy share. Higher is better. The components, in rough
+// magnitude order from largest to smallest at default weights:
+//   workingSet.size * weights.workingSet   — a working Spinner is the most valuable atom
+//   freeBlockBonus * weights.freeBlock     — powered free rectangles, escalates with area
+//                                           (single 4x4 at bus ≈ 50000 at default weight)
+//   wires * weights.wirePenalty            — penalty: every auto-routed wire costs score
+//   quality * weights.quality              — fine-grained connectivity of remaining free cells
+//   clusterBonus                           — aesthetic: same-type neighbours, weights.cluster
+//                                           per pair (x2 if port-connected); see computeClusterBonus
+// Weights are player-tunable via Settings — see setScoreWeights above.
 function scoreLayout(placements, grid) {
   const wires        = placements.filter(p => p.componentId === 'wire').length;
   const quality      = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
   const workingSet   = computeWorkingSet(placements);
   const blockBonus   = computeFreeBlockBonus(placements, grid.rows, grid.cols);
   const clusterBonus = computeClusterBonus(placements);
-  return quality * 4 - wires * 5000 + workingSet.size * 50000 + blockBonus + clusterBonus;
+  return quality * scoreWeights.quality
+       - wires * scoreWeights.wirePenalty
+       + workingSet.size * scoreWeights.workingSet
+       + blockBonus * scoreWeights.freeBlock
+       + clusterBonus;
 }
