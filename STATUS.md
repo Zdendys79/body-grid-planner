@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-29
-**Version:** v=111
+**Version:** v=114
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,9 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=114 | 2026-07-29 | New component: Power Amplifier — 2x2, W on bottom-left, E+S on bottom-right |
+| v=113 | 2026-07-29 | New component: Collector (II) — 1×3 vertical, W+E on middle cell; original Collector renamed to Collector (I) (id unchanged) |
+| v=112 | 2026-07-29 | New component: Furnace (II) — 4×3 solid block, W+S on bottom-left corner, E+S on bottom-right corner; original Furnace renamed to Furnace (I) (id unchanged) |
 | v=111 | 2026-07-29 | Progress bar: iteration count in scientific notation (`1.23e+5`), elapsed time as `M:SS`/`H:MM:SS` instead of decimal minutes |
 | v=110 | 2026-07-29 | New component: Battery (1x3) — 1×3 shape, W/E ports on short sides (`=BBB=`) |
 | v=109 | 2026-06-19 | `expandBody`: new rows added at top (matching game behaviour) — all components shift down by `deltaRows`, wires recomputed |
@@ -147,13 +150,13 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **22** (incl. `metal_scavenger`, `furnace`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **25** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, bio_generator (3×3 self-contained), energy_cells |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, bio_generator (3×3 self-contained), energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
-| processing | grabber, collector, decomposer, harvester, salvager, metal_scavenger, furnace, fuser_i |
+| processing | grabber, collector (I), collector_ii (II), decomposer, harvester, salvager, metal_scavenger, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |
 | bio | disposable_biocell, biocell |

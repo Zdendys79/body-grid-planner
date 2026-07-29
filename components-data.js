@@ -130,6 +130,23 @@ window.COMPONENTS_DATA = {
       "description": "W on (0,0). E on (0,1). W on (1,0). E on (1,1)."
     },
     {
+      "id": "power_amplifier",
+      "name": "Power Amplifier",
+      "category": "power",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,1], "side": "E"},
+        {"cell": [1,1], "side": "S"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FFD54F",
+      "bgColor": "#332400",
+      "icon": "⚡",
+      "description": "Power Amplifier, 2x2. W on (1,0). E+S on (1,1)."
+    },
+    {
       "id": "pulser",
       "name": "Pulser",
       "category": "power",
@@ -232,7 +249,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "collector",
-      "name": "Collector",
+      "name": "Collector (I)",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[0,3],[0,4]],
       "energyPorts": [
@@ -243,7 +260,23 @@ window.COMPONENTS_DATA = {
       "color": "#A5D6A7",
       "bgColor": "#0a1a0a",
       "icon": "⊟",
-      "description": "W on (0,0)."
+      "description": "Collector tier I, 1x5. W on (0,0)."
+    },
+    {
+      "id": "collector_ii",
+      "name": "Collector (II)",
+      "category": "processing",
+      "shape": [[0,0],[1,0],[2,0]],
+      "energyPorts": [
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,0], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#A5D6A7",
+      "bgColor": "#0a1a0a",
+      "icon": "⊟",
+      "description": "Collector tier II, 1x3 (vertical). W+E on (1,0)."
     },
     {
       "id": "decomposer",
@@ -309,7 +342,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "furnace",
-      "name": "Furnace",
+      "name": "Furnace (I)",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
@@ -321,7 +354,25 @@ window.COMPONENTS_DATA = {
       "color": "#FF7043",
       "bgColor": "#1a0500",
       "icon": "⊙",
-      "description": "Furnace 2x3. W on (1,0). E on (1,2)."
+      "description": "Furnace tier I, 2x3. W on (1,0). E on (1,2)."
+    },
+    {
+      "id": "furnace_ii",
+      "name": "Furnace (II)",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,0],[3,1],[3,2]],
+      "energyPorts": [
+        {"cell": [3,0], "side": "W"},
+        {"cell": [3,0], "side": "S"},
+        {"cell": [3,2], "side": "E"},
+        {"cell": [3,2], "side": "S"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FF7043",
+      "bgColor": "#1a0500",
+      "icon": "⊙",
+      "description": "Furnace tier II, 4x3. W+S on (3,0). E+S on (3,2)."
     },
     {
       "id": "fuser_i",
