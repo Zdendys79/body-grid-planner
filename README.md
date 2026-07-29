@@ -112,6 +112,20 @@ For workers that operate on individual S+R (no clusters) `saChainTranslate` / `s
 
 ---
 
+## Design notes (parked, not implemented)
+
+### Battery (1x3) vs Battery (2x2) efficiency
+
+Raw game capacity density favors 2x2 (750/cell/level vs 667/cell/level for 1x3), but `components.json` carries no `capacity` field — `scoreLayout` only sees geometry (ports, wires, free space), not in-game capacity value. Under that geometric scoring, 1x3 comes out well ahead in practice:
+
+- 1x3 has ports on both short ends (W+E) — a row of them chains port-to-port for free, no wires needed between units.
+- 2x2 has a single corner port — each unit can connect to only one neighbor, so chaining more than one requires a wire per junction (`wires × −5000` in `scoreLayout`), which dwarfs the 12% raw density advantage.
+- The aesthetic cluster bonus (v=107, same-type neighbours +100) also stacks along a 1x3 row but not around isolated 2x2s.
+
+Net: SA will favor 1x3 chains over 2x2 farms by a wider margin than the raw capacity numbers alone suggest. Not acted on — `capacity`/`level` could be added to `components.json` and scored directly if this ever needs to be modeled precisely instead of via geometric proxies.
+
+---
+
 ## Running locally (without a web server)
 
 Download or clone the repository and open `index.html` directly in your browser — no server required.
@@ -140,7 +154,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=108**
+Current version: **v=111**
 
 ---
 
