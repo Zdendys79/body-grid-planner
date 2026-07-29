@@ -135,6 +135,38 @@ function getRepeaterTargetBonus(compDef, energyPorts, row, col, placements) {
   return bonus;
 }
 
+// Bonus for connecting a Power Amplifier to a Harvester/Salvager (or the
+// reverse: placing a Harvester/Salvager next to an already-placed
+// Amplifier). Same relationship computeAmplifierBonus rewards in
+// src/optimizer/score.js for SMART — kept here too so RE-OPTIMIZE's
+// one-component-at-a-time greedy also tries to make the connection.
+// Reads the live scoreWeights.amplifier so both paths agree on magnitude.
+const AMPLIFIER_TARGET_IDS = new Set(['harvester', 'salvager']);
+
+function getAmplifierConnectionBonus(compDef, energyPorts, row, col, placements) {
+  const isAmplifier = compDef.id === 'power_amplifier';
+  const isTarget = AMPLIFIER_TARGET_IDS.has(compDef.id);
+  if (!isAmplifier && !isTarget) return 0;
+
+  let bonus = 0;
+  for (const { cell, side } of energyPorts) {
+    const gr = row + cell[0], gc = col + cell[1];
+    const d  = SIDE_DELTA[side];
+    const ar = gr + d.dr, ac = gc + d.dc;
+    for (const pp of placements) {
+      const isMatch = isAmplifier
+        ? AMPLIFIER_TARGET_IDS.has(pp.componentId)
+        : pp.componentId === 'power_amplifier';
+      if (!isMatch) continue;
+      const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
+        pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
+      );
+      if (connects) bonus += scoreWeights.amplifier;
+    }
+  }
+  return bonus;
+}
+
 // Bonus for Spinner/Pulser placed where both port-adjacent cells are free and in-bounds.
 // Encourages the optimizer to leave space for Repeaters on BOTH sides.
 function getSpinnerAccessibilityBonus(compDef, energyPorts, row, col, occupiedMap, grid) {
@@ -301,8 +333,11 @@ function findBestPlacement(compDef, state, pendingIds = []) {
         // Prefers positions where BOTH port sides have free adjacent cells for Repeaters
         const spinnerBonus = getSpinnerAccessibilityBonus(compDef, energyPorts, row, col, occupiedMap, grid);
 
+        // ── Power Amplifier <-> Harvester/Salvager connection bonus ──────
+        const amplifierBonus = getAmplifierConnectionBonus(compDef, energyPorts, row, col, placements);
+
         // ── Total score ───────────────────────────────────────────────────
-        const score = energyBonus + quality * 4 + spatial + periBonus + repeaterBonus + spinnerBonus;
+        const score = energyBonus + quality * 4 + spatial + periBonus + repeaterBonus + spinnerBonus + amplifierBonus;
 
         if (score > bestScore) {
           bestScore = score;
