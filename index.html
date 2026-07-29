@@ -99,6 +99,36 @@
     </div>
 
     <div class="settings-section">
+      <h4>Layout scoring weights</h4>
+
+      <div class="weight-row">
+        <label for="weight-workingSet">Working Spinner <span class="hint-icon" title="Score awarded per working Spinner (one that has its required Repeater adjacency). The single largest signal — SA nearly always prioritizes getting one more Spinner working over any other improvement.">[?]</span></label>
+        <input type="number" id="weight-workingSet" min="0" step="1000" oninput="onWeightChange('workingSet', this.value)">
+      </div>
+      <div class="weight-row">
+        <label for="weight-wirePenalty">Wire penalty <span class="hint-icon" title="Score subtracted per auto-routed wire cell. Keeps SA from routing long wire chains when a more compact, wire-free arrangement is possible.">[?]</span></label>
+        <input type="number" id="weight-wirePenalty" min="0" step="100" oninput="onWeightChange('wirePenalty', this.value)">
+      </div>
+      <div class="weight-row">
+        <label for="weight-quality">Free space quality <span class="hint-icon" title="Score per unit of free-cell connectivity (each empty cell's count of empty orthogonal neighbours, summed over the grid). Rewards keeping remaining free space open and unfragmented. Small compared to the other signals — mostly acts as a tie-breaker.">[?]</span></label>
+        <input type="number" id="weight-quality" min="0" step="1" oninput="onWeightChange('quality', this.value)">
+      </div>
+      <div class="weight-row">
+        <label for="weight-freeBlock">Free block bonus <span class="hint-icon" title="Multiplier on the bonus for large open rectangles of free cells reachable from the power bus or a component's port (so a future battery/cluster placed there could be powered for free). 1.0 = default tuning; raise to make SA leave more open space, lower to let it pack tighter.">[?]</span></label>
+        <input type="number" id="weight-freeBlock" min="0" step="0.1" oninput="onWeightChange('freeBlock', this.value)">
+      </div>
+      <div class="weight-row">
+        <label for="weight-cluster">Aesthetic clustering <span class="hint-icon" title="Score per pair of same-type components placed next to each other (doubled if they're also port-to-port connected). Purely cosmetic — doesn't affect power or validity, just makes SA prefer tidy same-type groupings. Spinners, Repeaters and wires are excluded, since their adjacency is already governed by the power rules.">[?]</span></label>
+        <input type="number" id="weight-cluster" min="0" step="10" oninput="onWeightChange('cluster', this.value)">
+      </div>
+
+      <div class="settings-buttons">
+        <button onclick="resetScoreWeights()">↺ Reset to defaults</button>
+      </div>
+      <div class="setting-hint">Changes apply to the next SMART run or RE-OPTIMIZE. A SMART search already in progress keeps the weights it started with until stopped.</div>
+    </div>
+
+    <div class="settings-section">
       <h4>State transfer between machines</h4>
       <div class="settings-buttons">
         <button onclick="exportLayout()">⇪ Export</button>
@@ -249,25 +279,25 @@
   </div>
 </div>
 
-<script src="components-data.js?v=116"></script>
-<script src="sa-worker-bundle.js?v=116"></script>
-<script src="src/constants.js?v=116"></script>
-<script src="src/optimizer/rotation.js?v=116"></script>
-<script src="src/optimizer/bus.js?v=116"></script>
-<script src="src/optimizer/placement.js?v=116"></script>
-<script src="src/optimizer/score.js?v=116"></script>
-<script src="src/optimizer/validate.js?v=116"></script>
-<script src="src/sa/shell.js?v=116"></script>
-<script src="src/sa/moves.js?v=116"></script>
-<script src="src/sa/clusters.js?v=116"></script>
-<script src="src/sa/greedy.js?v=116"></script>
-<script src="src/sa/annealer.js?v=116"></script>
-<script src="src/ui/settings.js?v=116"></script>
-<script src="src/ui/export.js?v=116"></script>
-<script src="src/ui/help.js?v=116"></script>
-<script src="optimizer.js?v=116"></script>
-<script src="renderer.js?v=116"></script>
-<script src="app.js?v=116"></script>
+<script src="components-data.js?v=118"></script>
+<script src="sa-worker-bundle.js?v=118"></script>
+<script src="src/constants.js?v=118"></script>
+<script src="src/optimizer/rotation.js?v=118"></script>
+<script src="src/optimizer/bus.js?v=118"></script>
+<script src="src/optimizer/placement.js?v=118"></script>
+<script src="src/optimizer/score.js?v=118"></script>
+<script src="src/optimizer/validate.js?v=118"></script>
+<script src="src/sa/shell.js?v=118"></script>
+<script src="src/sa/moves.js?v=118"></script>
+<script src="src/sa/clusters.js?v=118"></script>
+<script src="src/sa/greedy.js?v=118"></script>
+<script src="src/sa/annealer.js?v=118"></script>
+<script src="src/ui/settings.js?v=118"></script>
+<script src="src/ui/export.js?v=118"></script>
+<script src="src/ui/help.js?v=118"></script>
+<script src="optimizer.js?v=118"></script>
+<script src="renderer.js?v=118"></script>
+<script src="app.js?v=118"></script>
 
 </body>
 </html>

@@ -582,6 +582,44 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   margin-top: 8px;
   line-height: 1.4;
 }
+.weight-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.weight-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 0;
+  flex: 1;
+}
+.weight-row input[type="number"] {
+  width: 80px;
+  text-align: right;
+  font-family: monospace;
+  background: var(--bg-deep);
+  color: var(--text-bright);
+  border: 1px solid var(--border-hi);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+.hint-icon {
+  display: inline-block;
+  color: var(--text-dim);
+  border: 1px solid var(--border-hi);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1.5;
+  cursor: help;
+}
+.hint-icon:hover {
+  color: var(--text-bright);
+  border-color: var(--accent);
+}
 .setting-hint a {
   color: var(--accent);
   text-decoration: underline;
