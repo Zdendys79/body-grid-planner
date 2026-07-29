@@ -39,7 +39,7 @@ This tool **sends nothing to any server** and **collects no information about yo
 | `components.json` | Component definitions (shape, ports, colors) — **authoritative**, never edit without an explicit request |
 | `app.js` | Entry point: state, init, carry-mode, SA dispatcher, results panel, `stopOptimization` helper |
 | `renderer.js` | SVG grid renderer (cells, ports, glow, glyphs) |
-| `optimizer.js` | `findBestPlacement` (greedy + hard constraints) and `findAnyPlacement` (geometry only) |
+| `optimizer.js` | `findBestPlacement` (greedy + hard constraints + `getAmplifierConnectionBonus`) and `findAnyPlacement` (geometry only) |
 | `sa-worker.js` | SA worker entry; loads `src/*` via `importScripts` |
 | `src/constants.js` | `STATE_KEY`, `SETTINGS_KEY`, `MAX_THREADS` |
 | `src/optimizer/rotation.js` | `rotateComponent`, `rotateCoord`, `rotateSide`, `getUniqueDegs` (shape + port aware) |
@@ -80,11 +80,11 @@ A layout is valid when **all** of:
 - every Repeater is port-adjacent to at least one Spinner or Pulser.
 
 ### `findBestPlacement`
-Greedy scorer for a single new component:
+Greedy scorer for a single new component, used by both "add one component" and RE-OPTIMIZE (which calls it once per component in priority order):
 1. Reserves cells already occupied by other components **and** by their peripherals.
 2. Tries every unique rotation × every grid position.
 3. Hard rejects: Spinner without room for its Repeater, Repeater without a non-working Spinner target.
-4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus`.
+4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus + amplifierBonus` — `getAmplifierConnectionBonus` (v=120) adds `scoreWeights.amplifier` per direct port connection between a Power Amplifier and an already-placed Harvester/Salvager (or the reverse order), mirroring `computeAmplifierBonus` in `scoreLayout` so RE-OPTIMIZE and SMART agree.
 
 If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlapping geometric fit (no wire routing). Existing components are **never** rearranged when adding a new one — that is the role of the explicit RE-OPTIMIZE button.
 
@@ -158,7 +158,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=119**
+Current version: **v=120**
 
 ---
 
