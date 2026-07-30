@@ -27,7 +27,7 @@ function openSettings() {
   const slider = document.getElementById('setting-threads');
   slider.value = current;
   document.getElementById('setting-threads-value').textContent = current;
-  renderWeightInputs();
+  renderWeightList();
   document.getElementById('settings-modal').classList.remove('hidden');
 }
 
@@ -51,7 +51,31 @@ function onThreadsChange() {
 // values scoreLayout reads on the main thread. localStorage[SETTINGS_KEY]
 // is just persistence — SA workers get their own copy via the 'init'
 // message (see scheduleAnnealOpt in app.js), since threads share no memory.
-const WEIGHT_FIELDS = ['workingSet', 'wirePenalty', 'quality', 'freeBlock', 'cluster', 'amplifier'];
+//
+// The whole "Layout scoring weights" section is built here (not static HTML)
+// so each row can carry a live fill bar showing that signal's share of the
+// CURRENT layout's total score — see computeWeightContributions/updateWeightBars.
+const WEIGHT_META = [
+  { key: 'workingSet', label: 'Working Spinner', step: 1000,
+    hint: "Score awarded per working Spinner (one that has its required Repeater adjacency). The single largest signal — SA nearly always prioritizes getting one more Spinner working over any other improvement." },
+  { key: 'amplifier', label: 'Amplifier bonus', step: 500,
+    hint: "Score per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager, which the amplifier boosts in-game. Optional — not required for layout validity, but this weight makes SA try to wire a Harvester/Salvager up to an Amplifier when the grid allows it." },
+  { key: 'wirePenalty', label: 'Wire penalty', step: 100,
+    hint: "Score subtracted per auto-routed wire cell. Keeps SA from routing long wire chains when a more compact, wire-free arrangement is possible." },
+  { key: 'quality', label: 'Free space quality', step: 1,
+    hint: "Score per unit of free-cell connectivity (each empty cell's count of empty orthogonal neighbours, summed over the grid). Rewards keeping remaining free space open and unfragmented. Small compared to the other signals — mostly acts as a tie-breaker." },
+  { key: 'freeBlock', label: 'Free space bonus', step: 0.1,
+    hint: "Multiplier on the bonus for large open rectangles of free cells that are reachable from the W/S bus or from a placed component's port (so a future battery/cluster put there could eventually be powered). Applies regardless of whether the rectangle touches the bus directly — see 'Bus access bonus' for that extra reward. 1.0 = default tuning; raise to make SA leave more open space, lower to let it pack tighter." },
+  { key: 'busAccess', label: 'Bus access bonus', step: 0.1,
+    hint: "Extra multiplier added ON TOP of the free space bonus, but only for open rectangles that touch the W (col 0) or S (bottom row) bus directly — a future component placed there needs no wire at all. Independent of 'Free space bonus', so you can value general open space and direct bus access separately. 1.0 = default tuning (matches the old always-doubled behaviour); 0 disables the extra bus incentive entirely." },
+  { key: 'cluster', label: 'Aesthetic clustering', step: 10,
+    hint: "Score per pair of same-type components placed next to each other (doubled if they're also port-to-port connected). Purely cosmetic — doesn't affect power or validity, just makes SA prefer tidy same-type groupings. Spinners, Repeaters and wires are excluded, since their adjacency is already governed by the power rules." }
+];
+
+// Working Spinner + Amplifier bonus render together in a visually distinct
+// box (per request): both are functional component-to-component bonuses,
+// as opposed to the general spatial/aesthetic signals below them.
+const WEIGHT_GROUPED = new Set(['workingSet', 'amplifier']);
 
 // Called once on app startup to seed the main thread's live weights from
 // whatever the player saved last time (falls back to DEFAULT_SCORE_WEIGHTS).
@@ -60,12 +84,76 @@ function loadScoreWeights() {
   setScoreWeights(s.weights || {});
 }
 
-function renderWeightInputs() {
+// Raw (already weighted) contribution of each signal to scoreLayout's total
+// for the CURRENT layout — the same building blocks scoreLayout itself uses.
+// wirePenalty comes out negative; everything else is >= 0.
+function computeWeightContributions() {
+  const placements = state.placements || [];
+  const grid = state.grid;
+  const wires         = placements.filter(p => p.componentId === 'wire').length;
+  const quality        = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
+  const workingSet     = computeWorkingSet(placements);
+  const blockBonus     = computeFreeBlockBonus(placements, grid.rows, grid.cols);
+  const amplifierBonus = computeAmplifierBonus(placements);
+  const clusterBonus   = computeClusterBonus(placements);
   const w = getScoreWeights();
-  WEIGHT_FIELDS.forEach(key => {
-    const el = document.getElementById(`weight-${key}`);
-    if (el) el.value = w[key];
+  return {
+    workingSet:  workingSet.size * w.workingSet,
+    amplifier:   amplifierBonus,
+    wirePenalty: -(wires * w.wirePenalty),
+    quality:     quality * w.quality,
+    freeBlock:   blockBonus.free * w.freeBlock,
+    busAccess:   blockBonus.bus * w.busAccess,
+    cluster:     clusterBonus
+  };
+}
+
+// Updates only the fill-bar width + percentage label of each row, without
+// touching the <input> elements — so it's safe to call on every keystroke
+// (onWeightChange) without stealing focus mid-type. Percentage = this
+// signal's share of the sum of every signal's magnitude, so the bars stay
+// meaningful even though wirePenalty is a subtraction.
+function updateWeightBars() {
+  const contrib = computeWeightContributions();
+  const total = Object.values(contrib).reduce((sum, v) => sum + Math.abs(v), 0);
+  WEIGHT_META.forEach(m => {
+    const val = contrib[m.key] || 0;
+    const pct = total > 0 ? Math.round(Math.abs(val) / total * 100) : 0;
+    const fillEl  = document.getElementById(`weight-bar-${m.key}`);
+    const labelEl = document.getElementById(`weight-pct-${m.key}`);
+    if (fillEl)  { fillEl.style.width = `${pct}%`; fillEl.classList.toggle('negative', val < 0); }
+    if (labelEl) labelEl.textContent = `${pct}%`;
   });
+}
+
+// Full rebuild: inputs (current values) + bar/percentage markup. Called when
+// the modal opens and after a reset — NOT on every keystroke, since rebuilding
+// the <input> nodes would drop focus while the player is typing.
+function renderWeightList() {
+  const w = getScoreWeights();
+
+  const rowHtml = (m) => `
+      <div class="weight-item">
+        <div class="weight-row">
+          <label for="weight-${m.key}">${m.label} <span class="hint-icon" title="${m.hint.replace(/"/g, '&quot;')}">[?]</span></label>
+          <input type="number" id="weight-${m.key}" min="0" step="${m.step}" value="${w[m.key]}" oninput="onWeightChange('${m.key}', this.value)">
+        </div>
+        <div class="weight-bar-track">
+          <div class="weight-bar-fill" id="weight-bar-${m.key}" style="width:0%"></div>
+          <span class="weight-bar-label" id="weight-pct-${m.key}">0%</span>
+        </div>
+      </div>`;
+
+  const grouped = WEIGHT_META.filter(m => WEIGHT_GROUPED.has(m.key));
+  const rest    = WEIGHT_META.filter(m => !WEIGHT_GROUPED.has(m.key));
+
+  const container = document.getElementById('weight-list');
+  if (!container) return;
+  container.innerHTML =
+    `<div class="weight-group">${grouped.map(rowHtml).join('')}</div>` +
+    rest.map(rowHtml).join('');
+
+  updateWeightBars();
 }
 
 function onWeightChange(key, rawValue) {
@@ -80,6 +168,7 @@ function onWeightChange(key, rawValue) {
   s.weights = { ...getScoreWeights(), [key]: val };
   saveSettings(s);
   setScoreWeights(s.weights);
+  updateWeightBars();
 }
 
 function resetScoreWeights() {
@@ -88,5 +177,5 @@ function resetScoreWeights() {
   delete s.weights;
   saveSettings(s);
   setScoreWeights({});
-  renderWeightInputs();
+  renderWeightList();
 }
