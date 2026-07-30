@@ -4,19 +4,20 @@
 // Spinners satisfied by their Repeater requirements. scoreLayout combines
 // these into the brute force's final layout ranking.
 
-// Player-tunable weights for scoreLayout's seven signals (Settings modal).
+// Player-tunable weights for scoreLayout's eight signals (Settings modal).
 // Each JS context (main thread, each SA worker) holds its own copy — the
 // main thread calls setScoreWeights() directly from persisted settings;
 // workers receive the current values via the 'init' message, since threads
 // don't share memory. See src/ui/settings.js and sa-worker.js.
 const DEFAULT_SCORE_WEIGHTS = {
-  workingSet:  2650000, // per working Spinner
-  wirePenalty:    5000, // per auto-routed wire cell (subtracted)
-  quality:       15000, // per unit of free-neighbour connectivity
-  freeBlock:         1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
-  busAccess:         1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
-  cluster:       50000, // per same-type neighbour pair (port-connected pairs get x2)
-  amplifier:   4000000  // per Power Amplifier <-> Harvester/Salvager port connection
+  workingSet:      2650000, // per working Spinner
+  wirePenalty:        5000, // per auto-routed wire cell (subtracted)
+  quality:           15000, // per unit of free-neighbour connectivity
+  freeBlock:             1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
+  busAccess:             1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
+  cluster:           50000, // per same-type neighbour pair (port-connected pairs get x2)
+  amplifier:       4000000, // per Power Amplifier <-> Harvester/Salvager port connection
+  batteryAmplifier: 1000000 // per Battery Amplifier <-> battery cell of area (multiplied by the connected battery's cell count)
 };
 let scoreWeights = { ...DEFAULT_SCORE_WEIGHTS };
 
@@ -242,6 +243,51 @@ function computeAmplifierBonus(placements) {
   return bonus;
 }
 
+// Battery Amplifier bonus: rewards each port-to-port connection between a
+// Battery Amplifier and an adjacent battery (any battery_* component,
+// excluding another amplifier), scaled by that battery's cell count —
+// bigger batteries are worth proportionally more, matching the in-game
+// capacity-boost mechanic. Optional, like the Power Amplifier bonus — not
+// required for layout validity, purely a scoring incentive.
+function _isBatteryTarget(componentId) {
+  return componentId.startsWith('battery_') && componentId !== 'battery_amplifier';
+}
+
+function computeBatteryAmplifierBonus(placements) {
+  const portMap = new Map();
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (p.componentId !== 'battery_amplifier' && !_isBatteryTarget(p.componentId)) continue;
+    for (const { cell, side } of (p.rotatedPorts || [])) {
+      const key = `${p.row + cell[0]},${p.col + cell[1]},${side}`;
+      if (!portMap.has(key)) portMap.set(key, []);
+      portMap.get(key).push(i);
+    }
+  }
+
+  let bonus = 0;
+  const counted = new Set();
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (p.componentId !== 'battery_amplifier') continue;
+    for (const { cell, side } of (p.rotatedPorts || [])) {
+      const gr = p.row + cell[0], gc = p.col + cell[1];
+      const d = SIDE_DELTA[side];
+      const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[side]}`;
+      if (!portMap.has(adjKey)) continue;
+      for (const j of portMap.get(adjKey)) {
+        if (!_isBatteryTarget(placements[j].componentId)) continue;
+        const pairKey = `${i},${j}`;
+        if (counted.has(pairKey)) continue;
+        counted.add(pairKey);
+        const batteryArea = (placements[j].rotatedShape || []).length;
+        bonus += scoreWeights.batteryAmplifier * batteryArea;
+      }
+    }
+  }
+  return bonus;
+}
+
 // Aesthetic bonus: same-type components placed next to each other score +100
 // per pair; +200 if they are also port-to-port connected.
 // Spinners, Repeaters and wires are excluded — their adjacency rules are
@@ -309,33 +355,38 @@ function computeClusterBonus(placements) {
   return bonus;
 }
 
-// Final layout score — combines seven signals into one number that SA and
+// Final layout score — combines eight signals into one number that SA and
 // the synchronous greedy share. Higher is better. The components, in rough
 // magnitude order from largest to smallest at default weights:
 //   workingSet.size * weights.workingSet   — a working Spinner is the most valuable atom
+//   batteryAmpBonus                        — weights.batteryAmplifier per Battery Amplifier <->
+//                                           battery port connection, MULTIPLIED by that battery's
+//                                           cell count; see computeBatteryAmplifierBonus
+//   amplifierBonus                         — weights.amplifier per Power Amplifier <->
+//                                           Harvester/Salvager port connection; see computeAmplifierBonus
 //   blockBonus.free * weights.freeBlock    — accessible open rectangles, escalates with area
 //   blockBonus.bus  * weights.busAccess    — same rectangles, EXTRA reward for touching the
 //                                           W/S bus directly (no wire needed there); independent
 //                                           of freeBlock so bus proximity can be tuned separately
-//   amplifierBonus                         — weights.amplifier per Power Amplifier <->
-//                                           Harvester/Salvager port connection; see computeAmplifierBonus
 //   wires * weights.wirePenalty            — penalty: every auto-routed wire costs score
 //   quality * weights.quality              — fine-grained connectivity of remaining free cells
 //   clusterBonus                           — aesthetic: same-type neighbours, weights.cluster
 //                                           per pair (x2 if port-connected); see computeClusterBonus
 // Weights are player-tunable via Settings — see setScoreWeights above.
 function scoreLayout(placements, grid) {
-  const wires          = placements.filter(p => p.componentId === 'wire').length;
-  const quality        = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
-  const workingSet     = computeWorkingSet(placements);
-  const blockBonus     = computeFreeBlockBonus(placements, grid.rows, grid.cols);
-  const amplifierBonus = computeAmplifierBonus(placements);
-  const clusterBonus   = computeClusterBonus(placements);
+  const wires            = placements.filter(p => p.componentId === 'wire').length;
+  const quality          = computeFreeSpaceQuality(null, 0, 0, placements, grid.rows, grid.cols);
+  const workingSet       = computeWorkingSet(placements);
+  const blockBonus       = computeFreeBlockBonus(placements, grid.rows, grid.cols);
+  const amplifierBonus   = computeAmplifierBonus(placements);
+  const batteryAmpBonus  = computeBatteryAmplifierBonus(placements);
+  const clusterBonus     = computeClusterBonus(placements);
   return quality * scoreWeights.quality
        - wires * scoreWeights.wirePenalty
        + workingSet.size * scoreWeights.workingSet
        + blockBonus.free * scoreWeights.freeBlock
        + blockBonus.bus * scoreWeights.busAccess
        + amplifierBonus
+       + batteryAmpBonus
        + clusterBonus;
 }
