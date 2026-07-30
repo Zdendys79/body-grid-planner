@@ -94,14 +94,14 @@ Click a placed component to lift it (wires drop). Mouse moves the ghost (pixel-p
 
 ### scoreLayout signals
 `scoreLayout` is the single number SA and the synchronous greedy share. Seven contributions, biggest first at default weights — all seven are player-tunable in Settings → "Layout scoring weights" (v=117), persisted in `localStorage[SETTINGS_KEY]`, reset via a dedicated button:
-- `workingSet.size × weights.workingSet` (default 50000) — every working Spinner is the most valuable atom.
+- `workingSet.size × weights.workingSet` (default 2650000) — every working Spinner is the most valuable atom.
 - `computeFreeBlockBonus` (v=128) returns two independently-weighted totals from the same per-window scan over every all-free rectangle of selected sizes (table escalates 200 for 2×2 → 25000 for 4×4 → 60000 for 5×5; overlap is intentional so larger free areas grow super-linearly without explicit max-rectangle dedup):
   - `.free × weights.freeBlock` (default multiplier 1) — every window that's accessible: at least one cell on the W/S bus **or** fed by a placed component's port.
   - `.bus × weights.busAccess` (default multiplier 1) — the SAME base bonus again, but only for windows that touch the W (col 0) or S (row R−1) bus **directly**, where a future component needs no wire at all. Separate from `freeBlock` so bus proximity can be valued independently instead of via one hardcoded ×2 multiplier (pre-v=128 behaviour).
-- `computeAmplifierBonus` (v=119) — `weights.amplifier` (default 8000) per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager. Optional, unlike Repeater↔Spinner — not required for layout validity, purely an SA incentive.
+- `computeAmplifierBonus` (v=119) — `weights.amplifier` (default 4000000) per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager. Optional, unlike Repeater↔Spinner — not required for layout validity, purely an SA incentive.
 - `wires × −weights.wirePenalty` (default 5000) — penalty per auto-routed wire cell.
-- `quality × weights.quality` (default 4) — per-cell free-neighbour count, fine-grained connectivity of remaining free cells.
-- `computeClusterBonus` (v=107) — `weights.cluster` (default 100) per same-type neighbour pair, doubled if also port-to-port connected. Spinners, Repeaters and wires are excluded.
+- `quality × weights.quality` (default 15000) — per-cell free-neighbour count, fine-grained connectivity of remaining free cells.
+- `computeClusterBonus` (v=107) — `weights.cluster` (default 50000) per same-type neighbour pair, doubled if also port-to-port connected. Spinners, Repeaters and wires are excluded.
 
 `setScoreWeights`/`getScoreWeights` (`src/optimizer/score.js`) hold the live values each JS context reads. The main thread sets them directly from persisted settings; each SA worker gets its own copy via the `init` message's `scoreWeights` field, since threads share no memory.
 
@@ -161,7 +161,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=129**
+Current version: **v=132**
 
 ---
 

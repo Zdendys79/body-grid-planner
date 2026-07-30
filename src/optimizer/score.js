@@ -10,13 +10,13 @@
 // workers receive the current values via the 'init' message, since threads
 // don't share memory. See src/ui/settings.js and sa-worker.js.
 const DEFAULT_SCORE_WEIGHTS = {
-  workingSet:  50000, // per working Spinner
-  wirePenalty:  5000, // per auto-routed wire cell (subtracted)
-  quality:         4, // per unit of free-neighbour connectivity
-  freeBlock:       1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
-  busAccess:       1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
-  cluster:       100, // per same-type neighbour pair (port-connected pairs get x2)
-  amplifier:    8000  // per Power Amplifier <-> Harvester/Salvager port connection
+  workingSet:  2650000, // per working Spinner
+  wirePenalty:    5000, // per auto-routed wire cell (subtracted)
+  quality:       15000, // per unit of free-neighbour connectivity
+  freeBlock:         1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
+  busAccess:         1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
+  cluster:       50000, // per same-type neighbour pair (port-connected pairs get x2)
+  amplifier:   4000000  // per Power Amplifier <-> Harvester/Salvager port connection
 };
 let scoreWeights = { ...DEFAULT_SCORE_WEIGHTS };
 

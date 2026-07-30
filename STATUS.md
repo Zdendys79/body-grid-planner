@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-30
-**Version:** v=129
+**Version:** v=132
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,9 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=132 | 2026-07-30 | Bio Generator biocell rendering generalized from id-hardcoded to data-driven (`components.json` `biocellCells` field, `renderer.js` `_biocellSet`) — Bio Generator (II) now gets the same distinct biocell cell styling as (I); icon centering offset only applies when the shape actually has a bounding-box notch (I does, II doesn't) |
+| v=131 | 2026-07-30 | New component: Bio Generator (II) — 3x3 solid block, Biocell integrated in right column (visual-only distinction, not yet in the renderer), W on (2,0), E on (2,2) |
+| v=130 | 2026-07-30 | `DEFAULT_SCORE_WEIGHTS` retuned: workingSet 50000→2650000, amplifier 8000→4000000, quality 4→15000, cluster 100→50000 (wirePenalty/freeBlock/busAccess unchanged). Slider steps in Settings scaled to match the new magnitudes |
 | v=129 | 2026-07-30 | "Layout scoring weights" now built dynamically (`renderWeightList`/`updateWeightBars` in settings.js): each row gets a live fill bar showing its % share of the current layout's total score (`computeWeightContributions`, magnitude-based so wirePenalty's subtraction still reads meaningfully). Working Spinner + Amplifier bonus grouped together in a visually distinct box |
 | v=128 | 2026-07-29 | `computeFreeBlockBonus` now returns `{free, bus}` instead of one combined total — the old hardcoded ×2 bus multiplier is replaced by a separate, independently-tunable `busAccess` weight in Settings, decoupled from the general `freeBlock` free-space weight |
 | v=127 | 2026-07-29 | Decomposer (II) shape corrected: top row is (0,0)+(0,1) (was (0,1)+(0,2)); W port moved to (0,0), E to (0,1) |
@@ -165,12 +168,12 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **27** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **28** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, bio_generator (3×3 self-contained), energy_cells, power_amplifier |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, bio_generator (3×3 self-contained), bio_generator_ii (3×3 self-contained), energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
 | processing | grabber, collector (I), collector_ii (II), decomposer (I), decomposer_ii (II), harvester, salvager, metal_scavenger, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |

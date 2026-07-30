@@ -56,19 +56,19 @@ function onThreadsChange() {
 // so each row can carry a live fill bar showing that signal's share of the
 // CURRENT layout's total score — see computeWeightContributions/updateWeightBars.
 const WEIGHT_META = [
-  { key: 'workingSet', label: 'Working Spinner', step: 1000,
+  { key: 'workingSet', label: 'Working Spinner', step: 50000,
     hint: "Score awarded per working Spinner (one that has its required Repeater adjacency). The single largest signal — SA nearly always prioritizes getting one more Spinner working over any other improvement." },
-  { key: 'amplifier', label: 'Amplifier bonus', step: 500,
+  { key: 'amplifier', label: 'Amplifier bonus', step: 100000,
     hint: "Score per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager, which the amplifier boosts in-game. Optional — not required for layout validity, but this weight makes SA try to wire a Harvester/Salvager up to an Amplifier when the grid allows it." },
   { key: 'wirePenalty', label: 'Wire penalty', step: 100,
     hint: "Score subtracted per auto-routed wire cell. Keeps SA from routing long wire chains when a more compact, wire-free arrangement is possible." },
-  { key: 'quality', label: 'Free space quality', step: 1,
+  { key: 'quality', label: 'Free space quality', step: 500,
     hint: "Score per unit of free-cell connectivity (each empty cell's count of empty orthogonal neighbours, summed over the grid). Rewards keeping remaining free space open and unfragmented. Small compared to the other signals — mostly acts as a tie-breaker." },
   { key: 'freeBlock', label: 'Free space bonus', step: 0.1,
     hint: "Multiplier on the bonus for large open rectangles of free cells that are reachable from the W/S bus or from a placed component's port (so a future battery/cluster put there could eventually be powered). Applies regardless of whether the rectangle touches the bus directly — see 'Bus access bonus' for that extra reward. 1.0 = default tuning; raise to make SA leave more open space, lower to let it pack tighter." },
   { key: 'busAccess', label: 'Bus access bonus', step: 0.1,
     hint: "Extra multiplier added ON TOP of the free space bonus, but only for open rectangles that touch the W (col 0) or S (bottom row) bus directly — a future component placed there needs no wire at all. Independent of 'Free space bonus', so you can value general open space and direct bus access separately. 1.0 = default tuning (matches the old always-doubled behaviour); 0 disables the extra bus incentive entirely." },
-  { key: 'cluster', label: 'Aesthetic clustering', step: 10,
+  { key: 'cluster', label: 'Aesthetic clustering', step: 1000,
     hint: "Score per pair of same-type components placed next to each other (doubled if they're also port-to-port connected). Purely cosmetic — doesn't affect power or validity, just makes SA prefer tidy same-type groupings. Spinners, Repeaters and wires are excluded, since their adjacency is already governed by the power rules." }
 ];
 

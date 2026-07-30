@@ -120,11 +120,29 @@
         {"cell": [2,0], "side": "W"}
       ],
       "bioPorts": [],
+      "biocellCells": [[0,0],[1,0]],
       "peripheral": null,
       "color": "#66BB6A",
       "bgColor": "#062010",
       "icon": "☘",
       "description": "Bioreaktor 3x3 (Biocell integrován). Energy port W na (2,0)."
+    },
+    {
+      "id": "bio_generator_ii",
+      "name": "Bio Generator (II)",
+      "category": "power",
+      "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
+      "energyPorts": [
+        {"cell": [2,0], "side": "W"},
+        {"cell": [2,2], "side": "E"}
+      ],
+      "bioPorts": [],
+      "biocellCells": [[0,2],[1,2]],
+      "peripheral": null,
+      "color": "#66BB6A",
+      "bgColor": "#062010",
+      "icon": "☘",
+      "description": "Bio Generator tier II, 3x3, Biocell integrated (right column). W on (2,0). E on (2,2)."
     },
     {
       "id": "energy_cells",
