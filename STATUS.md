@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-30
-**Version:** v=132
+**Version:** v=133
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=133 | 2026-07-30 | Bugfix: Import layout silently did nothing after the confirm dialog — `applyImportLayout` (`src/ui/export.js`) called `bfResultsClear()`, a stale pre-v=94 function name that no longer exists, throwing a ReferenceError before `saveState`/`renderAll`/modal-close ran. Fixed to `optResultsClear()` |
 | v=132 | 2026-07-30 | Bio Generator biocell rendering generalized from id-hardcoded to data-driven (`components.json` `biocellCells` field, `renderer.js` `_biocellSet`) — Bio Generator (II) now gets the same distinct biocell cell styling as (I); icon centering offset only applies when the shape actually has a bounding-box notch (I does, II doesn't) |
 | v=131 | 2026-07-30 | New component: Bio Generator (II) — 3x3 solid block, Biocell integrated in right column (visual-only distinction, not yet in the renderer), W on (2,0), E on (2,2) |
 | v=130 | 2026-07-30 | `DEFAULT_SCORE_WEIGHTS` retuned: workingSet 50000→2650000, amplifier 8000→4000000, quality 4→15000, cluster 100→50000 (wirePenalty/freeBlock/busAccess unchanged). Slider steps in Settings scaled to match the new magnitudes |
