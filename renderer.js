@@ -136,21 +136,21 @@ const RENDERER_CELL    = CELL;
 const RENDERER_BUS_W   = BUS_W;
 const RENDERER_PERI_V  = PERI_V;
 
-// Bio Generator special: the cells that used to be the biocell peripheral
-// (cells (0,0) and (1,0) in the canonical rotation) are now part of the
-// merged shape but should still read as a distinct sub-module. We render
-// them with a lower fill alpha, suppress bridges between biocell and body
-// cells, label them BIO / CELL, and bias the centre glyph downward so it
-// sits on the body cells instead of overflowing into the empty top corner.
-const BIO_BIOCELL_ORIGINAL = [[0,0],[1,0]];
-const BIO_BBOX_MAX_R = 2;
-const BIO_BBOX_MAX_C = 2;
-function _bioBiocellSet(rotation) {
+// Bio Generator family: def.biocellCells (components.json, canonical/
+// unrotated frame) names the cells that act as a distinct Biocell
+// sub-module merged into the main shape. We render them with a lower fill
+// alpha, suppress bridges between biocell and body cells, and label them
+// BIO / CELL so the sub-module still reads as separate even though it's
+// one placement. Data-driven (not id-hardcoded) so any bio_generator*
+// variant can opt in by listing its own biocellCells.
+function _biocellSet(def, rotation) {
+  const cells = def.biocellCells;
+  if (!cells) return null;
   const rot = rotation || 0;
-  const cells = (rot === 0)
-    ? BIO_BIOCELL_ORIGINAL
-    : BIO_BIOCELL_ORIGINAL.map(([r, c]) => rotateCoord(r, c, BIO_BBOX_MAX_R, BIO_BBOX_MAX_C, rot));
-  return cells;
+  if (rot === 0) return cells;
+  const maxR = Math.max(...def.shape.map(([r]) => r));
+  const maxC = Math.max(...def.shape.map(([, c]) => c));
+  return cells.map(([r, c]) => rotateCoord(r, c, maxR, maxC, rot));
 }
 
 function renderComponent(placement, def, isPowered, idx) {
@@ -159,13 +159,14 @@ function renderComponent(placement, def, isPowered, idx) {
   const stroke = def.color + (isPowered ? '' : '55');
   const cellSet = new Set(placement.rotatedShape.map(([r,c]) => `${r},${c}`));
 
-  // Bio Generator: identify which of the cells in this placement are the
-  // biocell sub-module so they can be styled differently below.
-  const isBio = def.id === 'bio_generator';
+  // Bio Generator family: identify which of the cells in this placement are
+  // the biocell sub-module (def.biocellCells) so they can be styled
+  // differently below.
+  const isBio = !!def.biocellCells;
   let biocellSet = null;
   let biocellList = null;
   if (isBio) {
-    const cells = _bioBiocellSet(placement.rotation);
+    const cells = _biocellSet(def, placement.rotation);
     biocellSet = new Set(cells.map(([r, c]) => `${r},${c}`));
     // Stable order (row asc, col asc) so the BIO label always lands on the
     // first cell of the rotated sub-module.
@@ -221,15 +222,19 @@ function renderComponent(placement, def, isPowered, idx) {
     });
   }
 
-  // Outer label – centre of bounding box. Bio Generator's bounding box has
-  // an empty top-right quadrant (rows 0 of cols 1-2), so the centred glyph
-  // sticks out beyond the actual body cells. Push it down by ~1/3 of a cell
-  // for bio_generator only, so it lands on the body rows.
+  // Outer label – centre of bounding box. A shape with an empty quadrant
+  // (e.g. bio_generator's missing top-right, rows 0 of cols 1-2) has its
+  // bounding-box centre sticking out beyond the actual body cells, so the
+  // glyph needs pushing down by ~1/3 of a cell to land back on real cells.
+  // A full rectangle (e.g. bio_generator_ii, no missing corner) needs no
+  // correction — its bounding-box centre already is the visual centre.
   const rows = placement.rotatedShape.map(([r]) => r);
   const cols = placement.rotatedShape.map(([,c]) => c);
+  const maxR = Math.max(...rows), maxC = Math.max(...cols);
+  const hasNotch = placement.rotatedShape.length < (maxR + 1) * (maxC + 1);
   const cx = cellX(placement.col + (Math.min(...cols)+Math.max(...cols))/2) + CELL/2;
   const cy = cellY(placement.row + (Math.min(...rows)+Math.max(...rows))/2) + CELL/2;
-  const iconYOffset = isBio ? Math.round(CELL / 3) - 7 : -7;
+  const iconYOffset = (isBio && hasNotch) ? Math.round(CELL / 3) - 7 : -7;
 
   html += `<text x="${cx}" y="${cy + iconYOffset}" fill="${def.color}${alpha || 'bb'}"
            font-size="45" text-anchor="middle" dominant-baseline="middle"
