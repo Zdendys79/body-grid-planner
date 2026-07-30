@@ -184,6 +184,26 @@
       "description": "Power Amplifier, 2x2. W on (1,0). E+S on (1,1). Boosts output of a port-connected Harvester or Salvager."
     },
     {
+      "id": "battery_amplifier",
+      "name": "Battery Amplifier",
+      "category": "power",
+      "shape": [[0,0],[0,1],[1,1]],
+      "energyPorts": [
+        {"cell": [1,1], "side": "W"},
+        {"cell": [1,1], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FFD54F",
+      "bgColor": "#332400",
+      "icon": "⚡",
+      "optimizerRules": {
+        "connectsTo": ["battery_1x1", "battery_1x2", "battery_1x3", "battery_2x2", "battery_3x2"],
+        "note": "Boosts the capacity of a port-connected battery, scaled by that battery's cell count — bigger batteries gain proportionally more. Optional — not required for layout validity, but scoreLayout rewards each connection (Settings → Layout scoring weights → Battery Amplifier bonus)."
+      },
+      "description": "Battery Amplifier, 3 cells. W+E on (1,1). Boosts capacity of a port-connected battery, scaled by its size."
+    },
+    {
       "id": "pulser",
       "name": "Pulser",
       "category": "power",

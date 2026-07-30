@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-07-30
-**Version:** v=133
+**Version:** v=135
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,8 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=135 | 2026-07-30 | `scoreLayout`: new Battery Amplifier bonus (`computeBatteryAmplifierBonus`, default 1000000/connection) rewards port-connecting a Battery Amplifier to any battery, MULTIPLIED by the connected battery's cell count — bigger batteries score proportionally more. New "Battery Amplifier bonus" weight slider in Settings, grouped with Working Spinner / Amplifier bonus |
+| v=134 | 2026-07-30 | New component: Battery Amplifier — 3-cell L-shape (2 cells top row + 1 below the right cell), W+E both on (1,1) |
 | v=133 | 2026-07-30 | Bugfix: Import layout silently did nothing after the confirm dialog — `applyImportLayout` (`src/ui/export.js`) called `bfResultsClear()`, a stale pre-v=94 function name that no longer exists, throwing a ReferenceError before `saveState`/`renderAll`/modal-close ran. Fixed to `optResultsClear()` |
 | v=132 | 2026-07-30 | Bio Generator biocell rendering generalized from id-hardcoded to data-driven (`components.json` `biocellCells` field, `renderer.js` `_biocellSet`) — Bio Generator (II) now gets the same distinct biocell cell styling as (I); icon centering offset only applies when the shape actually has a bounding-box notch (I does, II doesn't) |
 | v=131 | 2026-07-30 | New component: Bio Generator (II) — 3x3 solid block, Biocell integrated in right column (visual-only distinction, not yet in the renderer), W on (2,0), E on (2,2) |
@@ -169,12 +171,12 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **28** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **29** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, bio_generator (3×3 self-contained), bio_generator_ii (3×3 self-contained), energy_cells, power_amplifier |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, battery_amplifier, bio_generator (3×3 self-contained), bio_generator_ii (3×3 self-contained), energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
 | processing | grabber, collector (I), collector_ii (II), decomposer (I), decomposer_ii (II), harvester, salvager, metal_scavenger, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |
