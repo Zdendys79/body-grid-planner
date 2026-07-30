@@ -161,7 +161,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=132**
+Current version: **v=133**
 
 ---
 

@@ -131,7 +131,7 @@ function applyImportLayout() {
   state.placements = layoutData.placements.map(rehydratePlacement);
   state.nextId = layoutData.nextId || (state.placements.length + 1);
   stopOptimization();
-  bfResultsClear();
+  optResultsClear();
   saveState();
   renderAll();
   closeSaveModal();
