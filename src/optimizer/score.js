@@ -4,7 +4,7 @@
 // Spinners satisfied by their Repeater requirements. scoreLayout combines
 // these into the brute force's final layout ranking.
 
-// Player-tunable weights for scoreLayout's six signals (Settings modal).
+// Player-tunable weights for scoreLayout's seven signals (Settings modal).
 // Each JS context (main thread, each SA worker) holds its own copy — the
 // main thread calls setScoreWeights() directly from persisted settings;
 // workers receive the current values via the 'init' message, since threads
@@ -13,7 +13,8 @@ const DEFAULT_SCORE_WEIGHTS = {
   workingSet:  50000, // per working Spinner
   wirePenalty:  5000, // per auto-routed wire cell (subtracted)
   quality:         4, // per unit of free-neighbour connectivity
-  freeBlock:       1, // multiplier on computeFreeBlockBonus's raw total
+  freeBlock:       1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
+  busAccess:       1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
   cluster:       100, // per same-type neighbour pair (port-connected pairs get x2)
   amplifier:    8000  // per Power Amplifier <-> Harvester/Salvager port connection
 };
@@ -95,12 +96,10 @@ function computeWorkingSet(placements) {
 }
 
 // Powered free-block bonus table — escalates with block area so SA prefers
-// to leave large open rectangles, especially against the W/S bus. The
-// numbers are calibrated so that:
+// to leave large open rectangles. The numbers are calibrated so that:
 //   - small (2x2) blocks are cheap (200 each) — pure capacity placeholders;
 //   - mid (3x3) blocks are valuable (~1 wire = 5000 saved);
-//   - large (4x4) blocks dominate (~half a working spinner = 25000);
-//   - blocks touching the W (col=0) or S (row=R-1) bus get ×BUS_MULTIPLIER.
+//   - large (4x4) blocks dominate (~half a working spinner = 25000).
 // Overlap is intentional: a 4x4 powered area at the bus contains nine 2x2
 // windows + four 3x3s + one 4x4, all counted, so larger areas scale
 // super-linearly without any explicit max-rectangle dedup.
@@ -117,13 +116,18 @@ const FREE_BLOCK_BONUS = {
 const FREE_BLOCK_SIZES = [
   [6,4],[4,6],[5,5],[5,4],[4,5],[4,4],[4,3],[3,4],[3,3],[3,2],[2,3],[2,2]
 ];
-const FREE_BLOCK_BUS_MULTIPLIER = 2;
 
-// Returns a positive score for grid layouts that leave large, accessible
-// rectangles of empty cells. "Accessible" means at least one cell of the
-// rectangle is on the W bus (col=0), on the S bus (row=R-1), or adjacent
-// to a port of a placed component (so a future battery/cluster put there
-// could be powered without a wire).
+// Returns two independently-weighted totals for large, accessible rectangles
+// of empty cells (see scoreLayout):
+//   free — every accessible window's base bonus. "Accessible" means at
+//          least one cell is on the W/S bus OR adjacent to a placed
+//          component's port (so a future battery/cluster put there could
+//          be powered — with a short wire, in the port-adjacent case).
+//   bus  — the SAME base bonus again, but ONLY for windows that touch the
+//          W (col=0) or S (row=R-1) bus directly, where the future
+//          component could be powered with NO wire at all. Separate from
+//          `free` so the two are independently tunable (Settings) instead
+//          of one hardcoded multiplier.
 function computeFreeBlockBonus(placements, gridRows, gridCols) {
   const rows = gridRows, cols = gridCols;
   // Uint8 grids beat Set lookups by 10-20× in tight SA inner loops.
@@ -157,7 +161,8 @@ function computeFreeBlockBonus(placements, gridRows, gridCols) {
     }
   }
 
-  let total = 0;
+  let free = 0;
+  let bus  = 0;
   for (const [h, w] of FREE_BLOCK_SIZES) {
     const base = FREE_BLOCK_BONUS[`${h}x${w}`];
     if (!base) continue;
@@ -186,13 +191,14 @@ function computeFreeBlockBonus(placements, gridRows, gridCols) {
           }
         }
         if (!powered) continue;
-        // 3) Windows touching the bus get a multiplier.
+        free += base;
+        // 3) Windows touching the bus directly ALSO earn the separate bus total.
         const busTouch = (c === 0 || r + h - 1 === rows - 1);
-        total += busTouch ? base * FREE_BLOCK_BUS_MULTIPLIER : base;
+        if (busTouch) bus += base;
       }
     }
   }
-  return total;
+  return { free, bus };
 }
 
 // Power Amplifier bonus: rewards each port-to-port connection between a
@@ -303,12 +309,14 @@ function computeClusterBonus(placements) {
   return bonus;
 }
 
-// Final layout score — combines six signals into one number that SA and
+// Final layout score — combines seven signals into one number that SA and
 // the synchronous greedy share. Higher is better. The components, in rough
 // magnitude order from largest to smallest at default weights:
 //   workingSet.size * weights.workingSet   — a working Spinner is the most valuable atom
-//   freeBlockBonus * weights.freeBlock     — powered free rectangles, escalates with area
-//                                           (single 4x4 at bus ≈ 50000 at default weight)
+//   blockBonus.free * weights.freeBlock    — accessible open rectangles, escalates with area
+//   blockBonus.bus  * weights.busAccess    — same rectangles, EXTRA reward for touching the
+//                                           W/S bus directly (no wire needed there); independent
+//                                           of freeBlock so bus proximity can be tuned separately
 //   amplifierBonus                         — weights.amplifier per Power Amplifier <->
 //                                           Harvester/Salvager port connection; see computeAmplifierBonus
 //   wires * weights.wirePenalty            — penalty: every auto-routed wire costs score
@@ -326,7 +334,8 @@ function scoreLayout(placements, grid) {
   return quality * scoreWeights.quality
        - wires * scoreWeights.wirePenalty
        + workingSet.size * scoreWeights.workingSet
-       + blockBonus * scoreWeights.freeBlock
+       + blockBonus.free * scoreWeights.freeBlock
+       + blockBonus.bus * scoreWeights.busAccess
        + amplifierBonus
        + clusterBonus;
 }

@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-07-29
-**Version:** v=127
+**Date:** 2026-07-30
+**Version:** v=129
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,8 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=129 | 2026-07-30 | "Layout scoring weights" now built dynamically (`renderWeightList`/`updateWeightBars` in settings.js): each row gets a live fill bar showing its % share of the current layout's total score (`computeWeightContributions`, magnitude-based so wirePenalty's subtraction still reads meaningfully). Working Spinner + Amplifier bonus grouped together in a visually distinct box |
+| v=128 | 2026-07-29 | `computeFreeBlockBonus` now returns `{free, bus}` instead of one combined total — the old hardcoded ×2 bus multiplier is replaced by a separate, independently-tunable `busAccess` weight in Settings, decoupled from the general `freeBlock` free-space weight |
 | v=127 | 2026-07-29 | Decomposer (II) shape corrected: top row is (0,0)+(0,1) (was (0,1)+(0,2)); W port moved to (0,0), E to (0,1) |
 | v=126 | 2026-07-29 | New component: Decomposer (II) — 2x4 offset block, W on (0,1), E on (0,2); original Decomposer renamed to Decomposer (I) (id unchanged) |
 | v=125 | 2026-07-29 | `startAnneal` clears prior Top-20 results on every fresh SMART start (was preserved across runs). `addComponent` now re-scans the whole layout with `tryAddWires` after placing the new component, so previously-stranded unpowered components that are now one hop from power (e.g. a Battery dropped next to them) get wired too — `findBestPlacement` only wired the newly added component itself |

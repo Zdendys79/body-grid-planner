@@ -582,12 +582,16 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   margin-top: 8px;
   line-height: 1.4;
 }
+.weight-item {
+  margin-bottom: 10px;
+}
+.weight-item:last-child { margin-bottom: 0; }
 .weight-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .weight-row label {
   display: flex;
@@ -605,6 +609,45 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   border: 1px solid var(--border-hi);
   border-radius: 4px;
   padding: 4px 6px;
+}
+/* Fill bar under each weight row — shows that signal's share of the
+   current layout's total score (see updateWeightBars in settings.js) */
+.weight-bar-track {
+  position: relative;
+  height: 12px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.weight-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #5abf6066, #80cbc499);
+  transition: width 0.2s ease;
+}
+.weight-bar-fill.negative {
+  background: linear-gradient(90deg, #f0505066, #f0808099);
+}
+.weight-bar-label {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  font-size: 9px;
+  line-height: 12px;
+  color: var(--text-bright);
+  font-family: monospace;
+  text-shadow: 0 0 2px var(--bg-deep);
+}
+/* Groups Working Spinner + Amplifier bonus visually apart from the general
+   spatial/aesthetic weights below — both are functional component-to-
+   component bonuses rather than layout-shape signals. */
+.weight-group {
+  background: rgba(128, 203, 196, 0.08);
+  border: 1px solid rgba(128, 203, 196, 0.2);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 10px;
 }
 .hint-icon {
   display: inline-block;
