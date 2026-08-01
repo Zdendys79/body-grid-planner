@@ -70,6 +70,8 @@ const WEIGHT_META = [
     hint: "Score per port-to-port connection between an Energy Amplifier and an adjacent Spinner, which the amplifier boosts in-game. Flat per connection. Optional — independent of the Spinner's separate Repeater working-set requirement, and not required for layout validity." },
   { key: 'energyAmpPulser', label: 'Energy Amp: Pulser', step: 100000,
     hint: "Score per port-to-port connection between an Energy Amplifier and an adjacent Pulser, which the amplifier boosts in-game. Flat per connection. Optional — not required for layout validity, but this weight makes SA try to wire a Pulser up to an Energy Amplifier when the grid allows it." },
+  { key: 'concentrator', label: 'Concentrator bonus', step: 100000,
+    hint: "Score per port-to-port connection between a Concentrator and an adjacent Energy Cells block, which the Concentrator boosts in-game. Flat per connection. Optional — not required for layout validity, but this weight makes SA try to wire Energy Cells up to a Concentrator when the grid allows it." },
   { key: 'wirePenalty', label: 'Wire penalty', step: 100,
     hint: "Score subtracted per auto-routed wire cell. Keeps SA from routing long wire chains when a more compact, wire-free arrangement is possible." },
   { key: 'quality', label: 'Free space quality', step: 500,
@@ -87,7 +89,8 @@ const WEIGHT_META = [
 // bonuses, as opposed to the general spatial/aesthetic signals below them.
 const WEIGHT_GROUPED = new Set([
   'workingSet', 'amplifier', 'batteryAmplifier',
-  'energyAmpBioGen', 'energyAmpEnergyCells', 'energyAmpSpinner', 'energyAmpPulser'
+  'energyAmpBioGen', 'energyAmpEnergyCells', 'energyAmpSpinner', 'energyAmpPulser',
+  'concentrator'
 ]);
 
 // Called once on app startup to seed the main thread's live weights from
@@ -110,6 +113,7 @@ function computeWeightContributions() {
   const amplifierBonus   = computeAmplifierBonus(placements);
   const batteryAmpBonus  = computeBatteryAmplifierBonus(placements);
   const energyAmpCounts  = computeEnergyAmplifierBonus(placements);
+  const concentratorBonus = computeConcentratorBonus(placements);
   const clusterBonus     = computeClusterBonus(placements);
   const w = getScoreWeights();
   return {
@@ -120,6 +124,7 @@ function computeWeightContributions() {
     energyAmpEnergyCells:  energyAmpCounts.energyCells * w.energyAmpEnergyCells,
     energyAmpSpinner:      energyAmpCounts.spinner * w.energyAmpSpinner,
     energyAmpPulser:       energyAmpCounts.pulser * w.energyAmpPulser,
+    concentrator:          concentratorBonus,
     wirePenalty:      -(wires * w.wirePenalty),
     quality:          quality * w.quality,
     freeBlock:        blockBonus.free * w.freeBlock,

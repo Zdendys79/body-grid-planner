@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-08-01
-**Version:** v=139
+**Version:** v=140
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=140 | 2026-08-01 | New component: Concentrator — 2x2 block with ports on all 8 outward sides (N/W/N/E/S/W/S/E on its 4 corners). New `computeConcentratorBonus` (default 3000000/connection) rewards each port-to-port link to an Energy Cells block — counted per port (not per component pair), so two simultaneous links to the same block each score. New "Concentrator bonus" weight slider in Settings |
 | v=139 | 2026-08-01 | Bugfix: `tryAddWires` (`src/optimizer/validate.js`) gave up entirely if the FIRST unpowered component in placement order had no free cell for a wire, even when a LATER unpowered component had a valid path whose wiring would have powered the first one for free via direct port propagation. Now tries every still-unpowered component each pass before declaring the layout unwireable |
 | v=138 | 2026-08-01 | New component: Resource Scanner — 6-cell T-shape (single cell stalk atop a 5-wide base), N port on (0,2). No scoring bonus wired up yet (unlike the amplifiers) — component data only |
 | v=137 | 2026-08-01 | `weights.energyAmplifier` split into 4 independently-tunable per-target weights (`energyAmpBioGen`, `energyAmpEnergyCells`, `energyAmpSpinner`, `energyAmpPulser`) — Pulser added as a 4th Energy Amplifier target alongside Bio Generator/Energy Cells/Spinner. `computeEnergyAmplifierBonus` now returns per-category counts instead of one flat total |
@@ -175,12 +176,12 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 ## Components
 
-Total: **31** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
+Total: **32** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Authoritative definitions live in `components.json` and must not be edited without explicit user request.
 
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, battery_amplifier, bio_generator (3×3 self-contained), bio_generator_ii (3×3 self-contained), energy_amplifier, energy_cells, power_amplifier |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, battery_amplifier, bio_generator (3×3 self-contained), bio_generator_ii (3×3 self-contained), concentrator, energy_amplifier, energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
 | processing | grabber, collector (I), collector_ii (II), decomposer (I), decomposer_ii (II), harvester, salvager, metal_scavenger, resource_scanner, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |
