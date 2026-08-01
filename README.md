@@ -93,9 +93,10 @@ If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlap
 Click a placed component to lift it (wires drop). Mouse moves the ghost (pixel-precise within ±5 px of cell center, otherwise grid-snapped). `R` rotates through unique orientations. Click on the grid to drop; bounds + collision (including peripherals) are validated, wires recompute. `Delete` key or the floating 🗑 button discards the carried component and recomputes wires for the rest. `Esc` cancels and restores the original position with wires.
 
 ### scoreLayout signals
-`scoreLayout` is the single number SA and the synchronous greedy share. Eight contributions, biggest first at default weights — all eight are player-tunable in Settings → "Layout scoring weights" (v=117), persisted in `localStorage[SETTINGS_KEY]`, reset via a dedicated button:
+`scoreLayout` is the single number SA and the synchronous greedy share. Nine contributions, biggest first at default weights — all nine are player-tunable in Settings → "Layout scoring weights" (v=117), persisted in `localStorage[SETTINGS_KEY]`, reset via a dedicated button:
 - `workingSet.size × weights.workingSet` (default 2650000) — every working Spinner is the most valuable atom.
 - `computeBatteryAmplifierBonus` (v=135) — `weights.batteryAmplifier` (default 1000000) per port-to-port connection between a Battery Amplifier and an adjacent battery (any `battery_*` id except itself), **multiplied by that battery's cell count** — a 4-cell battery is worth 4× a 1-cell one. Optional, purely an SA incentive.
+- `computeEnergyAmplifierBonus` (v=136) — `weights.energyAmplifier` (default 3000000) per port-to-port connection between an Energy Amplifier and an adjacent energy producer (Bio Generator, Bio Generator (II), Energy Cells, or Spinner). Flat per connection, not scaled by size. Optional, independent of the Spinner's separate Repeater working-set requirement.
 - `computeAmplifierBonus` (v=119) — `weights.amplifier` (default 4000000) per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager. Optional, unlike Repeater↔Spinner — not required for layout validity, purely an SA incentive.
 - `computeFreeBlockBonus` (v=128) returns two independently-weighted totals from the same per-window scan over every all-free rectangle of selected sizes (table escalates 200 for 2×2 → 25000 for 4×4 → 60000 for 5×5; overlap is intentional so larger free areas grow super-linearly without explicit max-rectangle dedup):
   - `.free × weights.freeBlock` (default multiplier 1) — every window that's accessible: at least one cell on the W/S bus **or** fed by a placed component's port.
@@ -162,7 +163,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=135**
+Current version: **v=136**
 
 ---
 

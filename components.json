@@ -204,6 +204,26 @@
       "description": "Battery Amplifier, 3 cells. W+E on (1,1). Boosts capacity of a port-connected battery, scaled by its size."
     },
     {
+      "id": "energy_amplifier",
+      "name": "Energy Amplifier",
+      "category": "power",
+      "shape": [[0,0],[1,0],[2,0]],
+      "energyPorts": [
+        {"cell": [2,0], "side": "W"},
+        {"cell": [2,0], "side": "E"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#FFD54F",
+      "bgColor": "#332400",
+      "icon": "⚡",
+      "optimizerRules": {
+        "connectsTo": ["bio_generator", "bio_generator_ii", "energy_cells", "spinner"],
+        "note": "Boosts the efficiency of a port-connected energy producer (Bio Generator, Energy Cells, Spinner). Optional — not required for layout validity, but scoreLayout rewards each connection (Settings → Layout scoring weights → Energy Amplifier bonus)."
+      },
+      "description": "Energy Amplifier, 3 cells (vertical). W+E on (2,0). Boosts efficiency of a port-connected energy producer."
+    },
+    {
       "id": "pulser",
       "name": "Pulser",
       "category": "power",
