@@ -66,7 +66,7 @@ function tryAddWires(placements, grid) {
 
   for (let iter = 0; iter < maxIter; iter++) {
     const poweredSet = computePoweredSet(current, grid.rows, grid.cols);
-    let foundUnpowered = false;
+    const unpowered = [];
 
     for (let i = 0; i < current.length; i++) {
       const p = current[i];
@@ -74,10 +74,22 @@ function tryAddWires(placements, grid) {
       const def = componentLib.find(d => d.id === p.componentId);
       if (!def || def.energyPorts.length === 0) continue;
       if (poweredSet.has(i)) continue;
+      unpowered.push(p);
+    }
 
-      foundUnpowered = true;
+    if (unpowered.length === 0) return current;
+
+    // Try every still-unpowered component this pass, not just the first —
+    // one placement's own port-adjacent cells may all be boxed in (no free
+    // cell to drop a wire on) while it's still directly port-connected to
+    // ANOTHER unpowered component that DOES have a free exit. Wiring that
+    // other one first powers both via the direct port link on the next
+    // pass, with no wire needed for the boxed-in one at all. Bailing out on
+    // the first placement's failure (old behaviour) missed exactly this case.
+    let wiredAny = false;
+    for (const p of unpowered) {
       const path = findWirePath(p.rotatedShape, p.rotatedPorts, p.row, p.col, { grid, placements: current });
-      if (!path || path.length === 0) return null;
+      if (!path || path.length === 0) continue;
 
       path.forEach(([r, c]) => {
         current.push({
@@ -91,10 +103,13 @@ function tryAddWires(placements, grid) {
           autoPlaced: true
         });
       });
+      wiredAny = true;
       break;
     }
 
-    if (!foundUnpowered) return current;
+    // Nobody in this pass could be wired — genuinely stuck, not just a
+    // traversal-order artifact.
+    if (!wiredAny) return null;
   }
 
   return null;
