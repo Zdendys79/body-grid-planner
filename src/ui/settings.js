@@ -62,6 +62,8 @@ const WEIGHT_META = [
     hint: "Score per port-to-port connection between a Power Amplifier and an adjacent Harvester or Salvager, which the amplifier boosts in-game. Optional — not required for layout validity, but this weight makes SA try to wire a Harvester/Salvager up to an Amplifier when the grid allows it." },
   { key: 'batteryAmplifier', label: 'Battery Amplifier bonus', step: 100000,
     hint: "Score per port-to-port connection between a Battery Amplifier and an adjacent battery, MULTIPLIED by that battery's cell count — a 4-cell battery is worth 4x a 1-cell one. Optional — not required for layout validity, but this weight makes SA try to connect batteries (bigger ones especially) to a Battery Amplifier when the grid allows it." },
+  { key: 'energyAmplifier', label: 'Energy Amplifier bonus', step: 100000,
+    hint: "Score per port-to-port connection between an Energy Amplifier and an adjacent energy producer (Bio Generator, Bio Generator (II), Energy Cells, or Spinner), which the amplifier boosts in-game. Flat per connection, not scaled by size. Optional — not required for layout validity, but this weight makes SA try to wire a producer up to an Energy Amplifier when the grid allows it." },
   { key: 'wirePenalty', label: 'Wire penalty', step: 100,
     hint: "Score subtracted per auto-routed wire cell. Keeps SA from routing long wire chains when a more compact, wire-free arrangement is possible." },
   { key: 'quality', label: 'Free space quality', step: 500,
@@ -74,11 +76,11 @@ const WEIGHT_META = [
     hint: "Score per pair of same-type components placed next to each other (doubled if they're also port-to-port connected). Purely cosmetic — doesn't affect power or validity, just makes SA prefer tidy same-type groupings. Spinners, Repeaters and wires are excluded, since their adjacency is already governed by the power rules." }
 ];
 
-// Working Spinner + Amplifier bonus + Battery Amplifier bonus render
-// together in a visually distinct box (per request): all three are
-// functional component-to-component bonuses, as opposed to the general
+// Working Spinner + the three Amplifier bonuses render together in a
+// visually distinct box (per request): all four are functional
+// component-to-component bonuses, as opposed to the general
 // spatial/aesthetic signals below them.
-const WEIGHT_GROUPED = new Set(['workingSet', 'amplifier', 'batteryAmplifier']);
+const WEIGHT_GROUPED = new Set(['workingSet', 'amplifier', 'batteryAmplifier', 'energyAmplifier']);
 
 // Called once on app startup to seed the main thread's live weights from
 // whatever the player saved last time (falls back to DEFAULT_SCORE_WEIGHTS).
@@ -99,12 +101,14 @@ function computeWeightContributions() {
   const blockBonus       = computeFreeBlockBonus(placements, grid.rows, grid.cols);
   const amplifierBonus   = computeAmplifierBonus(placements);
   const batteryAmpBonus  = computeBatteryAmplifierBonus(placements);
+  const energyAmpBonus   = computeEnergyAmplifierBonus(placements);
   const clusterBonus     = computeClusterBonus(placements);
   const w = getScoreWeights();
   return {
     workingSet:       workingSet.size * w.workingSet,
     amplifier:        amplifierBonus,
     batteryAmplifier: batteryAmpBonus,
+    energyAmplifier:  energyAmpBonus,
     wirePenalty:      -(wires * w.wirePenalty),
     quality:          quality * w.quality,
     freeBlock:        blockBonus.free * w.freeBlock,
