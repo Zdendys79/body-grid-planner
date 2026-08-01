@@ -434,6 +434,21 @@
       "description": "Metal harvester 2x3. W on (1,0)."
     },
     {
+      "id": "resource_scanner",
+      "name": "Resource Scanner",
+      "category": "processing",
+      "shape": [[0,2],[1,0],[1,1],[1,2],[1,3],[1,4]],
+      "energyPorts": [
+        {"cell": [0,2], "side": "N"}
+      ],
+      "bioPorts": [],
+      "peripheral": null,
+      "color": "#80DEEA",
+      "bgColor": "#00272b",
+      "icon": "⌖",
+      "description": "Resource Scanner, 6 cells (T-shape). N on (0,2). Boosts yield of found metals."
+    },
+    {
       "id": "furnace",
       "name": "Furnace (I)",
       "category": "processing",
