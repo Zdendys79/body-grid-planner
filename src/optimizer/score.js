@@ -4,21 +4,24 @@
 // Spinners satisfied by their Repeater requirements. scoreLayout combines
 // these into the brute force's final layout ranking.
 
-// Player-tunable weights for scoreLayout's nine signals (Settings modal).
+// Player-tunable weights (12 total) for scoreLayout's signals (Settings modal).
 // Each JS context (main thread, each SA worker) holds its own copy — the
 // main thread calls setScoreWeights() directly from persisted settings;
 // workers receive the current values via the 'init' message, since threads
 // don't share memory. See src/ui/settings.js and sa-worker.js.
 const DEFAULT_SCORE_WEIGHTS = {
-  workingSet:      2650000, // per working Spinner
-  wirePenalty:        5000, // per auto-routed wire cell (subtracted)
-  quality:           15000, // per unit of free-neighbour connectivity
-  freeBlock:             1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
-  busAccess:             1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
-  cluster:           50000, // per same-type neighbour pair (port-connected pairs get x2)
-  amplifier:       4000000, // per Power Amplifier <-> Harvester/Salvager port connection
-  batteryAmplifier: 1000000, // per Battery Amplifier <-> battery cell of area (multiplied by the connected battery's cell count)
-  energyAmplifier: 3000000  // per Energy Amplifier <-> Bio Generator/Energy Cells/Spinner port connection
+  workingSet:              2650000, // per working Spinner
+  wirePenalty:                5000, // per auto-routed wire cell (subtracted)
+  quality:                   15000, // per unit of free-neighbour connectivity
+  freeBlock:                     1, // multiplier on computeFreeBlockBonus's "free" total (any accessible open rectangle)
+  busAccess:                     1, // multiplier on computeFreeBlockBonus's "bus" total (extra, only for rectangles touching the W/S bus)
+  cluster:                   50000, // per same-type neighbour pair (port-connected pairs get x2)
+  amplifier:               4000000, // per Power Amplifier <-> Harvester/Salvager port connection
+  batteryAmplifier:        1000000, // per Battery Amplifier <-> battery cell of area (multiplied by the connected battery's cell count)
+  energyAmpBioGen:         3000000, // per Energy Amplifier <-> Bio Generator/Bio Generator (II) port connection
+  energyAmpEnergyCells:    3000000, // per Energy Amplifier <-> Energy Cells port connection
+  energyAmpSpinner:        3000000, // per Energy Amplifier <-> Spinner port connection
+  energyAmpPulser:         3000000  // per Energy Amplifier <-> Pulser port connection
 };
 let scoreWeights = { ...DEFAULT_SCORE_WEIGHTS };
 
@@ -289,14 +292,16 @@ function computeBatteryAmplifierBonus(placements) {
   return bonus;
 }
 
-// Energy Amplifier bonus: rewards each port-to-port connection between an
-// Energy Amplifier and an adjacent energy producer (Bio Generator, Bio
-// Generator (II), Energy Cells, or Spinner), which the amplifier boosts
-// in-game. Flat per connection — unlike the Battery Amplifier, producer
-// "size" isn't scaled here. Optional, like the other amplifiers — not
-// required for layout validity, and independent of the Spinner's separate
-// Repeater working-set requirement.
-const ENERGY_AMPLIFIER_TARGETS = new Set(['bio_generator', 'bio_generator_ii', 'energy_cells', 'spinner']);
+// Energy Amplifier bonus: counts each port-to-port connection between an
+// Energy Amplifier and an adjacent energy producer, broken down into four
+// independently-weighted categories (weights.energyAmpBioGen/EnergyCells/
+// Spinner/Pulser — see scoreLayout) since each producer type's boost is
+// worth a different amount to the player. Flat per connection within a
+// category — unlike the Battery Amplifier, producer "size" isn't scaled
+// here. Optional, like the other amplifiers — not required for layout
+// validity, and independent of the Spinner's separate Repeater
+// working-set requirement.
+const ENERGY_AMPLIFIER_TARGETS = new Set(['bio_generator', 'bio_generator_ii', 'energy_cells', 'spinner', 'pulser']);
 
 function computeEnergyAmplifierBonus(placements) {
   const portMap = new Map();
@@ -310,7 +315,7 @@ function computeEnergyAmplifierBonus(placements) {
     }
   }
 
-  let bonus = 0;
+  const counts = { bioGen: 0, energyCells: 0, spinner: 0, pulser: 0 };
   const counted = new Set();
   for (let i = 0; i < placements.length; i++) {
     const p = placements[i];
@@ -321,15 +326,19 @@ function computeEnergyAmplifierBonus(placements) {
       const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[side]}`;
       if (!portMap.has(adjKey)) continue;
       for (const j of portMap.get(adjKey)) {
-        if (!ENERGY_AMPLIFIER_TARGETS.has(placements[j].componentId)) continue;
+        const targetId = placements[j].componentId;
+        if (!ENERGY_AMPLIFIER_TARGETS.has(targetId)) continue;
         const pairKey = `${i},${j}`;
         if (counted.has(pairKey)) continue;
         counted.add(pairKey);
-        bonus += scoreWeights.energyAmplifier;
+        if (targetId === 'bio_generator' || targetId === 'bio_generator_ii') counts.bioGen++;
+        else if (targetId === 'energy_cells') counts.energyCells++;
+        else if (targetId === 'spinner') counts.spinner++;
+        else if (targetId === 'pulser') counts.pulser++;
       }
     }
   }
-  return bonus;
+  return counts;
 }
 
 // Aesthetic bonus: same-type components placed next to each other score +100
@@ -399,16 +408,17 @@ function computeClusterBonus(placements) {
   return bonus;
 }
 
-// Final layout score — combines nine signals into one number that SA and
-// the synchronous greedy share. Higher is better. The components, in rough
+// Final layout score — combines nine signals (eleven weights — the Energy
+// Amplifier bonus alone splits into three) into one number that SA and the
+// synchronous greedy share. Higher is better. The components, in rough
 // magnitude order from largest to smallest at default weights:
 //   workingSet.size * weights.workingSet   — a working Spinner is the most valuable atom
 //   batteryAmpBonus                        — weights.batteryAmplifier per Battery Amplifier <->
 //                                           battery port connection, MULTIPLIED by that battery's
 //                                           cell count; see computeBatteryAmplifierBonus
-//   energyAmpBonus                         — weights.energyAmplifier per Energy Amplifier <->
-//                                           Bio Generator/Energy Cells/Spinner port connection;
-//                                           see computeEnergyAmplifierBonus
+//   energyAmpBonus                         — weights.energyAmpBioGen/EnergyCells/Spinner/Pulser
+//                                           per Energy Amplifier <-> producer port connection, one
+//                                           weight per target type; see computeEnergyAmplifierBonus
 //   amplifierBonus                         — weights.amplifier per Power Amplifier <->
 //                                           Harvester/Salvager port connection; see computeAmplifierBonus
 //   blockBonus.free * weights.freeBlock    — accessible open rectangles, escalates with area
@@ -427,7 +437,11 @@ function scoreLayout(placements, grid) {
   const blockBonus       = computeFreeBlockBonus(placements, grid.rows, grid.cols);
   const amplifierBonus   = computeAmplifierBonus(placements);
   const batteryAmpBonus  = computeBatteryAmplifierBonus(placements);
-  const energyAmpBonus   = computeEnergyAmplifierBonus(placements);
+  const energyAmpCounts  = computeEnergyAmplifierBonus(placements);
+  const energyAmpBonus   = energyAmpCounts.bioGen * scoreWeights.energyAmpBioGen
+                          + energyAmpCounts.energyCells * scoreWeights.energyAmpEnergyCells
+                          + energyAmpCounts.spinner * scoreWeights.energyAmpSpinner
+                          + energyAmpCounts.pulser * scoreWeights.energyAmpPulser;
   const clusterBonus     = computeClusterBonus(placements);
   return quality * scoreWeights.quality
        - wires * scoreWeights.wirePenalty
