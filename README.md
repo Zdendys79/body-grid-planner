@@ -112,7 +112,7 @@ Click a placed component to lift it (wires drop). Mouse moves the ghost (pixel-p
 Per worker:
 1. **Seed.** Accept the user layout if it is structurally sane (in bounds, no overlap). Otherwise run a multi-strategy chain: cluster-substituted shell+greedy → no-cluster shell+greedy → pure greedy. First strategy that places all components wins; if none does, the worker posts an error.
 2. **Perturb.** Worker-specific perturbation count (0–25 random moves) to spread the population.
-3. **Anneal.** Metropolis acceptance with worker-specific cooling rate and restart-after threshold. Best valid layouts stream out as `leaf` messages.
+3. **Anneal.** Metropolis acceptance with worker-specific cooling rate and restart-after threshold. `tStart`/`tEnd` (v=141) are computed from the current dominant score weight (`scheduleAnnealOpt` in `app.js`) rather than hardcoded, so the Metropolis acceptance `exp(-delta/T)` stays meaningful whatever the weights are tuned to — a temperature scaled for small weights makes `exp(-delta/T)` collapse to ~0 for any real move once weights are large, turning SA into pure hill-climbing that can't escape local optima. Best valid layouts stream out as `leaf` messages.
 
 ### Cluster system (SA only)
 Spinner-Repeater chains are pre-baked as synthetic components (`cluster_An` = n Spinners + (n-1) `repeater_2s`, linear horizontal). All 4 rotations are precomputed via `_precomputeRotationVariants`, so SA's relocate-move places clusters as atoms and never needs to rebuild adjacency.
@@ -164,7 +164,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=140**
+Current version: **v=141**
 
 ---
 
