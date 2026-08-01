@@ -219,8 +219,8 @@ window.COMPONENTS_DATA = {
       "bgColor": "#332400",
       "icon": "⚡",
       "optimizerRules": {
-        "connectsTo": ["bio_generator", "bio_generator_ii", "energy_cells", "spinner"],
-        "note": "Boosts the efficiency of a port-connected energy producer (Bio Generator, Energy Cells, Spinner). Optional — not required for layout validity, but scoreLayout rewards each connection (Settings → Layout scoring weights → Energy Amplifier bonus)."
+        "connectsTo": ["bio_generator", "bio_generator_ii", "energy_cells", "spinner", "pulser"],
+        "note": "Boosts the efficiency of a port-connected energy producer (Bio Generator, Energy Cells, Spinner, Pulser). Optional — not required for layout validity, but scoreLayout rewards each connection with its own per-target-type weight (Settings → Layout scoring weights → Energy Amp: Bio Generator / Energy Cells / Spinner / Pulser)."
       },
       "description": "Energy Amplifier, 3 cells (vertical). W+E on (2,0). Boosts efficiency of a port-connected energy producer."
     },

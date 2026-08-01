@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-08-01
-**Version:** v=136
+**Version:** v=137
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=137 | 2026-08-01 | `weights.energyAmplifier` split into 4 independently-tunable per-target weights (`energyAmpBioGen`, `energyAmpEnergyCells`, `energyAmpSpinner`, `energyAmpPulser`) — Pulser added as a 4th Energy Amplifier target alongside Bio Generator/Energy Cells/Spinner. `computeEnergyAmplifierBonus` now returns per-category counts instead of one flat total |
 | v=136 | 2026-08-01 | New component: Energy Amplifier — 3-cell vertical shape, W+E both on (2,0). New `computeEnergyAmplifierBonus` (default 3000000/connection, flat, not size-scaled) rewards port-connecting it to a Bio Generator, Bio Generator (II), Energy Cells, or Spinner. New "Energy Amplifier bonus" weight slider in Settings, grouped with the other amplifier bonuses |
 | v=135 | 2026-07-30 | `scoreLayout`: new Battery Amplifier bonus (`computeBatteryAmplifierBonus`, default 1000000/connection) rewards port-connecting a Battery Amplifier to any battery, MULTIPLIED by the connected battery's cell count — bigger batteries score proportionally more. New "Battery Amplifier bonus" weight slider in Settings, grouped with Working Spinner / Amplifier bonus |
 | v=134 | 2026-07-30 | New component: Battery Amplifier — 3-cell L-shape (2 cells top row + 1 below the right cell), W+E both on (1,1) |
