@@ -4,7 +4,7 @@
 // Spinners satisfied by their Repeater requirements. scoreLayout combines
 // these into the brute force's final layout ranking.
 
-// Player-tunable weights (12 total) for scoreLayout's signals (Settings modal).
+// Player-tunable weights (13 total) for scoreLayout's signals (Settings modal).
 // Each JS context (main thread, each SA worker) holds its own copy — the
 // main thread calls setScoreWeights() directly from persisted settings;
 // workers receive the current values via the 'init' message, since threads
@@ -21,7 +21,8 @@ const DEFAULT_SCORE_WEIGHTS = {
   energyAmpBioGen:         3000000, // per Energy Amplifier <-> Bio Generator/Bio Generator (II) port connection
   energyAmpEnergyCells:    3000000, // per Energy Amplifier <-> Energy Cells port connection
   energyAmpSpinner:        3000000, // per Energy Amplifier <-> Spinner port connection
-  energyAmpPulser:         3000000  // per Energy Amplifier <-> Pulser port connection
+  energyAmpPulser:         3000000, // per Energy Amplifier <-> Pulser port connection
+  concentrator:            3000000  // per Concentrator <-> Energy Cells port connection
 };
 let scoreWeights = { ...DEFAULT_SCORE_WEIGHTS };
 
@@ -341,6 +342,53 @@ function computeEnergyAmplifierBonus(placements) {
   return counts;
 }
 
+// Concentrator bonus: rewards each port-to-port connection between a
+// Concentrator and an adjacent Energy Cells block, which the Concentrator
+// boosts in-game. Flat per connection — and, unlike the other amplifiers,
+// counted PER PORT rather than per component pair: with 8 outward ports the
+// Concentrator can legitimately land 2 separate connections against the
+// same Energy Cells block (e.g. both its E-side ports touching one 2x2
+// block), and each should score. Energy Cells only has W/E ports, so only 4
+// of the Concentrator's 8 can ever actually connect to one. Optional — not
+// required for layout validity, purely a scoring incentive.
+const CONCENTRATOR_TARGETS = new Set(['energy_cells']);
+
+function computeConcentratorBonus(placements) {
+  const portMap = new Map();
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (p.componentId !== 'concentrator' && !CONCENTRATOR_TARGETS.has(p.componentId)) continue;
+    for (const { cell, side } of (p.rotatedPorts || [])) {
+      const key = `${p.row + cell[0]},${p.col + cell[1]},${side}`;
+      if (!portMap.has(key)) portMap.set(key, []);
+      portMap.get(key).push(i);
+    }
+  }
+
+  let bonus = 0;
+  const counted = new Set();
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    if (p.componentId !== 'concentrator') continue;
+    for (const { cell, side } of (p.rotatedPorts || [])) {
+      const gr = p.row + cell[0], gc = p.col + cell[1];
+      const d = SIDE_DELTA[side];
+      const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[side]}`;
+      if (!portMap.has(adjKey)) continue;
+      for (const j of portMap.get(adjKey)) {
+        if (!CONCENTRATOR_TARGETS.has(placements[j].componentId)) continue;
+        // Keyed by the Concentrator's own port cell (not just i,j) so two
+        // distinct ports linking to the same target both count.
+        const pairKey = `${i},${gr},${gc},${j}`;
+        if (counted.has(pairKey)) continue;
+        counted.add(pairKey);
+        bonus += scoreWeights.concentrator;
+      }
+    }
+  }
+  return bonus;
+}
+
 // Aesthetic bonus: same-type components placed next to each other score +100
 // per pair; +200 if they are also port-to-port connected.
 // Spinners, Repeaters and wires are excluded — their adjacency rules are
@@ -408,8 +456,8 @@ function computeClusterBonus(placements) {
   return bonus;
 }
 
-// Final layout score — combines nine signals (eleven weights — the Energy
-// Amplifier bonus alone splits into three) into one number that SA and the
+// Final layout score — combines ten signals (thirteen weights — the Energy
+// Amplifier bonus alone splits into four) into one number that SA and the
 // synchronous greedy share. Higher is better. The components, in rough
 // magnitude order from largest to smallest at default weights:
 //   workingSet.size * weights.workingSet   — a working Spinner is the most valuable atom
@@ -421,6 +469,8 @@ function computeClusterBonus(placements) {
 //                                           weight per target type; see computeEnergyAmplifierBonus
 //   amplifierBonus                         — weights.amplifier per Power Amplifier <->
 //                                           Harvester/Salvager port connection; see computeAmplifierBonus
+//   concentratorBonus                      — weights.concentrator per Concentrator <-> Energy
+//                                           Cells port connection; see computeConcentratorBonus
 //   blockBonus.free * weights.freeBlock    — accessible open rectangles, escalates with area
 //   blockBonus.bus  * weights.busAccess    — same rectangles, EXTRA reward for touching the
 //                                           W/S bus directly (no wire needed there); independent
@@ -442,6 +492,7 @@ function scoreLayout(placements, grid) {
                           + energyAmpCounts.energyCells * scoreWeights.energyAmpEnergyCells
                           + energyAmpCounts.spinner * scoreWeights.energyAmpSpinner
                           + energyAmpCounts.pulser * scoreWeights.energyAmpPulser;
+  const concentratorBonus = computeConcentratorBonus(placements);
   const clusterBonus     = computeClusterBonus(placements);
   return quality * scoreWeights.quality
        - wires * scoreWeights.wirePenalty
@@ -451,5 +502,6 @@ function scoreLayout(placements, grid) {
        + amplifierBonus
        + batteryAmpBonus
        + energyAmpBonus
+       + concentratorBonus
        + clusterBonus;
 }
