@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-08-01
-**Version:** v=138
+**Version:** v=139
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=139 | 2026-08-01 | Bugfix: `tryAddWires` (`src/optimizer/validate.js`) gave up entirely if the FIRST unpowered component in placement order had no free cell for a wire, even when a LATER unpowered component had a valid path whose wiring would have powered the first one for free via direct port propagation. Now tries every still-unpowered component each pass before declaring the layout unwireable |
 | v=138 | 2026-08-01 | New component: Resource Scanner — 6-cell T-shape (single cell stalk atop a 5-wide base), N port on (0,2). No scoring bonus wired up yet (unlike the amplifiers) — component data only |
 | v=137 | 2026-08-01 | `weights.energyAmplifier` split into 4 independently-tunable per-target weights (`energyAmpBioGen`, `energyAmpEnergyCells`, `energyAmpSpinner`, `energyAmpPulser`) — Pulser added as a 4th Energy Amplifier target alongside Bio Generator/Energy Cells/Spinner. `computeEnergyAmplifierBonus` now returns per-category counts instead of one flat total |
 | v=136 | 2026-08-01 | New component: Energy Amplifier — 3-cell vertical shape, W+E both on (2,0). New `computeEnergyAmplifierBonus` (default 3000000/connection, flat, not size-scaled) rewards port-connecting it to a Bio Generator, Bio Generator (II), Energy Cells, or Spinner. New "Energy Amplifier bonus" weight slider in Settings, grouped with the other amplifier bonuses |
