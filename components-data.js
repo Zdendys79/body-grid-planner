@@ -110,7 +110,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "bio_generator",
-      "name": "Bio Generator",
+      "name": "Bio Generator (I)",
       "category": "power",
       "shape": [[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
@@ -121,7 +121,7 @@ window.COMPONENTS_DATA = {
       "color": "#66BB6A",
       "bgColor": "#062010",
       "icon": "☘",
-      "description": "Bio Generator, 2x3 (no integrated Biocell — attach one separately). N+W on (1,0)."
+      "description": "Bio Generator (I), 2x3 (no integrated Biocell — attach one separately). N+W on (1,0)."
     },
     {
       "id": "bio_generator_ii",
@@ -190,7 +190,7 @@ window.COMPONENTS_DATA = {
       "bgColor": "#332400",
       "icon": "⚡",
       "optimizerRules": {
-        "connectsTo": ["battery_1x1", "battery_1x2", "battery_1x3", "battery_2x2", "battery_3x2"],
+        "connectsTo": ["battery_1x1", "battery_1x2", "battery_1x3", "battery_2x2", "battery_3x2", "battery_4x2"],
         "note": "Boosts the capacity of a port-connected battery, scaled by that battery's cell count — bigger batteries gain proportionally more. Optional — not required for layout validity, but scoreLayout rewards each connection (Settings → Layout scoring weights → Battery Amplifier bonus)."
       },
       "description": "Battery Amplifier, 3 cells. W+E on (1,1). Boosts capacity of a port-connected battery, scaled by its size."
@@ -209,7 +209,7 @@ window.COMPONENTS_DATA = {
       "bgColor": "#332400",
       "icon": "⚡",
       "optimizerRules": {
-        "connectsTo": ["bio_generator", "bio_generator_ii", "energy_cells", "spinner", "pulser"],
+        "connectsTo": ["bio_generator", "bio_generator_ii", "bio_core", "energy_cells", "spinner", "pulser"],
         "note": "Boosts the efficiency of a port-connected energy producer (Bio Generator, Energy Cells, Spinner, Pulser). Optional — not required for layout validity, but scoreLayout rewards each connection with its own per-target-type weight (Settings → Layout scoring weights → Energy Amp: Bio Generator / Energy Cells / Spinner / Pulser)."
       },
       "description": "Energy Amplifier, 3 cells (vertical). W+E on (2,0). Boosts efficiency of a port-connected energy producer."
@@ -425,17 +425,17 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "metal_scavenger",
-      "name": "Metal Scavenger",
+      "name": "Scrap Scavenger",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
-        {"cell": [1,0], "side": "W"}
+        {"cell": [0,0], "side": "W"}
       ],
       "peripheral": null,
       "color": "#B0BEC5",
       "bgColor": "#0e1419",
       "icon": "⊡",
-      "description": "Metal harvester 2x3. W on (1,0)."
+      "description": "Scrap Scavenger, 2x3 — passively generates SCRAP. W on (0,0)."
     },
     {
       "id": "resource_scanner",
@@ -485,7 +485,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "fuser_i",
-      "name": "Fuser (I)",
+      "name": "Fuser",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3],[2,0],[2,1],[2,2],[2,3],[3,0],[3,1],[3,2],[3,3]],
       "energyPorts": [
@@ -497,7 +497,7 @@ window.COMPONENTS_DATA = {
       "color": "#4DD0E1",
       "bgColor": "#002025",
       "icon": "⊜",
-      "description": "Fuser tier I, 4x4. W on (0,0) and (3,0). E on (3,3)."
+      "description": "Fuser, 4x4. W on (0,0) and (3,0). E on (3,3)."
     },
     {
       "id": "disposable_biocell",
@@ -512,7 +512,7 @@ window.COMPONENTS_DATA = {
       "bgColor": "#062010",
       "icon": "◌",
       "optimizerRules": {
-        "connectsTo": ["bio_generator", "bio_generator_ii"],
+        "connectsTo": ["bio_generator", "bio_generator_ii", "bio_core"],
         "note": "Normal electrical port, but only functions when plugged directly into a Bio Generator (any tier). Hard requirement — a layout with a Disposable Biocell not port-adjacent to a Bio Generator is invalid."
       },
       "description": "Disposable Biocell, 1 cell. S on (0,0). Must be port-adjacent to a Bio Generator."
@@ -530,10 +530,91 @@ window.COMPONENTS_DATA = {
       "bgColor": "#062010",
       "icon": "◉",
       "optimizerRules": {
-        "connectsTo": ["bio_generator", "bio_generator_ii"],
+        "connectsTo": ["bio_generator", "bio_generator_ii", "bio_core"],
         "note": "Normal electrical port, but only functions when plugged directly into a Bio Generator (any tier). Hard requirement — a layout with a Biocell not port-adjacent to a Bio Generator is invalid. Same shape as Refilling Biocell (not modeled separately — the optimizer doesn't distinguish consumable vs rechargeable)."
       },
       "description": "Biocell, 2 cells (vertical). S on (1,0). Must be port-adjacent to a Bio Generator."
+    },
+    {
+      "id": "battery_4x2",
+      "name": "Battery (4x2)",
+      "category": "power",
+      "shape": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,3], "side": "E"},
+        {"cell": [1,0], "side": "W"},
+        {"cell": [1,3], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "Battery (4x2), 8 cells. W on (0,0) and (1,0). E on (0,3) and (1,3). Largest battery — the strongest Battery Amplifier target, since that bonus scales by cell count."
+    },
+    {
+      "id": "bio_core",
+      "name": "Bio Core",
+      "category": "power",
+      "shape": [[0,0],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,0],[3,1],[3,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,0], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#66BB6A",
+      "bgColor": "#062010",
+      "icon": "☘",
+      "optimizerRules": {
+        "connectsTo": ["biocell", "disposable_biocell"],
+        "note": "Third Bio Generator tier — counts as a Bio Generator for the Biocell adjacency requirement, and as a Bio Generator target for the Energy Amplifier bonus. Non-rectangular: row 0 occupies only column 0."
+      },
+      "description": "Bio Core, 3x4, 10 cells (non-rectangular — row 0 is only col 0). W+E on (0,0). Bio Generator tier III; also generates metal as a byproduct."
+    },
+    {
+      "id": "cultivator",
+      "name": "Cultivator",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[0,2],[1,1],[1,2],[2,0],[2,1],[2,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [2,0], "side": "S"}
+      ],
+      "peripheral": null,
+      "color": "#A5D6A7",
+      "bgColor": "#0a1a0a",
+      "icon": "⊕",
+      "description": "Cultivator, 3x3, 8 cells (non-rectangular — hole at row 1, col 0). W on (0,0). S on (2,0). Passively generates CARCASS; needs storage to work."
+    },
+    {
+      "id": "upgrader",
+      "name": "Upgrader",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [1,0], "side": "W"}
+      ],
+      "peripheral": null,
+      "color": "#FFD54F",
+      "bgColor": "#332400",
+      "icon": "⊚",
+      "description": "Upgrader, 2x2. W on (0,0) and (1,0). Automatically upgrades connected upgradeable equipment."
+    },
+    {
+      "id": "smart_grabber",
+      "name": "Smart Grabber",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,1], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#FF8A65",
+      "bgColor": "#1a0800",
+      "icon": "⊠",
+      "description": "Smart Grabber, 2x2. W on (0,0). E on (0,1). Filtered variant of the Grabber; needs storage to work."
     }
   ]
 }
