@@ -12,9 +12,13 @@
 const _SA_REP_IDS = new Set(['repeater_2s', 'repeater_4s']);
 
 function _saComponentOrder(ids) {
-  // Biocell/Disposable Biocell (BIOCELL_IDS, src/optimizer/validate.js) must
-  // be placed after their Bio Generator — same reasoning as
-  // ensureComponentOrder in app.js (RE-OPTIMIZE).
+  // Biocell/Disposable Biocell (BIOCELL_IDS, src/optimizer/validate.js) go
+  // after "others" (so their Bio Generator is already placed) but BEFORE
+  // Repeaters/Spinners — same most-constrained-first reasoning as
+  // ensureComponentOrder in app.js (RE-OPTIMIZE): an unrelated Repeater
+  // placed first can grab a Biocell's one valid cell, starving it into the
+  // geometry-only fallback. Biocells never compete with Repeater/Spinner
+  // for cells, so placing them earlier is free.
   const spinnerSet = new Set(['spinner', 'pulser']);
 
   const bioOnly  = ids.filter(id => BIOCELL_IDS.has(id));
@@ -29,7 +33,7 @@ function _saComponentOrder(ids) {
     if (reps.length)     interleaved.push(reps.shift());
     if (spinners.length) interleaved.push(spinners.shift());
   }
-  return [...others, ...interleaved, ...bioOnly];
+  return [...others, ...bioOnly, ...interleaved];
 }
 
 function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
