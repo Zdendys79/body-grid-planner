@@ -110,7 +110,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "bio_generator",
-      "name": "Bio Generator",
+      "name": "Bio Generator (I)",
       "category": "power",
       "shape": [[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
@@ -121,7 +121,7 @@ window.COMPONENTS_DATA = {
       "color": "#66BB6A",
       "bgColor": "#062010",
       "icon": "☘",
-      "description": "Bio Generator, 2x3 (no integrated Biocell — attach one separately). N+W on (1,0)."
+      "description": "Bio Generator (I), 2x3 (no integrated Biocell — attach one separately). N+W on (1,0)."
     },
     {
       "id": "bio_generator_ii",
@@ -425,7 +425,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "metal_scavenger",
-      "name": "Metal Scavenger",
+      "name": "Scrap Scavenger",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
@@ -435,7 +435,7 @@ window.COMPONENTS_DATA = {
       "color": "#B0BEC5",
       "bgColor": "#0e1419",
       "icon": "⊡",
-      "description": "Metal harvester 2x3. W on (1,0)."
+      "description": "Scrap Scavenger, 2x3 — passively generates SCRAP. W on (1,0)."
     },
     {
       "id": "resource_scanner",
@@ -485,7 +485,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "fuser_i",
-      "name": "Fuser (I)",
+      "name": "Fuser",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3],[2,0],[2,1],[2,2],[2,3],[3,0],[3,1],[3,2],[3,3]],
       "energyPorts": [
@@ -497,7 +497,7 @@ window.COMPONENTS_DATA = {
       "color": "#4DD0E1",
       "bgColor": "#002025",
       "icon": "⊜",
-      "description": "Fuser tier I, 4x4. W on (0,0) and (3,0). E on (3,3)."
+      "description": "Fuser, 4x4. W on (0,0) and (3,0). E on (3,3)."
     },
     {
       "id": "disposable_biocell",
