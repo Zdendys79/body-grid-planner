@@ -39,7 +39,7 @@ This tool **sends nothing to any server** and **collects no information about yo
 | `components.json` | Component definitions (shape, ports, colors) — **authoritative**, never edit without an explicit request |
 | `app.js` | Entry point: state, init, carry-mode, SA dispatcher, results panel, `stopOptimization` helper |
 | `renderer.js` | SVG grid renderer (cells, ports, glow, glyphs) |
-| `optimizer.js` | `findBestPlacement` (greedy + hard constraints + `getAmplifierConnectionBonus`) and `findAnyPlacement` (geometry only) |
+| `optimizer.js` | `findBestPlacement` (greedy + hard constraints + the four `getXConnectionBonus` amplifier-family helpers) and `findAnyPlacement` (geometry only) |
 | `sa-worker.js` | SA worker entry; loads `src/*` via `importScripts` |
 | `src/constants.js` | `STATE_KEY`, `SETTINGS_KEY`, `MAX_THREADS` |
 | `src/optimizer/rotation.js` | `rotateComponent`, `rotateCoord`, `rotateSide`, `getUniqueDegs` (shape + port aware) |
@@ -85,8 +85,8 @@ A layout is valid when **all** of:
 Greedy scorer for a single new component, used by both "add one component" and RE-OPTIMIZE (which calls it once per component in priority order):
 1. Reserves cells already occupied by other components **and** by their peripherals.
 2. Tries every unique rotation × every grid position.
-3. Hard rejects: Spinner without room for its Repeater, Repeater without a non-working Spinner target.
-4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus + amplifierBonus` — `getAmplifierConnectionBonus` (v=120) adds `scoreWeights.amplifier` per direct port connection between a Power Amplifier and an already-placed Harvester/Salvager (or the reverse order), mirroring `computeAmplifierBonus` in `scoreLayout` so RE-OPTIMIZE and SMART agree.
+3. Hard rejects: Spinner without room for its Repeater, Repeater without a non-working Spinner target, Biocell/Disposable Biocell not port-adjacent to a Bio Generator.
+4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus + amplifierBonus`. Four `getXConnectionBonus` helpers (v=120 for Power Amplifier, v=147 for the other three) each mirror their `computeXBonus` counterpart in `scoreLayout` — same weights, same port-matching logic — so RE-OPTIMIZE and SMART agree on the incentive to connect: `getAmplifierConnectionBonus` (Power Amplifier↔Harvester/Salvager), `getBatteryAmplifierConnectionBonus` (Battery Amplifier↔any battery, area-scaled), `getEnergyAmplifierConnectionBonus` (Energy Amplifier↔Bio Generator/Energy Cells/Spinner/Pulser, per-target weight), `getConcentratorConnectionBonus` (Concentrator↔Energy Cells, counted per port).
 
 If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlapping geometric fit (no wire routing). Existing components are **never** rearranged when adding a new one — that is the role of the explicit RE-OPTIMIZE button. After placement, `addComponent` (v=125) re-runs `tryAddWires` over the whole layout — `findBestPlacement` only wires up the component just added, so this catches any other already-placed component that's now one hop from power thanks to the addition. Positions are never touched, only auto-placed wire cells are added.
 
@@ -165,7 +165,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=146**
+Current version: **v=147**
 
 ---
 
