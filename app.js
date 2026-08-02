@@ -162,9 +162,9 @@ function rehydratePlacement(p) {
   const def = componentLib.find(d => d.id === p.componentId);
   if (!def) return p;
   const deg = p.rotation || 0;
-  const { shape, energyPorts, bioPorts } = rotateComponent(def, deg);
+  const { shape, energyPorts } = rotateComponent(def, deg);
   const rotatedPeripheral = buildRotatedPeri(def, deg);
-  return { ...p, rotatedShape: shape, rotatedPorts: energyPorts, rotatedBioPorts: bioPorts, rotatedPeripheral };
+  return { ...p, rotatedShape: shape, rotatedPorts: energyPorts, rotatedPeripheral };
 }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ function renderComponentList() {
     visible.filter(c => c.category === cat).forEach(def => {
       const countPlaced = state.placements.filter(p => p.componentId === def.id).length;
       html += `<div class="comp-item">
-        <div class="comp-preview">${renderMiniShape(def.shape, def.color, def.bgColor, def.energyPorts, def.bioPorts)}</div>
+        <div class="comp-preview">${renderMiniShape(def.shape, def.color, def.bgColor, def.energyPorts)}</div>
         <div class="comp-info">
           <div class="comp-name" style="color:${def.color}"><span class="comp-icon-inline">${def.icon}</span>${def.name}</div>
         </div>
@@ -308,7 +308,6 @@ async function addComponent(componentId) {
       rotation: anyResult.rotation,
       rotatedShape: anyResult.rotatedShape,
       rotatedPorts: anyResult.rotatedPorts,
-      rotatedBioPorts: anyResult.rotatedBioPorts || [],
       rotatedPeripheral: rotPeri
     });
     stopOptimization();
@@ -329,7 +328,6 @@ async function addComponent(componentId) {
       row: r, col: c, rotation: 0,
       rotatedShape: [[0,0]],
       rotatedPorts: wireDef.energyPorts.map(p => ({ cell: [...p.cell], side: p.side })),
-      rotatedBioPorts: [],
       rotatedPeripheral: null,
       autoPlaced: true
     });
@@ -342,7 +340,6 @@ async function addComponent(componentId) {
     rotation: result.rotation,
     rotatedShape: result.rotatedShape,
     rotatedPorts: result.rotatedPorts,
-    rotatedBioPorts: result.rotatedBioPorts || [],
     rotatedPeripheral: result.rotatedPeripheral
   });
 
@@ -392,7 +389,7 @@ function onComponentClick(idx) { selectPlacement(idx); }
 let carryState = null;
 // {
 //   idx: position of the carried placement in state.placements,
-//   origRow, origCol, origRotation, origShape, origPorts, origBioPorts, origPeri,
+//   origRow, origCol, origRotation, origShape, origPorts, origPeri,
 //   savedWires: [],
 //   pickedUpAt: timestamp (suppress the same-event click that triggered pickup)
 // }
@@ -453,7 +450,6 @@ function pickUpComponent(idx, e) {
     origRotation: p.rotation,
     origShape: p.rotatedShape,
     origPorts: p.rotatedPorts,
-    origBioPorts: p.rotatedBioPorts || [],
     origPeri: p.rotatedPeripheral,
     savedWires: wires,
     pickedUpAt: Date.now()
@@ -553,7 +549,6 @@ function _rotateCarried() {
   p.rotation = nextRot;
   p.rotatedShape = rotated.shape;
   p.rotatedPorts = rotated.energyPorts;
-  p.rotatedBioPorts = rotated.bioPorts;
   p.rotatedPeripheral = buildRotatedPeri(def, nextRot);
   renderAll();
   console.log(`[carry] R → rotation ${nextRot}°`);
@@ -658,7 +653,6 @@ function _cancelCarry() {
   p.rotation = carryState.origRotation;
   p.rotatedShape = carryState.origShape;
   p.rotatedPorts = carryState.origPorts;
-  p.rotatedBioPorts = carryState.origBioPorts;
   p.rotatedPeripheral = carryState.origPeri;
   delete p._carrying;
   // Restore wires
@@ -800,7 +794,6 @@ function tryRotatePlacement(idx, deltaRotation) {
   state.placements[idx].rotation = newRotation;
   state.placements[idx].rotatedShape = rotated.shape;
   state.placements[idx].rotatedPorts = rotated.energyPorts;
-  state.placements[idx].rotatedBioPorts = rotated.bioPorts;
   state.placements[idx].rotatedPeripheral = newPeri;
 
   // Drop old wires (their paths target the component's OLD port direction)
@@ -952,7 +945,6 @@ async function optimizeAll() {
         row: r, col: c, rotation: 0,
         rotatedShape: [[0,0]],
         rotatedPorts: wireDef.energyPorts.map(p => ({ cell: [...p.cell], side: p.side })),
-        rotatedBioPorts: [],
         rotatedPeripheral: null, autoPlaced: true
       });
     });
@@ -960,7 +952,6 @@ async function optimizeAll() {
       id: state.nextId++, componentId: id,
       row: result.row, col: result.col, rotation: result.rotation,
       rotatedShape: result.rotatedShape, rotatedPorts: result.rotatedPorts,
-      rotatedBioPorts: result.rotatedBioPorts || [],
       rotatedPeripheral: result.rotatedPeripheral
     });
     const wires = (result.wirePath || []).length;
@@ -1329,7 +1320,6 @@ function scheduleAnnealOpt() {
     row: p.row, col: p.col, rotation: p.rotation,
     rotatedShape: p.rotatedShape,
     rotatedPorts: p.rotatedPorts,
-    rotatedBioPorts: p.rotatedBioPorts || [],
     rotatedPeripheral: p.rotatedPeripheral
   }));
 
@@ -1363,7 +1353,7 @@ function scheduleAnnealOpt() {
   for (let i = 0; i < N; i++) {
     // SA_WORKER_BLOB_URL is pre-created by sa-worker-bundle.js (generated by
     // build.js) so that the Worker can be spawned from file:// without a server.
-    const w = new Worker(window.SA_WORKER_BLOB_URL || 'sa-worker.js?v=144');
+    const w = new Worker(window.SA_WORKER_BLOB_URL || 'sa-worker.js?v=145');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {

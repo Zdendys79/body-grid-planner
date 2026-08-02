@@ -41,7 +41,7 @@ function packShell(componentIds, grid) {
     let bestScore = -Infinity;
 
     for (const deg of getUniqueDegs(def)) {
-      const { shape, energyPorts, bioPorts } = rotateComponent(def, deg);
+      const { shape, energyPorts } = rotateComponent(def, deg);
       const bounds = getBounds(shape);
       if (bounds.height > R || bounds.width > C) continue;
       const rotPeri = buildRotatedPeri(def, deg);
@@ -103,7 +103,7 @@ function packShell(componentIds, grid) {
 
           if (score > bestScore) {
             bestScore = score;
-            best = { row, col, deg, shape, energyPorts, bioPorts, rotPeri };
+            best = { row, col, deg, shape, energyPorts, rotPeri };
           }
         }
       }
@@ -115,7 +115,6 @@ function packShell(componentIds, grid) {
         row: best.row, col: best.col, rotation: best.deg,
         rotatedShape: best.shape,
         rotatedPorts: best.energyPorts,
-        rotatedBioPorts: best.bioPorts,
         rotatedPeripheral: best.rotPeri
       });
       for (const [r, c] of best.shape) occupied.add(`${best.row+r},${best.col+c}`);

@@ -50,12 +50,11 @@ function _saFitsInGrid(p, grid) {
 function _saMakePlacement(id, row, col, rotation) {
   const def = componentLib.find(d => d.id === id);
   if (!def) return null;
-  const { shape, energyPorts, bioPorts } = rotateComponent(def, rotation);
+  const { shape, energyPorts } = rotateComponent(def, rotation);
   return {
     componentId: id, row, col, rotation,
     rotatedShape: shape,
     rotatedPorts: energyPorts,
-    rotatedBioPorts: bioPorts,
     rotatedPeripheral: buildRotatedPeri(def, rotation)
   };
 }
@@ -308,7 +307,6 @@ function saChainRotate(placements, grid) {
       rotation: newRot,
       rotatedShape: rotated.shape,
       rotatedPorts: rotated.energyPorts,
-      rotatedBioPorts: rotated.bioPorts,
       rotatedPeripheral: buildRotatedPeri(def, newRot)
     };
     if (!_saFitsInGrid(movedP, grid)) return null;

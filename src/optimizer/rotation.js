@@ -19,8 +19,7 @@ function rotateComponent(compDef, deg) {
   if (deg === 0) {
     return {
       shape: compDef.shape.map(c => [...c]),
-      energyPorts: compDef.energyPorts.map(p => ({ cell: [...p.cell], side: p.side })),
-      bioPorts: (compDef.bioPorts || []).map(p => ({ cell: [...p.cell], side: p.side }))
+      energyPorts: compDef.energyPorts.map(p => ({ cell: [...p.cell], side: p.side }))
     };
   }
 
@@ -32,19 +31,14 @@ function rotateComponent(compDef, deg) {
     cell: rotateCoord(p.cell[0], p.cell[1], maxR, maxC, deg),
     side: rotateSide(p.side, deg)
   }));
-  let bioPorts = (compDef.bioPorts || []).map(p => ({
-    cell: rotateCoord(p.cell[0], p.cell[1], maxR, maxC, deg),
-    side: rotateSide(p.side, deg)
-  }));
 
   // Normalize to origin (min row/col = 0)
   const minR = Math.min(...shape.map(([r]) => r));
   const minC = Math.min(...shape.map(([,c]) => c));
-  shape    = shape.map(([r,c]) => [r - minR, c - minC]);
-  ports    = ports.map(p => ({ cell: [p.cell[0] - minR, p.cell[1] - minC], side: p.side }));
-  bioPorts = bioPorts.map(p => ({ cell: [p.cell[0] - minR, p.cell[1] - minC], side: p.side }));
+  shape = shape.map(([r,c]) => [r - minR, c - minC]);
+  ports = ports.map(p => ({ cell: [p.cell[0] - minR, p.cell[1] - minC], side: p.side }));
 
-  return { shape, energyPorts: ports, bioPorts };
+  return { shape, energyPorts: ports };
 }
 
 function rotatePeriShape(periShape, deg) {
@@ -82,11 +76,10 @@ function getUniqueDegs(def) {
   const seen = new Set();
   const result = [];
   for (const deg of [0, 90, 180, 270]) {
-    const { shape, energyPorts, bioPorts } = rotateComponent(def, deg);
+    const { shape, energyPorts } = rotateComponent(def, deg);
     const shapeKey = shape.map(([r,c]) => `${r},${c}`).sort().join('|');
     const eKey = (energyPorts || []).map(p => `${p.cell[0]},${p.cell[1]},${p.side}`).sort().join('|');
-    const bKey = (bioPorts || []).map(p => `${p.cell[0]},${p.cell[1]},${p.side}`).sort().join('|');
-    const key = `${shapeKey}#${eKey}#${bKey}`;
+    const key = `${shapeKey}#${eKey}`;
     if (!seen.has(key)) { seen.add(key); result.push(deg); }
   }
   _uniqueRotsCache.set(def.id, result);

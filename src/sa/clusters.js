@@ -154,7 +154,6 @@ function buildClusterDef(pattern, spinners) {
         { cell: [2, 0], side: 'W' },           // leftmost Spinner's W (external)
         { cell: [2, width - 1], side: 'E' }    // rightmost Spinner's E (external)
       ],
-      bioPorts: [],
       peripheral: null,
       color: '#80CBC4', bgColor: '#003830',
       icon: '⛓',
@@ -187,7 +186,6 @@ function buildClusterDef(pattern, spinners) {
         { cell: [2, 0], side: 'W' },           // leftmost Rep_4s W
         { cell: [2, width - 1], side: 'E' }    // rightmost Rep_4s E
       ],
-      bioPorts: [],
       peripheral: null,
       color: '#80CBC4', bgColor: '#001a12',
       icon: '⛓',
@@ -293,7 +291,6 @@ function expandClusterPlacement(clusterPlacement, clusterDef) {
       rotation: ip.rotation,
       rotatedShape: rotated.shape,
       rotatedPorts: rotated.energyPorts,
-      rotatedBioPorts: rotated.bioPorts,
       rotatedPeripheral: buildRotatedPeri(subDef, ip.rotation)
     });
   }

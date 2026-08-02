@@ -128,7 +128,6 @@ function tryAddWires(placements, grid) {
           row: r, col: c, rotation: 0,
           rotatedShape: [[0, 0]],
           rotatedPorts: wireDef.energyPorts.map(ep => ({ cell: [...ep.cell], side: ep.side })),
-          rotatedBioPorts: [],
           rotatedPeripheral: null,
           autoPlaced: true
         });

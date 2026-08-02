@@ -222,7 +222,7 @@ function findBestPlacement(compDef, state, pendingIds = []) {
   let bestResult = null;
 
   for (const deg of [0, 90, 180, 270]) {
-    const { shape, energyPorts, bioPorts } = rotateComponent(compDef, deg);
+    const { shape, energyPorts } = rotateComponent(compDef, deg);
     const bounds = getBounds(shape);
     if (bounds.height > grid.rows || bounds.width > grid.cols) continue;
 
@@ -345,7 +345,6 @@ function findBestPlacement(compDef, state, pendingIds = []) {
           bestResult = {
             row, col, rotation: deg,
             rotatedShape: shape, rotatedPorts: energyPorts,
-            rotatedBioPorts: bioPorts,
             rotatedPeripheral: rotPeri,
             wirePath
           };
