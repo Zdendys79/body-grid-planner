@@ -169,6 +169,105 @@ function getAmplifierConnectionBonus(compDef, energyPorts, row, col, placements)
   return bonus;
 }
 
+// Same idea as getAmplifierConnectionBonus, for the other three amplifier-
+// family components (each mirroring its computeXBonus in
+// src/optimizer/score.js, used by SA's scoreLayout) — without these,
+// RE-OPTIMIZE and SA's initial greedy seed never even try to place these
+// near their targets; only SMART's later move-based search would find the
+// connection. AMPLIFIER_TARGET_IDS-style sets (_isBatteryTarget,
+// ENERGY_AMPLIFIER_TARGETS, CONCENTRATOR_TARGETS) are defined once in
+// src/optimizer/score.js (loaded before this file).
+
+// Battery Amplifier <-> any battery, bonus scaled by the battery's cell
+// count — same area-scaling as computeBatteryAmplifierBonus.
+function getBatteryAmplifierConnectionBonus(compDef, energyPorts, row, col, placements, shape) {
+  const isAmplifier = compDef.id === 'battery_amplifier';
+  const isTarget = _isBatteryTarget(compDef.id);
+  if (!isAmplifier && !isTarget) return 0;
+
+  let bonus = 0;
+  for (const { cell, side } of energyPorts) {
+    const gr = row + cell[0], gc = col + cell[1];
+    const d  = SIDE_DELTA[side];
+    const ar = gr + d.dr, ac = gc + d.dc;
+    for (const pp of placements) {
+      const isMatch = isAmplifier
+        ? _isBatteryTarget(pp.componentId)
+        : pp.componentId === 'battery_amplifier';
+      if (!isMatch) continue;
+      const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
+        pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
+      );
+      if (connects) {
+        const area = isAmplifier ? pp.rotatedShape.length : shape.length;
+        bonus += scoreWeights.batteryAmplifier * area;
+      }
+    }
+  }
+  return bonus;
+}
+
+// Energy Amplifier <-> Bio Generator/Energy Cells/Spinner/Pulser, one
+// weight per target type (energyAmpBioGen/EnergyCells/Spinner/Pulser).
+function _energyAmpWeightFor(id) {
+  if (id === 'bio_generator' || id === 'bio_generator_ii') return scoreWeights.energyAmpBioGen;
+  if (id === 'energy_cells') return scoreWeights.energyAmpEnergyCells;
+  if (id === 'spinner') return scoreWeights.energyAmpSpinner;
+  if (id === 'pulser') return scoreWeights.energyAmpPulser;
+  return 0;
+}
+
+function getEnergyAmplifierConnectionBonus(compDef, energyPorts, row, col, placements) {
+  const isAmplifier = compDef.id === 'energy_amplifier';
+  const isTarget = ENERGY_AMPLIFIER_TARGETS.has(compDef.id);
+  if (!isAmplifier && !isTarget) return 0;
+
+  let bonus = 0;
+  for (const { cell, side } of energyPorts) {
+    const gr = row + cell[0], gc = col + cell[1];
+    const d  = SIDE_DELTA[side];
+    const ar = gr + d.dr, ac = gc + d.dc;
+    for (const pp of placements) {
+      const isMatch = isAmplifier
+        ? ENERGY_AMPLIFIER_TARGETS.has(pp.componentId)
+        : pp.componentId === 'energy_amplifier';
+      if (!isMatch) continue;
+      const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
+        pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
+      );
+      if (connects) bonus += _energyAmpWeightFor(isAmplifier ? pp.componentId : compDef.id);
+    }
+  }
+  return bonus;
+}
+
+// Concentrator <-> Energy Cells, counted per port (not per component pair)
+// — same as computeConcentratorBonus, since its 8 outward ports can land 2
+// simultaneous connections against the same Energy Cells block.
+function getConcentratorConnectionBonus(compDef, energyPorts, row, col, placements) {
+  const isAmplifier = compDef.id === 'concentrator';
+  const isTarget = CONCENTRATOR_TARGETS.has(compDef.id);
+  if (!isAmplifier && !isTarget) return 0;
+
+  let bonus = 0;
+  for (const { cell, side } of energyPorts) {
+    const gr = row + cell[0], gc = col + cell[1];
+    const d  = SIDE_DELTA[side];
+    const ar = gr + d.dr, ac = gc + d.dc;
+    for (const pp of placements) {
+      const isMatch = isAmplifier
+        ? CONCENTRATOR_TARGETS.has(pp.componentId)
+        : pp.componentId === 'concentrator';
+      if (!isMatch) continue;
+      const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
+        pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
+      );
+      if (connects) bonus += scoreWeights.concentrator;
+    }
+  }
+  return bonus;
+}
+
 // Bonus for Spinner/Pulser placed where both port-adjacent cells are free and in-bounds.
 // Encourages the optimizer to leave space for Repeaters on BOTH sides.
 function getSpinnerAccessibilityBonus(compDef, energyPorts, row, col, occupiedMap, grid) {
@@ -334,11 +433,15 @@ function findBestPlacement(compDef, state, pendingIds = []) {
         // Prefers positions where BOTH port sides have free adjacent cells for Repeaters
         const spinnerBonus = getSpinnerAccessibilityBonus(compDef, energyPorts, row, col, occupiedMap, grid);
 
-        // ── Power Amplifier <-> Harvester/Salvager connection bonus ──────
+        // ── Amplifier-family connection bonuses ──────────────────────────
         const amplifierBonus = getAmplifierConnectionBonus(compDef, energyPorts, row, col, placements);
+        const batteryAmpBonus = getBatteryAmplifierConnectionBonus(compDef, energyPorts, row, col, placements, shape);
+        const energyAmpBonus = getEnergyAmplifierConnectionBonus(compDef, energyPorts, row, col, placements);
+        const concentratorBonus = getConcentratorConnectionBonus(compDef, energyPorts, row, col, placements);
 
         // ── Total score ───────────────────────────────────────────────────
-        const score = energyBonus + quality * 4 + spatial + periBonus + repeaterBonus + spinnerBonus + amplifierBonus;
+        const score = energyBonus + quality * 4 + spatial + periBonus + repeaterBonus + spinnerBonus
+                     + amplifierBonus + batteryAmpBonus + energyAmpBonus + concentratorBonus;
 
         if (score > bestScore) {
           bestScore = score;
