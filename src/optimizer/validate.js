@@ -7,12 +7,19 @@
 //   - every Spinner has required Repeaters adjacent (only when Repeaters exist)
 //   - every Repeater connects (port-match) to at least one Spinner OR Pulser
 //   - Pulsers do not require Repeaters
+//   - every Biocell/Disposable Biocell is port-adjacent to a Bio Generator
+//     (any tier) — they have normal electrical ports, but only function
+//     when plugged directly into one
+const BIOCELL_IDS = new Set(['biocell', 'disposable_biocell']);
+const BIO_GENERATOR_IDS = new Set(['bio_generator', 'bio_generator_ii']);
+
 function isLayoutValid(placements, grid) {
   const poweredSet  = computePoweredSet(placements, grid.rows, grid.cols);
   const workingSet  = computeWorkingSet(placements);
   const hasRepeaters = placements.some(p =>
     p.componentId === 'repeater_4s' || p.componentId === 'repeater_2s'
   );
+  const hasBiocells = placements.some(p => BIOCELL_IDS.has(p.componentId));
 
   // Pre-build set of Spinner+Pulser port keys for Repeater "useful-target" check
   let targetPortKeys = null;
@@ -22,6 +29,19 @@ function isLayoutValid(placements, grid) {
       if (p.componentId !== 'spinner' && p.componentId !== 'pulser') continue;
       for (const port of (p.rotatedPorts || [])) {
         targetPortKeys.add(`${p.row+port.cell[0]},${p.col+port.cell[1]},${port.side}`);
+      }
+    }
+  }
+
+  // Pre-build set of Bio Generator port keys for the Biocell "must be
+  // plugged into a generator" check
+  let bioGenPortKeys = null;
+  if (hasBiocells) {
+    bioGenPortKeys = new Set();
+    for (const p of placements) {
+      if (!BIO_GENERATOR_IDS.has(p.componentId)) continue;
+      for (const port of (p.rotatedPorts || [])) {
+        bioGenPortKeys.add(`${p.row+port.cell[0]},${p.col+port.cell[1]},${port.side}`);
       }
     }
   }
@@ -40,6 +60,16 @@ function isLayoutValid(placements, grid) {
         const d = SIDE_DELTA[port.side];
         const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[port.side]}`;
         if (targetPortKeys.has(adjKey)) { connected = true; break; }
+      }
+      if (!connected) return false;
+    }
+    if (BIOCELL_IDS.has(p.componentId)) {
+      let connected = false;
+      for (const port of (p.rotatedPorts || [])) {
+        const gr = p.row + port.cell[0], gc = p.col + port.cell[1];
+        const d = SIDE_DELTA[port.side];
+        const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[port.side]}`;
+        if (bioGenPortKeys.has(adjKey)) { connected = true; break; }
       }
       if (!connected) return false;
     }

@@ -116,34 +116,34 @@ window.COMPONENTS_DATA = {
       "id": "bio_generator",
       "name": "Bio Generator",
       "category": "power",
-      "shape": [[0,0],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
+      "shape": [[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
-        {"cell": [2,0], "side": "W"}
+        {"cell": [1,0], "side": "N"},
+        {"cell": [1,0], "side": "W"}
       ],
       "bioPorts": [],
-      "biocellCells": [[0,0],[1,0]],
       "peripheral": null,
       "color": "#66BB6A",
       "bgColor": "#062010",
       "icon": "☘",
-      "description": "Bioreaktor 3x3 (Biocell integrován). Energy port W na (2,0)."
+      "description": "Bio Generator, 2x3 (no integrated Biocell — attach one separately). N+W on (1,0)."
     },
     {
       "id": "bio_generator_ii",
       "name": "Bio Generator (II)",
       "category": "power",
-      "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
+      "shape": [[0,0],[0,1],[1,0],[1,1],[2,0],[2,1],[2,2]],
       "energyPorts": [
         {"cell": [2,0], "side": "W"},
+        {"cell": [2,2], "side": "N"},
         {"cell": [2,2], "side": "E"}
       ],
       "bioPorts": [],
-      "biocellCells": [[0,2],[1,2]],
       "peripheral": null,
       "color": "#66BB6A",
       "bgColor": "#062010",
       "icon": "☘",
-      "description": "Bio Generator tier II, 3x3, Biocell integrated (right column). W on (2,0). E on (2,2)."
+      "description": "Bio Generator tier II, redrawn to match the in-game shape (no integrated Biocell — attach one separately). W on (2,0). N+E on (2,2)."
     },
     {
       "id": "energy_cells",
@@ -531,30 +531,38 @@ window.COMPONENTS_DATA = {
       "name": "Disposable Biocell",
       "category": "bio",
       "shape": [[0,0]],
-      "energyPorts": [],
-      "bioPorts": [
+      "energyPorts": [
         {"cell": [0,0], "side": "S"}
       ],
+      "bioPorts": [],
       "peripheral": null,
       "color": "#81C784",
       "bgColor": "#062010",
       "icon": "◌",
-      "description": "Bioport S on (0,0)."
+      "optimizerRules": {
+        "connectsTo": ["bio_generator", "bio_generator_ii"],
+        "note": "Normal electrical port, but only functions when plugged directly into a Bio Generator (any tier). Hard requirement — a layout with a Disposable Biocell not port-adjacent to a Bio Generator is invalid."
+      },
+      "description": "Disposable Biocell, 1 cell. S on (0,0). Must be port-adjacent to a Bio Generator."
     },
     {
       "id": "biocell",
       "name": "Biocell",
       "category": "bio",
       "shape": [[0,0],[1,0]],
-      "energyPorts": [],
-      "bioPorts": [
+      "energyPorts": [
         {"cell": [1,0], "side": "S"}
       ],
+      "bioPorts": [],
       "peripheral": null,
       "color": "#81C784",
       "bgColor": "#062010",
       "icon": "◉",
-      "description": "Bioport S on (1,0)."
+      "optimizerRules": {
+        "connectsTo": ["bio_generator", "bio_generator_ii"],
+        "note": "Normal electrical port, but only functions when plugged directly into a Bio Generator (any tier). Hard requirement — a layout with a Biocell not port-adjacent to a Bio Generator is invalid. Same shape as Refilling Biocell (not modeled separately — the optimizer doesn't distinguish consumable vs rechargeable)."
+      },
+      "description": "Biocell, 2 cells (vertical). S on (1,0). Must be port-adjacent to a Bio Generator."
     }
   ]
 }

@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-08-02
-**Version:** v=143
+**Version:** v=144
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=144 | 2026-08-02 | Reworked Bio Generator mechanic: the `bioPorts` concept didn't correspond to a real game mechanic — a Biocell can plug into ANY port of a Bio Generator, not one dedicated bio-only port. Bio Generator (I)/(II) redrawn without an integrated Biocell cell (new shapes/ports); Biocell/Disposable Biocell converted to normal `energyPorts` and un-hidden as regular placeable components, but with a new hard validity constraint (`isLayoutValid`, `findBestPlacement`): must be port-adjacent to a Bio Generator (any tier) to be valid, same shape as the Repeater↔Spinner/Pulser constraint. `scheduleAnnealOpt` no longer excludes them from SA's component set |
 | v=143 | 2026-08-02 | Comment-only fix (GitHub issue #2): `computeConcentratorBonus`'s doc comment wrongly claimed only 4 of the Concentrator's 8 ports could ever connect to Energy Cells. Verified via test that the actual scoring logic already correctly counts all 8 (Energy Cells rotated 90/270 exposes N/S ports too) — no functional bug, comment corrected |
 | v=142 | 2026-08-01 | Bugfix (regression from v=141): `const w = getScoreWeights()` shadowed the outer `w` (the Worker instance) inside the same `onmessage` block — `w.postMessage({type:'start',...})` then threw `TypeError: w.postMessage is not a function` uncaught, silently preventing SMART from ever actually starting (button flipped to running, status bar stayed silent, no worker received the start message). Renamed to `weights` |
 | v=141 | 2026-08-01 | Bugfix: SA temperature schedule (`tStart`/`tEnd` in `scheduleAnnealOpt`, `app.js`) was still calibrated for the pre-v=130 weight scale (workingSet 50000) — after weights were retuned to the millions, `exp(-delta/T)` collapsed to ~0 for any real move even at the hottest temperature, so SA degenerated into pure hill-climbing and could never escape the first local optimum. `tStart`/`tEnd` now derive from the current dominant weight at SMART start time, so this self-corrects if weights are retuned again |
@@ -184,7 +185,7 @@ Total: **32** (incl. `metal_scavenger`, `furnace`, `furnace_ii`, `fuser_i`). Aut
 | Category | Components |
 |---|---|
 | infrastructure | wire |
-| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, battery_amplifier, bio_generator (3×3 self-contained), bio_generator_ii (3×3 self-contained), concentrator, energy_amplifier, energy_cells, power_amplifier |
+| power | battery_1x1, battery_1x2, battery_1x3, battery_2x2, battery_3x2, battery_amplifier, bio_generator, bio_generator_ii, concentrator, energy_amplifier, energy_cells, power_amplifier |
 | timing | pulser, spinner, repeater_2s, repeater_4s |
 | processing | grabber, collector (I), collector_ii (II), decomposer (I), decomposer_ii (II), harvester, salvager, metal_scavenger, resource_scanner, furnace (I), furnace_ii (II), fuser_i |
 | detection | sensor |
