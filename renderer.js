@@ -79,10 +79,6 @@ function renderGrid(state, componentLib) {
       const gr = p.row + cell[0], gc = p.col + cell[1];
       html += renderPort(gr, gc, side, powered);
     });
-    (p.rotatedBioPorts || []).forEach(({ cell, side }) => {
-      const gr = p.row + cell[0], gc = p.col + cell[1];
-      html += renderPort(gr, gc, side, true, '#66BB6A');
-    });
   });
 
   // Powered glow overlay
@@ -404,7 +400,7 @@ function highlightComponent(idx, on) {
 }
 
 // Render the mini shape preview in the component library list
-function renderMiniShape(shape, color, bgColor, energyPorts, bioPorts) {
+function renderMiniShape(shape, color, bgColor, energyPorts) {
   const S = 14, pad = 1, t = 3;
   const rows = shape.map(([r]) => r);
   const cols = shape.map(([,c]) => c);
@@ -436,7 +432,6 @@ function renderMiniShape(shape, color, bgColor, energyPorts, bioPorts) {
   };
 
   (energyPorts || []).forEach(p => miniPort(p.cell, p.side, '#FFAA44'));
-  (bioPorts    || []).forEach(p => miniPort(p.cell, p.side, '#66BB6A'));
 
   html += `</svg>`;
   return html;

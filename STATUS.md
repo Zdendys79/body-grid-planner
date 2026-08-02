@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-08-02
-**Version:** v=144
+**Version:** v=145
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=145 | 2026-08-02 | Full removal of the dead `bioPorts`/`rotatedBioPorts` mechanism (11 files: `components.json`, `rotation.js`, `bus.js`, `validate.js`, `optimizer.js`, `renderer.js`, `app.js`, `sa-worker.js`, `src/sa/{shell,clusters,moves,greedy}.js`) — no component populates it since v=144's Biocell rework, so it was pure dead weight. Also fixed the same `energyPorts.length===0` bio-only heuristic bug in `src/sa/greedy.js`'s `_saComponentOrder` (SA's own greedy seed builder) that was already fixed in `app.js`'s `ensureComponentOrder` for RE-OPTIMIZE — now both explicitly order Biocells after their Bio Generator via `BIOCELL_IDS` |
 | v=144 | 2026-08-02 | Reworked Bio Generator mechanic: the `bioPorts` concept didn't correspond to a real game mechanic — a Biocell can plug into ANY port of a Bio Generator, not one dedicated bio-only port. Bio Generator (I)/(II) redrawn without an integrated Biocell cell (new shapes/ports); Biocell/Disposable Biocell converted to normal `energyPorts` and un-hidden as regular placeable components, but with a new hard validity constraint (`isLayoutValid`, `findBestPlacement`): must be port-adjacent to a Bio Generator (any tier) to be valid, same shape as the Repeater↔Spinner/Pulser constraint. `scheduleAnnealOpt` no longer excludes them from SA's component set |
 | v=143 | 2026-08-02 | Comment-only fix (GitHub issue #2): `computeConcentratorBonus`'s doc comment wrongly claimed only 4 of the Concentrator's 8 ports could ever connect to Energy Cells. Verified via test that the actual scoring logic already correctly counts all 8 (Energy Cells rotated 90/270 exposes N/S ports too) — no functional bug, comment corrected |
 | v=142 | 2026-08-01 | Bugfix (regression from v=141): `const w = getScoreWeights()` shadowed the outer `w` (the Worker instance) inside the same `onmessage` block — `w.postMessage({type:'start',...})` then threw `TypeError: w.postMessage is not a function` uncaught, silently preventing SMART from ever actually starting (button flipped to running, status bar stayed silent, no worker received the start message). Renamed to `weights` |

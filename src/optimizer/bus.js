@@ -50,27 +50,6 @@ function computePoweredSet(placements, gridRows, gridCols) {
     });
   }
 
-  // Bio port connections: bio-port-adjacent placements share power
-  const bioPortMap = new Map();
-  placements.forEach((p, idx) => {
-    (p.rotatedBioPorts || []).forEach(({ cell, side }) => {
-      const key = `${p.row+cell[0]},${p.col+cell[1]},${side}`;
-      if (!bioPortMap.has(key)) bioPortMap.set(key, []);
-      bioPortMap.get(key).push(idx);
-    });
-  });
-  placements.forEach((p, idx) => {
-    (p.rotatedBioPorts || []).forEach(({ cell, side }) => {
-      const gr = p.row + cell[0], gc = p.col + cell[1];
-      const d = SIDE_DELTA[side];
-      const adjKey = `${gr+d.dr},${gc+d.dc},${OPPOSITE[side]}`;
-      if (bioPortMap.has(adjKey)) {
-        powered.add(idx);
-        bioPortMap.get(adjKey).forEach(adjIdx => powered.add(adjIdx));
-      }
-    });
-  });
-
   return powered;
 }
 

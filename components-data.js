@@ -42,7 +42,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [1,0], "side": "S"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#EF5350",
       "bgColor": "#4a0f0f",
@@ -58,7 +57,6 @@ window.COMPONENTS_DATA = {
         {"cell": [0,0], "side": "W"},
         {"cell": [0,2], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#EF5350",
       "bgColor": "#4a0f0f",
@@ -73,7 +71,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [0,0], "side": "N"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#EF5350",
       "bgColor": "#4a0f0f",
@@ -89,7 +86,6 @@ window.COMPONENTS_DATA = {
         {"cell": [0,2], "side": "E"},
         {"cell": [1,2], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#EF5350",
       "bgColor": "#4a0f0f",
@@ -121,7 +117,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "N"},
         {"cell": [1,0], "side": "W"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#66BB6A",
       "bgColor": "#062010",
@@ -138,7 +133,6 @@ window.COMPONENTS_DATA = {
         {"cell": [2,2], "side": "N"},
         {"cell": [2,2], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#66BB6A",
       "bgColor": "#062010",
@@ -156,7 +150,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FFB74D",
       "bgColor": "#2a1500",
@@ -173,7 +166,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,1], "side": "E"},
         {"cell": [1,1], "side": "S"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FFD54F",
       "bgColor": "#332400",
@@ -193,7 +185,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,1], "side": "W"},
         {"cell": [1,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FFD54F",
       "bgColor": "#332400",
@@ -213,7 +204,6 @@ window.COMPONENTS_DATA = {
         {"cell": [2,0], "side": "W"},
         {"cell": [2,0], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FFD54F",
       "bgColor": "#332400",
@@ -239,7 +229,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,1], "side": "S"},
         {"cell": [1,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FFD54F",
       "bgColor": "#332400",
@@ -259,7 +248,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#CE93D8",
       "bgColor": "#1a0a22",
@@ -275,7 +263,6 @@ window.COMPONENTS_DATA = {
         {"cell": [2,0], "side": "W"},
         {"cell": [2,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#4FC3F7",
       "bgColor": "#001830",
@@ -298,7 +285,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,0], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#80CBC4",
       "bgColor": "#00251a",
@@ -321,7 +307,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,0], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#80CBC4",
       "bgColor": "#001a12",
@@ -344,7 +329,6 @@ window.COMPONENTS_DATA = {
         {"cell": [3,0], "side": "W"},
         {"cell": [3,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FF8A65",
       "bgColor": "#1a0800",
@@ -359,7 +343,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [0,0], "side": "W"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#A5D6A7",
       "bgColor": "#0a1a0a",
@@ -375,7 +358,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,0], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#A5D6A7",
       "bgColor": "#0a1a0a",
@@ -391,7 +373,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,2], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#CE93D8",
       "bgColor": "#1a0a22",
@@ -407,7 +388,6 @@ window.COMPONENTS_DATA = {
         {"cell": [0,0], "side": "W"},
         {"cell": [0,1], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#CE93D8",
       "bgColor": "#1a0a22",
@@ -423,7 +403,6 @@ window.COMPONENTS_DATA = {
         {"cell": [0,1], "side": "W"},
         {"cell": [0,2], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#A5D6A7",
       "bgColor": "#0a1500",
@@ -438,7 +417,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [0,0], "side": "W"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FFB74D",
       "bgColor": "#1a0f00",
@@ -453,7 +431,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [1,0], "side": "W"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#B0BEC5",
       "bgColor": "#0e1419",
@@ -468,7 +445,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [0,2], "side": "N"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#80DEEA",
       "bgColor": "#00272b",
@@ -484,7 +460,6 @@ window.COMPONENTS_DATA = {
         {"cell": [1,0], "side": "W"},
         {"cell": [1,2], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FF7043",
       "bgColor": "#1a0500",
@@ -502,7 +477,6 @@ window.COMPONENTS_DATA = {
         {"cell": [3,2], "side": "E"},
         {"cell": [3,2], "side": "S"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#FF7043",
       "bgColor": "#1a0500",
@@ -519,7 +493,6 @@ window.COMPONENTS_DATA = {
         {"cell": [3,0], "side": "W"},
         {"cell": [3,3], "side": "E"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#4DD0E1",
       "bgColor": "#002025",
@@ -534,7 +507,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [0,0], "side": "S"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#81C784",
       "bgColor": "#062010",
@@ -553,7 +525,6 @@ window.COMPONENTS_DATA = {
       "energyPorts": [
         {"cell": [1,0], "side": "S"}
       ],
-      "bioPorts": [],
       "peripheral": null,
       "color": "#81C784",
       "bgColor": "#062010",

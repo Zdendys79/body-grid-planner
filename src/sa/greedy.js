@@ -12,17 +12,15 @@
 const _SA_REP_IDS = new Set(['repeater_2s', 'repeater_4s']);
 
 function _saComponentOrder(ids) {
-  const bioOnlySet = new Set(
-    componentLib
-      .filter(d => d.energyPorts.length === 0 && (d.bioPorts || []).length > 0)
-      .map(d => d.id)
-  );
+  // Biocell/Disposable Biocell (BIOCELL_IDS, src/optimizer/validate.js) must
+  // be placed after their Bio Generator — same reasoning as
+  // ensureComponentOrder in app.js (RE-OPTIMIZE).
   const spinnerSet = new Set(['spinner', 'pulser']);
 
-  const bioOnly  = ids.filter(id => bioOnlySet.has(id));
+  const bioOnly  = ids.filter(id => BIOCELL_IDS.has(id));
   const reps     = ids.filter(id => _SA_REP_IDS.has(id));
   const spinners = ids.filter(id => spinnerSet.has(id));
-  const others   = ids.filter(id => !bioOnlySet.has(id) && !_SA_REP_IDS.has(id) && !spinnerSet.has(id));
+  const others   = ids.filter(id => !BIOCELL_IDS.has(id) && !_SA_REP_IDS.has(id) && !spinnerSet.has(id));
 
   // Interleave Rep → Spin → Rep → Spin — pairs Repeaters with Spinners as
   // they're placed, satisfying the adjacency constraint inline.
@@ -60,7 +58,6 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
         row: anyFit.row, col: anyFit.col, rotation: anyFit.rotation,
         rotatedShape: anyFit.rotatedShape,
         rotatedPorts: anyFit.rotatedPorts,
-        rotatedBioPorts: anyFit.rotatedBioPorts,
         rotatedPeripheral: anyFit.rotatedPeripheral
       });
       continue;
@@ -74,7 +71,6 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
         row: r, col: c, rotation: 0,
         rotatedShape: [[0,0]],
         rotatedPorts: wireDef.energyPorts.map(p => ({ cell: [...p.cell], side: p.side })),
-        rotatedBioPorts: [],
         rotatedPeripheral: null, autoPlaced: true
       });
     });
@@ -82,7 +78,6 @@ function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {
       id: fakeState.nextId++, componentId: id,
       row: result.row, col: result.col, rotation: result.rotation,
       rotatedShape: result.rotatedShape, rotatedPorts: result.rotatedPorts,
-      rotatedBioPorts: result.rotatedBioPorts || [],
       rotatedPeripheral: result.rotatedPeripheral
     });
   }
@@ -111,7 +106,7 @@ function _saFindAnyFit(def, state) {
     for (const [r, c] of peri.shape) periOccupied.add(`${sR + r},${sC + c}`);
   }
   for (const deg of getUniqueDegs(def)) {
-    const { shape, energyPorts, bioPorts } = rotateComponent(def, deg);
+    const { shape, energyPorts } = rotateComponent(def, deg);
     const rotPeri = buildRotatedPeri(def, deg);
     const bounds = getBounds(shape);
     if (bounds.height > state.grid.rows || bounds.width > state.grid.cols) continue;
@@ -136,7 +131,6 @@ function _saFindAnyFit(def, state) {
           row, col, rotation: deg,
           rotatedShape: shape,
           rotatedPorts: energyPorts,
-          rotatedBioPorts: bioPorts,
           rotatedPeripheral: rotPeri
         };
       }
