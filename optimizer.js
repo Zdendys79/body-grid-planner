@@ -6,20 +6,22 @@
 
 // getOccupiedMap, hasOverlap, fitsInGrid moved to src/optimizer/placement.js
 
-function wouldConnectToBioPort(bioPorts, row, col, placements) {
-  const bioPortMap = new Map();
-  placements.forEach((p, idx) => {
-    (p.rotatedBioPorts || []).forEach(({ cell, side }) => {
-      const key = `${p.row+cell[0]},${p.col+cell[1]},${side}`;
-      if (!bioPortMap.has(key)) bioPortMap.set(key, []);
-      bioPortMap.get(key).push(idx);
-    });
-  });
-  for (const { cell, side } of bioPorts) {
+// Biocell / Disposable Biocell have normal electrical ports but only
+// function when plugged directly into a Bio Generator (any tier) — a hard
+// placement constraint, same shape as the Repeater<->Spinner/Pulser one.
+// BIOCELL_IDS / BIO_GENERATOR_IDS are defined once in src/optimizer/validate.js
+// (loaded before this file in both index.html and the worker bundle).
+function wouldConnectToBioGenerator(energyPorts, row, col, placements) {
+  for (const { cell, side } of energyPorts) {
     const gr = row + cell[0], gc = col + cell[1];
     const d = SIDE_DELTA[side];
-    const adjKey = `${gr+d.dr},${gc+d.dc},${OPPOSITE[side]}`;
-    if (bioPortMap.has(adjKey)) return true;
+    const ar = gr + d.dr, ac = gc + d.dc;
+    for (const pp of placements) {
+      if (!BIO_GENERATOR_IDS.has(pp.componentId)) continue;
+      for (const { cell: pc, side: ps } of (pp.rotatedPorts || [])) {
+        if (pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]) return true;
+      }
+    }
   }
   return false;
 }
@@ -201,6 +203,7 @@ function findBestPlacement(compDef, state, pendingIds = []) {
 
   const isWire = compDef.id === 'wire';
   const isRepeater = compDef.id === 'repeater_4s' || compDef.id === 'repeater_2s';
+  const isBioCell = BIOCELL_IDS.has(compDef.id);
 
   // Pre-compute unworking Spinner ports for the Repeater hard constraint.
   // Collected once — placements don't change during the search loop.
@@ -217,8 +220,6 @@ function findBestPlacement(compDef, state, pendingIds = []) {
 
   let bestScore = -Infinity;
   let bestResult = null;
-
-  const isBioOnly = compDef.energyPorts.length === 0 && (compDef.bioPorts || []).length > 0;
 
   for (const deg of [0, 90, 180, 270]) {
     const { shape, energyPorts, bioPorts } = rotateComponent(compDef, deg);
@@ -281,15 +282,15 @@ function findBestPlacement(compDef, state, pendingIds = []) {
           }
         }
 
+        // ── Hard constraint: Biocell / Disposable Biocell — must be
+        //    port-adjacent to a Bio Generator (any tier) to function at all.
+        if (isBioCell && !wouldConnectToBioGenerator(energyPorts, row, col, placements)) continue;
+
         // ── Energy/bio connection priority ────────────────────────────────
         let energyBonus = 0;
         let wirePath    = [];
 
-        if (isBioOnly) {
-          // Bio-only components (biocell, disposable biocell) must connect to a bio port
-          if (!wouldConnectToBioPort(bioPorts, row, col, placements)) continue;
-          energyBonus = 2000;
-        } else if (wouldConnectToComponent(energyPorts, row, col, placements, poweredSet)) {
+        if (wouldConnectToComponent(energyPorts, row, col, placements, poweredSet)) {
           energyBonus = 2000;
         } else if (wouldConnectToBus(energyPorts, row, col, grid.rows, grid.cols)) {
           energyBonus = 1000;
