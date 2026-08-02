@@ -11,7 +11,7 @@
 //     (any tier) — they have normal electrical ports, but only function
 //     when plugged directly into one
 const BIOCELL_IDS = new Set(['biocell', 'disposable_biocell']);
-const BIO_GENERATOR_IDS = new Set(['bio_generator', 'bio_generator_ii']);
+const BIO_GENERATOR_IDS = new Set(['bio_generator', 'bio_generator_ii', 'bio_core']);
 
 function isLayoutValid(placements, grid) {
   const poweredSet  = computePoweredSet(placements, grid.rows, grid.cols);
