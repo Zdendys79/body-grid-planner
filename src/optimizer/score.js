@@ -348,9 +348,11 @@ function computeEnergyAmplifierBonus(placements) {
 // counted PER PORT rather than per component pair: with 8 outward ports the
 // Concentrator can legitimately land 2 separate connections against the
 // same Energy Cells block (e.g. both its E-side ports touching one 2x2
-// block), and each should score. Energy Cells only has W/E ports, so only 4
-// of the Concentrator's 8 can ever actually connect to one. Optional — not
-// required for layout validity, purely a scoring incentive.
+// block), and each should score. Energy Cells' base ports are W/E only, but
+// rotated 90/270 degrees they become N/S — so all 8 of the Concentrator's
+// ports can connect given the right rotations, not just the 4 W/E-facing
+// ones. Optional — not required for layout validity, purely a scoring
+// incentive.
 const CONCENTRATOR_TARGETS = new Set(['energy_cells']);
 
 function computeConcentratorBonus(placements) {
