@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
 **Date:** 2026-08-02
-**Version:** v=145
+**Version:** v=146
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=146 | 2026-08-02 | Greedy placement ordering fix (`ensureComponentOrder` in `app.js`, `_saComponentOrder` in `src/sa/greedy.js`): Biocell/Disposable Biocell now placed right after "other" components (their Bio Generator included) but BEFORE the Repeater/Spinner interleave, not after everything. An unrelated Repeater/Spinner could previously grab a Biocell's one valid connector cell first, starving it into the constraint-blind geometry-only fallback. Verified fixed against the adversarial case found while testing v=144/145; confirmed the residual Spinner/Repeater validity gap in that same test is pre-existing and unrelated (reproduces identically with no bio components present at all) |
 | v=145 | 2026-08-02 | Full removal of the dead `bioPorts`/`rotatedBioPorts` mechanism (11 files: `components.json`, `rotation.js`, `bus.js`, `validate.js`, `optimizer.js`, `renderer.js`, `app.js`, `sa-worker.js`, `src/sa/{shell,clusters,moves,greedy}.js`) — no component populates it since v=144's Biocell rework, so it was pure dead weight. Also fixed the same `energyPorts.length===0` bio-only heuristic bug in `src/sa/greedy.js`'s `_saComponentOrder` (SA's own greedy seed builder) that was already fixed in `app.js`'s `ensureComponentOrder` for RE-OPTIMIZE — now both explicitly order Biocells after their Bio Generator via `BIOCELL_IDS` |
 | v=144 | 2026-08-02 | Reworked Bio Generator mechanic: the `bioPorts` concept didn't correspond to a real game mechanic — a Biocell can plug into ANY port of a Bio Generator, not one dedicated bio-only port. Bio Generator (I)/(II) redrawn without an integrated Biocell cell (new shapes/ports); Biocell/Disposable Biocell converted to normal `energyPorts` and un-hidden as regular placeable components, but with a new hard validity constraint (`isLayoutValid`, `findBestPlacement`): must be port-adjacent to a Bio Generator (any tier) to be valid, same shape as the Repeater↔Spinner/Pulser constraint. `scheduleAnnealOpt` no longer excludes them from SA's component set |
 | v=143 | 2026-08-02 | Comment-only fix (GitHub issue #2): `computeConcentratorBonus`'s doc comment wrongly claimed only 4 of the Concentrator's 8 ports could ever connect to Energy Cells. Verified via test that the actual scoring logic already correctly counts all 8 (Energy Cells rotated 90/270 exposes N/S ports too) — no functional bug, comment corrected |
