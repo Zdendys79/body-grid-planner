@@ -9,11 +9,16 @@
 // The cost function uses scoreLayout (negated) plus heavy penalties for
 // states that cannot be wired or violate hard constraints.
 
-// Compute SA cost for a placement list (may include cluster placements).
+// Compute SA cost for a placement list (may include cluster placements),
+// returning the intermediate wired/valid/score too — the main loop's
+// accepted-move leaf-check needs exactly these and used to recompute them
+// from scratch via a second tryAddWires+isLayoutValid+scoreLayout pass,
+// doubling the single most expensive part of every accepted iteration
+// (tryAddWires is O(components) BFS passes — see profiling notes below).
 // Clusters are expanded to their individual components before validation —
 // the search treats clusters as atomic placements, but scoring sees them
 // as the individual Spinner/Repeater components they actually are.
-function saComputeCost(nonWirePlacements, grid) {
+function saComputeCostDetailed(nonWirePlacements, grid) {
   // Expand any cluster placements to individuals (Spinner/Rep_2s/Rep_4s).
   // If no clusters present, expandClustersInPlacements returns input unchanged.
   const expanded = (typeof expandClustersInPlacements === 'function')
@@ -22,9 +27,10 @@ function saComputeCost(nonWirePlacements, grid) {
 
   const wired = tryAddWires(expanded, grid);
   if (wired) {
-    const baseCost = -scoreLayout(wired, grid);
-    if (isLayoutValid(wired, grid)) return baseCost;
-    return baseCost + 30000;
+    const valid = isLayoutValid(wired, grid);
+    const score = scoreLayout(wired, grid);
+    const baseCost = -score;
+    return { cost: valid ? baseCost : baseCost + 30000, wired, valid, score };
   }
   const poweredSet = computePoweredSet(expanded, grid.rows, grid.cols);
   let unpowered = 0;
@@ -33,7 +39,11 @@ function saComputeCost(nonWirePlacements, grid) {
     const def = componentLib.find(d => d.id === p.componentId);
     if (def && def.energyPorts.length > 0 && !poweredSet.has(i)) unpowered++;
   }
-  return 50000 + unpowered * 3000;
+  return { cost: 50000 + unpowered * 3000, wired: null, valid: false, score: null };
+}
+
+function saComputeCost(nonWirePlacements, grid) {
+  return saComputeCostDetailed(nonWirePlacements, grid).cost;
 }
 
 // Main SA loop. Runs until shouldStop() returns true (no maxIter cap).
@@ -69,7 +79,8 @@ function simulatedAnneal(initialNonWire, grid, options = {}) {
       neighbour = saGenerateMove(current, grid);
     }
     if (neighbour) {
-      const nCost = saComputeCost(neighbour, grid);
+      const nDetail = saComputeCostDetailed(neighbour, grid);
+      const nCost = nDetail.cost;
       const delta = nCost - currentCost;
       if (delta < 0 || Math.random() < Math.exp(-delta / T)) {
         current = neighbour;
@@ -79,19 +90,12 @@ function simulatedAnneal(initialNonWire, grid, options = {}) {
           bestCost = currentCost;
           lastImprovement = iter;
         }
-        // Check if this neighbour is a VALID layout that beats our best-valid
-        // Expand clusters before validating/wiring (they're aggregate placements)
-        const nExpanded = (typeof expandClustersInPlacements === 'function')
-          ? expandClustersInPlacements(neighbour)
-          : neighbour;
-        const nWired = tryAddWires(nExpanded, grid);
-        if (nWired && isLayoutValid(nWired, grid)) {
-          const validScore = scoreLayout(nWired, grid);
-          if (-validScore < bestValidCost) {
-            bestValidCost = -validScore;
-            bestValidLayout = nWired;
-            if (reportLeaf) reportLeaf(nWired, validScore);
-          }
+        // Reuse nDetail's wired/valid/score from the cost computation above
+        // instead of recomputing tryAddWires+isLayoutValid+scoreLayout again.
+        if (nDetail.wired && nDetail.valid && -nDetail.score < bestValidCost) {
+          bestValidCost = -nDetail.score;
+          bestValidLayout = nDetail.wired;
+          if (reportLeaf) reportLeaf(nDetail.wired, nDetail.score);
         }
       }
     }
