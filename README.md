@@ -119,7 +119,7 @@ Per worker:
 Spinner-Repeater chains are pre-baked as synthetic components (`cluster_An` = n Spinners + (n-1) `repeater_2s`, linear horizontal). All 4 rotations are precomputed via `_precomputeRotationVariants`, so SA's relocate-move places clusters as atoms and never needs to rebuild adjacency.
 
 ### saChainMove
-For workers that operate on individual S+R (no clusters) `saChainTranslate` / `saChainRotate` detect connected Spinner-Repeater subgraphs via port adjacency BFS and move the whole chain as a unit. Weight is 10% of moves in most profiles, 20% in the `jump` profile.
+`saChainTranslate` / `saChainRotate` move a whole connected group as one rigid unit — critical for groups whose value comes purely from internal connectivity, where any single-piece move can only ever break it. `_saFindAllGroups` (v=153) feeds them from 3 detectors: `_saFindChains` (Spinner-Repeater subgraphs via port-adjacency BFS, for workers operating on individual S+R with no pre-baked clusters), `_saFindPinGroups` (an Upgrader + its pinned target(s), identity-based via `pinTag`/`pinnedTags`), and `_saFindAmplifierGroups` (a Power/Battery/Energy Amplifier or Concentrator + its currently port-connected target(s), adjacency-scanned with the same pairing rules as `computeXBonus`). Weight is 10% of moves in most profiles, 20% in the `jump` profile.
 
 ---
 
@@ -165,7 +165,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=152**
+Current version: **v=153**
 
 ---
 

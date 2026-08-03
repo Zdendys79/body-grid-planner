@@ -171,13 +171,27 @@ function saRelocateMove(placements, grid) {
   return null;
 }
 
-// ── Chain moves — Spinner+Repeater chains as atomic groups ─────────────────
+// ── Chain moves — connected groups as atomic units ──────────────────────────
 //
-// SA's per-component moves can drift a chain apart one move at a time, and
-// re-assembling it requires a long chain of accepted moves at decreasing T.
-// Chain moves treat a connected S-R subgraph as a single object and translate
-// or rotate the whole thing in one accepted step. Critical for tight layouts
-// where a chain needs to land against a specific edge of the grid.
+// SA's per-component moves can drift a connected group apart one move at a
+// time, and re-assembling it requires a long chain of accepted moves at
+// decreasing T — expensive, and for a group that's already at (or near) its
+// best possible connectivity, pure waste: individual moves can only ever
+// break it, never improve on "already maximal". Chain moves treat a whole
+// group as a single object and translate or rotate it in one accepted step,
+// preserving every internal connection exactly. Three kinds of group feed
+// the same shared translate/rotate mechanism (_saFindAllGroups below):
+//   - Spinner/Repeater chains (_saFindChains) — the original use case.
+//   - Upgrader pin-groups (_saFindPinGroups) — an Upgrader + whichever
+//     instance(s) it's pinned to (pinTag/pinnedTags); explicit user intent,
+//     not adjacency-scanned, since the pin IS the source of truth.
+//   - Amplifier-family clusters (_saFindAmplifierGroups) — a Power/Battery/
+//     Energy Amplifier or Concentrator + its currently port-connected
+//     target(s); adjacency-scanned like chains, since which targets are
+//     connected changes as the layout does.
+// This is additive, not exclusive — every group member remains individually
+// movable by the other move types too (shift/rotate/swap/relocate don't
+// check group membership), so fine-tuning within a group is still possible.
 
 const _CHAIN_IDS = new Set(['spinner', 'repeater_2s', 'repeater_4s']);
 
@@ -226,6 +240,100 @@ function _saFindChains(placements) {
   return chains;
 }
 
+// Upgrader + its pinned target(s) — identity-based (pinTag/pinnedTags), not
+// adjacency-scanned, since the pin is explicit user-set data (see
+// _repinUpgrader in app.js and _upgraderPinsOk in src/optimizer/validate.js).
+function _saFindPinGroups(placements) {
+  const byTag = new Map();
+  placements.forEach((p, i) => { if (p.pinTag != null) byTag.set(p.pinTag, i); });
+
+  const groups = [];
+  placements.forEach((p, i) => {
+    if (p.componentId !== 'upgrader' || !p.pinnedTags || p.pinnedTags.length === 0) return;
+    const group = [i];
+    for (const tag of p.pinnedTags) {
+      const idx = byTag.get(tag);
+      if (idx !== undefined && !group.includes(idx)) group.push(idx);
+    }
+    if (group.length >= 2) groups.push(group);
+  });
+  return groups;
+}
+
+// True if `targetId` is a valid connection target for amplifier `ampId` —
+// mirrors the pairing rules in computeXBonus (src/optimizer/score.js) and
+// getXConnectionBonus (optimizer.js). AMPLIFIER_TARGETS, _isBatteryTarget,
+// ENERGY_AMPLIFIER_TARGETS, CONCENTRATOR_TARGETS, AMPLIFIER_TYPE_IDS are all
+// defined once in score.js (loaded before this file).
+function _saIsAmplifierPair(ampId, targetId) {
+  if (ampId === 'power_amplifier')   return AMPLIFIER_TARGETS.has(targetId);
+  if (ampId === 'battery_amplifier') return _isBatteryTarget(targetId);
+  if (ampId === 'energy_amplifier')  return ENERGY_AMPLIFIER_TARGETS.has(targetId);
+  if (ampId === 'concentrator')      return CONCENTRATOR_TARGETS.has(targetId);
+  return false;
+}
+
+// Power/Battery/Energy Amplifier or Concentrator + whichever target(s) are
+// CURRENTLY port-connected to it — adjacency-scanned like chains, since
+// which targets are connected changes as the layout does (unlike Upgrader
+// pins, there's no fixed identity to track).
+function _saFindAmplifierGroups(placements) {
+  const cellOwner = new Map();
+  placements.forEach((p, idx) => {
+    for (const [r, c] of p.rotatedShape) cellOwner.set(`${p.row + r},${p.col + c}`, idx);
+  });
+
+  const neighbors = new Map();
+  placements.forEach((p, idx) => {
+    if (!AMPLIFIER_TYPE_IDS.has(p.componentId)) return; // scan FROM amplifiers only (asymmetric)
+    for (const port of (p.rotatedPorts || [])) {
+      const gr = p.row + port.cell[0], gc = p.col + port.cell[1];
+      const d = SIDE_DELTA[port.side];
+      const ar = gr + d.dr, ac = gc + d.dc;
+      const adj = cellOwner.get(`${ar},${ac}`);
+      if (adj === undefined || adj === idx) continue;
+      const other = placements[adj];
+      if (!_saIsAmplifierPair(p.componentId, other.componentId)) continue;
+      const matches = (other.rotatedPorts || []).some(op =>
+        other.row + op.cell[0] === ar && other.col + op.cell[1] === ac && op.side === OPPOSITE[port.side]
+      );
+      if (!matches) continue;
+      if (!neighbors.has(idx)) neighbors.set(idx, new Set());
+      if (!neighbors.has(adj)) neighbors.set(adj, new Set());
+      neighbors.get(idx).add(adj);
+      neighbors.get(adj).add(idx);
+    }
+  });
+
+  const visited = new Set();
+  const groups = [];
+  for (const start of neighbors.keys()) {
+    if (visited.has(start)) continue;
+    const stack = [start];
+    const comp = [];
+    while (stack.length > 0) {
+      const j = stack.pop();
+      if (visited.has(j)) continue;
+      visited.add(j);
+      comp.push(j);
+      for (const n of (neighbors.get(j) || [])) if (!visited.has(n)) stack.push(n);
+    }
+    if (comp.length >= 2) groups.push(comp);
+  }
+  return groups;
+}
+
+// All "move together" groups from every detector, concatenated — a single
+// random pick (in saChainTranslate/saChainRotate) covers all three kinds
+// with the one shared translate/rotate mechanism below.
+function _saFindAllGroups(placements) {
+  return [
+    ..._saFindChains(placements),
+    ..._saFindPinGroups(placements),
+    ..._saFindAmplifierGroups(placements)
+  ];
+}
+
 // Compute the chain's bounding box from its placements' shape cells.
 function _saChainBbox(placements, chain) {
   let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
@@ -242,9 +350,9 @@ function _saChainBbox(placements, chain) {
   return { minR, maxR, minC, maxC };
 }
 
-// TRANSLATE — shift the entire chain by (dr, dc).
+// TRANSLATE — shift the entire group by (dr, dc).
 function saChainTranslate(placements, grid) {
-  const chains = _saFindChains(placements);
+  const chains = _saFindAllGroups(placements);
   if (chains.length === 0) return null;
   const chain = chains[_saRandomInt(chains.length)];
   const chainSet = new Set(chain);
@@ -276,11 +384,11 @@ function saChainTranslate(placements, grid) {
   return null;
 }
 
-// ROTATE — rotate the entire chain by 90/180/270 around its bbox top-left.
+// ROTATE — rotate the entire group by 90/180/270 around its bbox top-left.
 // Each component's anchor and rotation update so the rotated-shape cells
-// match the cells produced by rotating the chain as a unit.
+// match the cells produced by rotating the group as a unit.
 function saChainRotate(placements, grid) {
-  const chains = _saFindChains(placements);
+  const chains = _saFindAllGroups(placements);
   if (chains.length === 0) return null;
   const chain = chains[_saRandomInt(chains.length)];
   const { minR, maxR, minC, maxC } = _saChainBbox(placements, chain);
