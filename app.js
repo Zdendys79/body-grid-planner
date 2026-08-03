@@ -15,7 +15,8 @@ const APP_VERSION = (() => {
 let state = {
   grid: { rows: 3, cols: 4, maxRows: 19, maxCols: 12 },
   placements: [],
-  nextId: 1
+  nextId: 1,
+  nextPinTag: 1 // Upgrader pin identity counter — see _repinUpgrader
 };
 
 let componentLib = [];
@@ -105,6 +106,7 @@ async function init() {
       if (typeof state.grid.maxRows !== 'number') state.grid.maxRows = 19;
       if (typeof state.grid.maxCols !== 'number') state.grid.maxCols = 12;
       state.nextId     = parsed.nextId     || 1;
+      state.nextPinTag = parsed.nextPinTag || 1;
       state.placements = (parsed.placements || []).map(p => rehydratePlacement(p));
       const summary = {};
       state.placements.forEach(p => { summary[p.componentId] = (summary[p.componentId] || 0) + 1; });
@@ -136,10 +138,12 @@ async function init() {
   console.log('[Layout dump]', JSON.stringify({
     grid: state.grid,
     nextId: state.nextId,
+    nextPinTag: state.nextPinTag,
     placements: state.placements.map(p => ({
       id: p.id, componentId: p.componentId,
       row: p.row, col: p.col, rotation: p.rotation,
-      autoPlaced: p.autoPlaced || false
+      autoPlaced: p.autoPlaced || false,
+      pinTag: p.pinTag, pinnedTags: p.pinnedTags
     }))
   }));
 
@@ -286,6 +290,36 @@ function updatePowerStatus() {
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
+// Upgrader pinning: called ONLY right after a direct user action places or
+// moves an Upgrader (addComponent, carry-drop) — never by SA/RE-OPTIMIZE,
+// which must treat pinnedTags as fixed input, not something to recompute.
+// Re-scans the Upgrader's current ports and re-pins to whatever real
+// (non-wire) component each one currently touches, replacing any previous
+// pin — this is how the user "connects" or "re-connects" it by hand.
+function _repinUpgrader(idx) {
+  const p = state.placements[idx];
+  if (!p || p.componentId !== 'upgrader') return;
+
+  const tags = [];
+  for (const port of (p.rotatedPorts || [])) {
+    const gr = p.row + port.cell[0], gc = p.col + port.cell[1];
+    const d = SIDE_DELTA[port.side];
+    const ar = gr + d.dr, ac = gc + d.dc;
+    const otherIdx = state.placements.findIndex((other, j) =>
+      j !== idx && other.componentId !== 'wire' &&
+      (other.rotatedPorts || []).some(tp =>
+        other.row + tp.cell[0] === ar && other.col + tp.cell[1] === ac && tp.side === OPPOSITE[port.side]
+      )
+    );
+    if (otherIdx === -1) continue;
+    const other = state.placements[otherIdx];
+    if (other.pinTag == null) other.pinTag = state.nextPinTag++;
+    tags.push(other.pinTag);
+  }
+  p.pinnedTags = tags;
+  console.log(`[Upgrader] #${idx} pinned to tags [${tags.join(', ')}]`);
+}
+
 async function addComponent(componentId) {
   const def = componentLib.find(d => d.id === componentId);
   if (!def) return;
@@ -310,6 +344,7 @@ async function addComponent(componentId) {
       rotatedPorts: anyResult.rotatedPorts,
       rotatedPeripheral: rotPeri
     });
+    _repinUpgrader(state.placements.length - 1);
     stopOptimization();
     optResultsClear();
     saveState();
@@ -342,6 +377,7 @@ async function addComponent(componentId) {
     rotatedPorts: result.rotatedPorts,
     rotatedPeripheral: result.rotatedPeripheral
   });
+  _repinUpgrader(state.placements.length - 1);
 
   const wc = (result.wirePath || []).length;
   const wireMsg = wc > 0 ? ` (+ ${wc} wire${wc > 1 ? 's' : ''})` : '';
@@ -627,6 +663,13 @@ function _tryDropCarry() {
   // Commit drop
   delete p._carrying;
   console.log(`[carry] drop #${carryState.idx} (${p.componentId}) at [${p.row},${p.col}] r${p.rotation}°`);
+  _repinUpgrader(carryState.idx);
+  // The dropped item itself may have landed next to an EXISTING Upgrader —
+  // that Upgrader's own manual-move moment already passed, but the user
+  // just as deliberately dragged something onto it, so re-pin it too.
+  state.placements.forEach((pp, j) => {
+    if (pp.componentId === 'upgrader' && j !== carryState.idx) _repinUpgrader(j);
+  });
 
   // Recompute wires for the new layout
   const wired = tryAddWires(state.placements, state.grid);
@@ -898,11 +941,13 @@ async function optimizeAll() {
         const sb = db ? db.shape.length : 0;
         return (pb - pa) || (sb - sa);
       })
-      .map(p => p.componentId)
+      // Carry pin identity through the rebuild — see _repinUpgrader and
+      // ensureComponentOrder's _hoistPinnedTargets.
+      .map(p => ({ componentId: p.componentId, pinTag: p.pinTag, pinnedTags: p.pinnedTags }))
   );
 
   console.log(`[Re-Optimize Layout] Start: grid ${state.grid.rows}×${state.grid.cols}, ${ids.length} components`);
-  console.log('[Re-Optimize Layout] Order:', ids.join(' → '));
+  console.log('[Re-Optimize Layout] Order:', ids.map(t => t.componentId).join(' → '));
   showStatus(`Re-Optimize Layout: ${ids.length} components on ${state.grid.rows}×${state.grid.cols} grid…`, 'ok');
 
   // Save original for rollback — non-wire components must NEVER disappear
@@ -928,10 +973,19 @@ async function optimizeAll() {
   for (let i = 0; i < ids.length; i++) {
     await new Promise(resolve => setTimeout(resolve, 0)); // yield to browser
 
-    const id  = ids[i];
+    const tuple = ids[i];
+    const id  = tuple.componentId;
     const def = componentLib.find(d => d.id === id);
     if (!def) continue;
-    const result = findBestPlacement(def, state, ids.slice(i + 1));
+    const pendingIds = ids.slice(i + 1).map(t => t.componentId);
+    // Pinned Upgrader: pass its carried pinnedTags through unchanged so
+    // findBestPlacement only accepts positions that keep it attached to
+    // the exact same instance(s) it was manually connected to — see
+    // _hoistPinnedTargets above, which guarantees the target(s) are
+    // already placed by this point.
+    const result = (id === 'upgrader' && tuple.pinnedTags && tuple.pinnedTags.length > 0)
+      ? findBestPlacement(def, state, pendingIds, tuple.pinnedTags)
+      : findBestPlacement(def, state, pendingIds);
     if (!result) {
       console.warn(`[Optimize] ✗ ${def.name}: no valid position`);
       skipped.push(def.name);
@@ -952,7 +1006,8 @@ async function optimizeAll() {
       id: state.nextId++, componentId: id,
       row: result.row, col: result.col, rotation: result.rotation,
       rotatedShape: result.rotatedShape, rotatedPorts: result.rotatedPorts,
-      rotatedPeripheral: result.rotatedPeripheral
+      rotatedPeripheral: result.rotatedPeripheral,
+      pinTag: tuple.pinTag, pinnedTags: tuple.pinnedTags
     });
     const wires = (result.wirePath || []).length;
     console.log(`[Optimize] ✓ ${def.name} → [${result.row},${result.col}] r${result.rotation}°${wires ? ` +${wires}w` : ''}`);
@@ -1002,7 +1057,30 @@ async function optimizeAll() {
 
 // Order: other core → bio-only → interleaved Rep/Spin (Rep→Spin→Rep→Spin…)
 // Interleaving ensures each Spinner connects to a Repeater placed just before it.
-function ensureComponentOrder(ids) {
+// Stable hoist: any tuple pin-targeted by a later Upgrader (matched by
+// pinTag) is moved to occur immediately before that Upgrader, so RE-OPTIMIZE
+// always places pin targets first — same instance-before-dependent
+// reasoning as the amplifier/bioOnly ordering above, but resolved per pin
+// instead of per type. Leaves everything else in its existing order.
+function _hoistPinnedTargets(tuples) {
+  const byTag = new Map();
+  tuples.forEach(t => { if (t.pinTag != null) byTag.set(t.pinTag, t); });
+  const result = [];
+  const placed = new Set();
+  for (const t of tuples) {
+    if (t.componentId === 'upgrader' && t.pinnedTags && t.pinnedTags.length) {
+      for (const tag of t.pinnedTags) {
+        const target = byTag.get(tag);
+        if (target && !placed.has(target)) { result.push(target); placed.add(target); }
+      }
+    }
+    if (!placed.has(t)) { result.push(t); placed.add(t); }
+  }
+  return result;
+}
+
+// `tuples` is an array of {componentId, pinTag, pinnedTags} — see optimizeAll.
+function ensureComponentOrder(tuples) {
   // Biocell/Disposable Biocell (BIOCELL_IDS, src/optimizer/validate.js) must
   // be placed after their Bio Generator — they have a hard requirement to
   // be port-adjacent to one, so the generator needs a position first. But
@@ -1016,14 +1094,14 @@ function ensureComponentOrder(ids) {
   const repeaterSet = new Set(['repeater_2s', 'repeater_4s']);
   const spinnerSet  = new Set(['spinner', 'pulser']);
 
-  const bioOnly    = ids.filter(id => BIOCELL_IDS.has(id));
-  const reps       = ids.filter(id => repeaterSet.has(id));
-  const spinners   = ids.filter(id => spinnerSet.has(id));
-  const isOther    = id => !BIOCELL_IDS.has(id) && !repeaterSet.has(id) && !spinnerSet.has(id);
+  const bioOnly    = tuples.filter(t => BIOCELL_IDS.has(t.componentId));
+  const reps       = tuples.filter(t => repeaterSet.has(t.componentId));
+  const spinners   = tuples.filter(t => spinnerSet.has(t.componentId));
+  const isOther    = t => !BIOCELL_IDS.has(t.componentId) && !repeaterSet.has(t.componentId) && !spinnerSet.has(t.componentId);
   // Amplifier-family components (Power/Battery/Energy Amplifier, Concentrator)
   // go before their targets — same reasoning as bioOnly above.
-  const amplifiers = ids.filter(id => isOther(id) && AMPLIFIER_TYPE_IDS.has(id));
-  const other       = ids.filter(id => isOther(id) && !AMPLIFIER_TYPE_IDS.has(id));
+  const amplifiers = tuples.filter(t => isOther(t) && AMPLIFIER_TYPE_IDS.has(t.componentId));
+  const other       = tuples.filter(t => isOther(t) && !AMPLIFIER_TYPE_IDS.has(t.componentId));
 
   // Interleave: Rep → Spin → Rep → Spin → remaining Reps
   // Repeater goes first (connects to bus, gets powered), Spinner then connects to the
@@ -1037,7 +1115,7 @@ function ensureComponentOrder(ids) {
     if (spinQ.length > 0) interleaved.push(spinQ.shift());
   }
 
-  return [...amplifiers, ...other, ...bioOnly, ...interleaved];
+  return _hoistPinnedTargets([...amplifiers, ...other, ...bioOnly, ...interleaved]);
 }
 
 // scoreLayout moved to src/optimizer/score.js
@@ -1331,7 +1409,8 @@ function scheduleAnnealOpt() {
     row: p.row, col: p.col, rotation: p.rotation,
     rotatedShape: p.rotatedShape,
     rotatedPorts: p.rotatedPorts,
-    rotatedPeripheral: p.rotatedPeripheral
+    rotatedPeripheral: p.rotatedPeripheral,
+    pinTag: p.pinTag, pinnedTags: p.pinnedTags
   }));
 
   const N = getThreadCount();
@@ -1364,7 +1443,7 @@ function scheduleAnnealOpt() {
   for (let i = 0; i < N; i++) {
     // SA_WORKER_BLOB_URL is pre-created by sa-worker-bundle.js (generated by
     // build.js) so that the Worker can be spawned from file:// without a server.
-    const w = new Worker(window.SA_WORKER_BLOB_URL || 'sa-worker.js?v=150');
+    const w = new Worker(window.SA_WORKER_BLOB_URL || 'sa-worker.js?v=151');
     currentSaWorkers.push(w);
 
     w.onmessage = (e) => {
@@ -1516,10 +1595,12 @@ function saveState() {
   const data = {
     grid: state.grid,
     nextId: state.nextId,
+    nextPinTag: state.nextPinTag,
     placements: state.placements.map(p => ({
       id: p.id, componentId: p.componentId,
       row: p.row, col: p.col, rotation: p.rotation,
-      autoPlaced: p.autoPlaced || false
+      autoPlaced: p.autoPlaced || false,
+      pinTag: p.pinTag, pinnedTags: p.pinnedTags
     }))
   };
   const json = JSON.stringify(data);

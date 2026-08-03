@@ -13,6 +13,80 @@
 const BIOCELL_IDS = new Set(['biocell', 'disposable_biocell']);
 const BIO_GENERATOR_IDS = new Set(['bio_generator', 'bio_generator_ii']);
 
+// Upgrader: each of its (up to 2) ports is either PINNED to a specific
+// OTHER placement instance (by `pinTag`, assigned only via direct user
+// action — see _repinUpgrader in app.js, never by SA/RE-OPTIMIZE) or FREE.
+// A pinned port must stay port-adjacent to that exact instance across any
+// layout change, even after rotation/relocation. A free port must NOT pick
+// up an unintended connection to any other real component — SA/RE-OPTIMIZE
+// may only relay power to it via a wire there, never silently "upgrade" a
+// component the user didn't choose.
+//
+// Shared core: does SOME injective assignment of `ports` to `targetIdxs`
+// (placement indices, in order) exist such that each assigned port is
+// port-adjacent to its target, and every unassigned port touches no OTHER
+// real (non-wire) component? Used both for an already-placed Upgrader
+// (isLayoutValid, via _upgraderPinsOk below) and for a CANDIDATE position
+// being evaluated before commit (findBestPlacement in optimizer.js, which
+// passes `excludeSelf: null` since the candidate isn't in `placements` yet).
+function _upgraderPortAssignmentOk(ports, row, col, placements, targetIdxs, excludeSelf) {
+  if (targetIdxs.length > ports.length) return false; // can't pin more targets than ports
+
+  function adjCell(port) {
+    const gr = row + port.cell[0], gc = col + port.cell[1];
+    const d = SIDE_DELTA[port.side];
+    return { ar: gr + d.dr, ac: gc + d.dc };
+  }
+  function portTouchesPlacement(port, other) {
+    const { ar, ac } = adjCell(port);
+    return (other.rotatedPorts || []).some(tp =>
+      other.row + tp.cell[0] === ar && other.col + tp.cell[1] === ac && tp.side === OPPOSITE[port.side]
+    );
+  }
+  function portTouchesAnyOther(port) {
+    const { ar, ac } = adjCell(port);
+    return placements.some(other =>
+      other !== excludeSelf && other.componentId !== 'wire' &&
+      (other.rotatedPorts || []).some(tp =>
+        other.row + tp.cell[0] === ar && other.col + tp.cell[1] === ac && tp.side === OPPOSITE[port.side]
+      )
+    );
+  }
+
+  // Brute-force permutations of port indices assigned to targetIdxs, in
+  // order — at most 2 ports, so at most 2 permutations to try.
+  function permutations(arr) {
+    if (arr.length <= 1) return [arr];
+    const out = [];
+    arr.forEach((v, i) => {
+      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+      permutations(rest).forEach(p2 => out.push([v, ...p2]));
+    });
+    return out;
+  }
+
+  const portIdxs = ports.map((_, i) => i);
+  for (const perm of permutations(portIdxs)) {
+    let ok = true;
+    for (let t = 0; t < targetIdxs.length && ok; t++) {
+      if (!portTouchesPlacement(ports[perm[t]], placements[targetIdxs[t]])) ok = false;
+    }
+    for (let k = targetIdxs.length; k < perm.length && ok; k++) {
+      if (portTouchesAnyOther(ports[perm[k]])) ok = false;
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+function _upgraderPinsOk(p, placements) {
+  const tags = p.pinnedTags || [];
+  const targetIdxs = tags
+    .map(tag => placements.findIndex(pp => pp.pinTag === tag))
+    .filter(idx => idx !== -1); // missing target = that pin was lost, silently dropped
+  return _upgraderPortAssignmentOk(p.rotatedPorts || [], p.row, p.col, placements, targetIdxs, p);
+}
+
 function isLayoutValid(placements, grid) {
   const poweredSet  = computePoweredSet(placements, grid.rows, grid.cols);
   const workingSet  = computeWorkingSet(placements);
@@ -51,7 +125,12 @@ function isLayoutValid(placements, grid) {
     if (p.componentId === 'wire') continue;
     const def = componentLib.find(d => d.id === p.componentId);
     if (!def) continue;
-    if (def.energyPorts.length > 0 && !poweredSet.has(i)) return false;
+    // Upgrader with no active pin needs no power of its own (see
+    // _upgraderPinsOk above) — everyone else, and a pinned Upgrader, keep
+    // the normal "must reach the bus" requirement.
+    const isFreeUpgrader = p.componentId === 'upgrader' && (!p.pinnedTags || p.pinnedTags.length === 0);
+    if (def.energyPorts.length > 0 && !isFreeUpgrader && !poweredSet.has(i)) return false;
+    if (p.componentId === 'upgrader' && !_upgraderPinsOk(p, placements)) return false;
     if (p.componentId === 'spinner' && hasRepeaters && !workingSet.has(i)) return false;
     if (p.componentId === 'repeater_2s' || p.componentId === 'repeater_4s') {
       let connected = false;
@@ -103,6 +182,7 @@ function tryAddWires(placements, grid) {
       if (p.componentId === 'wire') continue;
       const def = componentLib.find(d => d.id === p.componentId);
       if (!def || def.energyPorts.length === 0) continue;
+      if (p.componentId === 'upgrader' && (!p.pinnedTags || p.pinnedTags.length === 0)) continue; // free Upgrader: no power needed
       if (poweredSet.has(i)) continue;
       unpowered.push(p);
     }
