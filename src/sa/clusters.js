@@ -228,7 +228,8 @@ function _precomputeRotationVariants(def) {
         componentId: ip.componentId,
         relRow: newRelRow,
         relCol: newRelCol,
-        rotation: (ip.rotation + rot) % 360
+        rotation: (ip.rotation + rot) % 360,
+        pinTag: ip.pinTag, pinnedTags: ip.pinnedTags // must survive rotation variants too
       });
     }
     result[rot] = rotInternals;
@@ -291,7 +292,8 @@ function expandClusterPlacement(clusterPlacement, clusterDef) {
       rotation: ip.rotation,
       rotatedShape: rotated.shape,
       rotatedPorts: rotated.energyPorts,
-      rotatedPeripheral: buildRotatedPeri(subDef, ip.rotation)
+      rotatedPeripheral: buildRotatedPeri(subDef, ip.rotation),
+      pinTag: ip.pinTag, pinnedTags: ip.pinnedTags // survives the merge/expand round-trip — see buildMergedBlockDef
     });
   }
   return out;
@@ -310,4 +312,108 @@ function expandClustersInPlacements(placements) {
     }
   }
   return out;
+}
+
+// ── Merged blocks — an EXISTING connected group frozen into one rigid atom ──
+//
+// buildClusterDef above builds a fixed TEMPLATE (a canonical S-R pattern)
+// used at seed-construction time, before anything is placed. This is the
+// opposite direction: given placements that are ALREADY positioned (the
+// user's own layout), derive a composite shape/ports from their CURRENT
+// relative arrangement and register it as a cluster-like def — same
+// _isCluster/_internalPlacements contract, so expandClustersInPlacements
+// and _precomputeRotationVariants (free 0/90/180/270 rotation) work
+// unchanged. Once merged, SA's move set (shift/rotate/swap/relocate — see
+// src/sa/moves.js) sees ONE placement and can only move/rotate the whole
+// thing; no move type can single out one member, so the group's internal
+// connections can never be broken by the search. Members keep whatever
+// EXTERNAL (non-internal) ports they had — an unrelated, still-individual
+// component can still connect to those from outside; only the merged
+// members themselves are locked relative to each other.
+let _mergedBlockCounter = 0;
+
+function buildMergedBlockDef(placements, groupIndices) {
+  let minR = Infinity, minC = Infinity;
+  for (const idx of groupIndices) {
+    const p = placements[idx];
+    for (const [r, c] of p.rotatedShape) {
+      minR = Math.min(minR, p.row + r);
+      minC = Math.min(minC, p.col + c);
+    }
+  }
+
+  const memberCells = new Set();
+  for (const idx of groupIndices) {
+    const p = placements[idx];
+    for (const [r, c] of p.rotatedShape) memberCells.add(`${p.row + r},${p.col + c}`);
+  }
+
+  const shapeCells = [];
+  const internals = [];
+  const energyPorts = [];
+  for (const idx of groupIndices) {
+    const p = placements[idx];
+    for (const [r, c] of p.rotatedShape) shapeCells.push([p.row + r - minR, p.col + c - minC]);
+    internals.push({
+      componentId: p.componentId, relRow: p.row - minR, relCol: p.col - minC, rotation: p.rotation || 0,
+      pinTag: p.pinTag, pinnedTags: p.pinnedTags // must survive the merge/expand round-trip — see _upgraderPinsOk
+    });
+
+    // External ports only — a port touching ANOTHER member of this same
+    // group is internal (already satisfied by the merge), not exposed.
+    for (const port of (p.rotatedPorts || [])) {
+      const gr = p.row + port.cell[0], gc = p.col + port.cell[1];
+      const d = SIDE_DELTA[port.side];
+      const ar = gr + d.dr, ac = gc + d.dc;
+      if (memberCells.has(`${ar},${ac}`)) continue;
+      energyPorts.push({ cell: [gr - minR, gc - minC], side: port.side });
+    }
+  }
+
+  _mergedBlockCounter++;
+  const def = {
+    id: `merged_block_${_mergedBlockCounter}`,
+    name: 'Merged block',
+    shape: shapeCells,
+    energyPorts,
+    peripheral: null,
+    color: '#B39DDB', bgColor: '#1a1030',
+    icon: '⬢',
+    description: `Merged block of ${groupIndices.length} components — moves/rotates only as a whole.`,
+    _internalPlacements: internals,
+    _isCluster: true
+  };
+  return { def, anchorRow: minR, anchorCol: minC };
+}
+
+// Detect groups worth freezing into merged blocks — Upgrader pin-groups
+// (always, a pin is inviolable by design) and amplifier-family clusters
+// (Power/Battery/Energy Amplifier or Concentrator + currently-connected
+// target(s) — see _saFindPinGroups / _saFindAmplifierGroups in
+// src/sa/moves.js, loaded before this file) — and replace each with one
+// merged block placement, registered into componentLib. Used only for a SA
+// run seeded from the user's own layout (see sa-worker.js): the fallback
+// from-scratch greedy path has no existing arrangement to derive blocks
+// from. Returns a NEW placements array; components outside any detected
+// group pass through unchanged.
+function mergeConnectedGroupsIntoBlocks(placements) {
+  const groups = [..._saFindPinGroups(placements), ..._saFindAmplifierGroups(placements)];
+  if (groups.length === 0) return placements;
+
+  const merged = new Set();
+  const result = [];
+  for (const group of groups) {
+    if (group.some(idx => merged.has(idx))) continue; // overlapping group (shouldn't normally happen) — first one wins
+    group.forEach(idx => merged.add(idx));
+    const { def, anchorRow, anchorCol } = buildMergedBlockDef(placements, group);
+    registerClusterDefs([def]);
+    result.push({
+      componentId: def.id, row: anchorRow, col: anchorCol, rotation: 0,
+      rotatedShape: def.shape.map(c => [...c]),
+      rotatedPorts: def.energyPorts.map(p => ({ cell: [...p.cell], side: p.side })),
+      rotatedPeripheral: null
+    });
+  }
+  placements.forEach((p, idx) => { if (!merged.has(idx)) result.push(p); });
+  return result;
 }
