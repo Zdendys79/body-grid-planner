@@ -21,10 +21,14 @@ function _saComponentOrder(ids) {
   // for cells, so placing them earlier is free.
   const spinnerSet = new Set(['spinner', 'pulser']);
 
-  const bioOnly  = ids.filter(id => BIOCELL_IDS.has(id));
-  const reps     = ids.filter(id => _SA_REP_IDS.has(id));
-  const spinners = ids.filter(id => spinnerSet.has(id));
-  const others   = ids.filter(id => !BIOCELL_IDS.has(id) && !_SA_REP_IDS.has(id) && !spinnerSet.has(id));
+  const bioOnly    = ids.filter(id => BIOCELL_IDS.has(id));
+  const reps       = ids.filter(id => _SA_REP_IDS.has(id));
+  const spinners   = ids.filter(id => spinnerSet.has(id));
+  const isOther    = id => !BIOCELL_IDS.has(id) && !_SA_REP_IDS.has(id) && !spinnerSet.has(id);
+  // Amplifier-family components (Power/Battery/Energy Amplifier, Concentrator)
+  // go before their targets — same reasoning as bioOnly above.
+  const amplifiers = ids.filter(id => isOther(id) && AMPLIFIER_TYPE_IDS.has(id));
+  const others      = ids.filter(id => isOther(id) && !AMPLIFIER_TYPE_IDS.has(id));
 
   // Interleave Rep → Spin → Rep → Spin — pairs Repeaters with Spinners as
   // they're placed, satisfying the adjacency constraint inline.
@@ -33,7 +37,7 @@ function _saComponentOrder(ids) {
     if (reps.length)     interleaved.push(reps.shift());
     if (spinners.length) interleaved.push(spinners.shift());
   }
-  return [...others, ...bioOnly, ...interleaved];
+  return [...amplifiers, ...others, ...bioOnly, ...interleaved];
 }
 
 function buildGreedyInitial(componentIds, grid, prefilledPlacements = []) {

@@ -214,6 +214,15 @@ function computeFreeBlockBonus(placements, gridRows, gridCols) {
 // wire amplifiers up to a target when the grid allows it.
 const AMPLIFIER_TARGETS = new Set(['harvester', 'salvager']);
 
+// All 4 amplifier-family component ids (as opposed to their targets above).
+// Reused by ensureComponentOrder (app.js) and _saComponentOrder
+// (src/sa/greedy.js) to place these BEFORE their targets — same
+// most-constrained-first reasoning as Repeater-before-Spinner and Bio
+// Generator-before-Biocell: a target placed first has no amplifier to
+// connect to yet, so it greedily grabs whatever scores best in isolation
+// (e.g. bus-adjacency) and strands the amplifier once it's finally placed.
+const AMPLIFIER_TYPE_IDS = new Set(['power_amplifier', 'battery_amplifier', 'energy_amplifier', 'concentrator']);
+
 function computeAmplifierBonus(placements) {
   const portMap = new Map();
   for (let i = 0; i < placements.length; i++) {
