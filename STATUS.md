@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-08-02
-**Version:** v=147
+**Date:** 2026-08-03
+**Version:** v=148
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=148 | 2026-08-03 | Real fix for the Concentrator issue @Konsolka originally reported (GitHub issue #2) — my v=143 "comment-only" dismissal was wrong. `computeConcentratorBonus` (`score.js`) and `getConcentratorConnectionBonus` (`optimizer.js`) counted the bonus PER PORT-PAIR instead of per distinct connected block, so 4 blocks each double-porting (8 port-pairs) tied 6 single-porting blocks (also 8 port-pairs) — SA had zero incentive to prefer the 6-block layout and settled for the simpler 4-block one every time, exactly what Konsolka's screenshot showed. Both functions now dedup by `(concentrator, target)` pair like the other 3 amplifier-family bonuses, so each distinct connected Energy Cells block scores once regardless of how many of its own ports touch the Concentrator — verified via test: 4 double-porting blocks now score 4×weight vs 6 single-porting blocks at 6×weight (previously both scored 8×weight, tied). Also fixed the same missing per-pair dedup (latent, never manifested) in the other 3 `getXConnectionBonus` functions in `optimizer.js`, and corrected the Concentrator weight's Settings hint text |
 | v=147 | 2026-08-02 | `findBestPlacement` (RE-OPTIMIZE + SA's initial greedy seed) was missing scoring for 3 of the 4 amplifier-family bonuses — only Power Amplifier had a `getAmplifierConnectionBonus`; Battery Amplifier, Energy Amplifier, and Concentrator had zero incentive to connect to their targets outside of SMART's full `scoreLayout` search. Added `getBatteryAmplifierConnectionBonus`, `getEnergyAmplifierConnectionBonus`, `getConcentratorConnectionBonus` mirroring the existing pattern (and their `computeXBonus` counterparts in `score.js`), wired into `findBestPlacement`'s scoring cascade. Verified all 3 now connect correctly via direct tests |
 | v=146 | 2026-08-02 | Greedy placement ordering fix (`ensureComponentOrder` in `app.js`, `_saComponentOrder` in `src/sa/greedy.js`): Biocell/Disposable Biocell now placed right after "other" components (their Bio Generator included) but BEFORE the Repeater/Spinner interleave, not after everything. An unrelated Repeater/Spinner could previously grab a Biocell's one valid connector cell first, starving it into the constraint-blind geometry-only fallback. Verified fixed against the adversarial case found while testing v=144/145; confirmed the residual Spinner/Repeater validity gap in that same test is pre-existing and unrelated (reproduces identically with no bio components present at all) |
 | v=145 | 2026-08-02 | Full removal of the dead `bioPorts`/`rotatedBioPorts` mechanism (11 files: `components.json`, `rotation.js`, `bus.js`, `validate.js`, `optimizer.js`, `renderer.js`, `app.js`, `sa-worker.js`, `src/sa/{shell,clusters,moves,greedy}.js`) — no component populates it since v=144's Biocell rework, so it was pure dead weight. Also fixed the same `energyPorts.length===0` bio-only heuristic bug in `src/sa/greedy.js`'s `_saComponentOrder` (SA's own greedy seed builder) that was already fixed in `app.js`'s `ensureComponentOrder` for RE-OPTIMIZE — now both explicitly order Biocells after their Bio Generator via `BIOCELL_IDS` |

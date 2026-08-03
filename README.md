@@ -86,7 +86,7 @@ Greedy scorer for a single new component, used by both "add one component" and R
 1. Reserves cells already occupied by other components **and** by their peripherals.
 2. Tries every unique rotation × every grid position.
 3. Hard rejects: Spinner without room for its Repeater, Repeater without a non-working Spinner target, Biocell/Disposable Biocell not port-adjacent to a Bio Generator.
-4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus + amplifierBonus`. Four `getXConnectionBonus` helpers (v=120 for Power Amplifier, v=147 for the other three) each mirror their `computeXBonus` counterpart in `scoreLayout` — same weights, same port-matching logic — so RE-OPTIMIZE and SMART agree on the incentive to connect: `getAmplifierConnectionBonus` (Power Amplifier↔Harvester/Salvager), `getBatteryAmplifierConnectionBonus` (Battery Amplifier↔any battery, area-scaled), `getEnergyAmplifierConnectionBonus` (Energy Amplifier↔Bio Generator/Energy Cells/Spinner/Pulser, per-target weight), `getConcentratorConnectionBonus` (Concentrator↔Energy Cells, counted per port).
+4. Scores ports against the bus, computes a wire path back to a powered cell, ranks by `quality − wires + workingBonus + amplifierBonus`. Four `getXConnectionBonus` helpers (v=120 for Power Amplifier, v=147 for the other three) each mirror their `computeXBonus` counterpart in `scoreLayout` — same weights, same port-matching logic — so RE-OPTIMIZE and SMART agree on the incentive to connect: `getAmplifierConnectionBonus` (Power Amplifier↔Harvester/Salvager), `getBatteryAmplifierConnectionBonus` (Battery Amplifier↔any battery, area-scaled), `getEnergyAmplifierConnectionBonus` (Energy Amplifier↔Bio Generator/Energy Cells/Spinner/Pulser, per-target weight), `getConcentratorConnectionBonus` (Concentrator↔Energy Cells, counted per distinct connected block — v=148, see below).
 
 If no wire-aware position fits, `findAnyPlacement` falls back to any non-overlapping geometric fit (no wire routing). Existing components are **never** rearranged when adding a new one — that is the role of the explicit RE-OPTIMIZE button. After placement, `addComponent` (v=125) re-runs `tryAddWires` over the whole layout — `findBestPlacement` only wires up the component just added, so this catches any other already-placed component that's now one hop from power thanks to the addition. Positions are never touched, only auto-placed wire cells are added.
 
@@ -165,7 +165,7 @@ The generated files are committed to the repository, so end users who just downl
 
 Every script in `index.html`, the worker `importScripts` call and the `new Worker('sa-worker.js?v=N')` URL in `app.js` must carry the same `?v=N` after any code change. The sed bump script touches: `index.html`, `sa-worker.js`, `app.js`.
 
-Current version: **v=147**
+Current version: **v=148**
 
 ---
 
