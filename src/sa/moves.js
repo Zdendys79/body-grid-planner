@@ -47,7 +47,10 @@ function _saFitsInGrid(p, grid) {
   return true;
 }
 
-function _saMakePlacement(id, row, col, rotation) {
+// `source`, if given, is the placement being replaced — its pinTag/pinnedTags
+// (Upgrader pin identity, see src/optimizer/validate.js) are carried over so
+// moves never silently strip a pin mid-search.
+function _saMakePlacement(id, row, col, rotation, source) {
   const def = componentLib.find(d => d.id === id);
   if (!def) return null;
   const { shape, energyPorts } = rotateComponent(def, rotation);
@@ -55,7 +58,8 @@ function _saMakePlacement(id, row, col, rotation) {
     componentId: id, row, col, rotation,
     rotatedShape: shape,
     rotatedPorts: energyPorts,
-    rotatedPeripheral: buildRotatedPeri(def, rotation)
+    rotatedPeripheral: buildRotatedPeri(def, rotation),
+    pinTag: source && source.pinTag, pinnedTags: source && source.pinnedTags
   };
 }
 
@@ -71,8 +75,8 @@ function saSwapMove(placements, grid) {
   while (j === i) j = _saRandomInt(placements.length);
 
   const a = placements[i], b = placements[j];
-  const newA = _saMakePlacement(a.componentId, b.row, b.col, a.rotation);
-  const newB = _saMakePlacement(b.componentId, a.row, a.col, b.rotation);
+  const newA = _saMakePlacement(a.componentId, b.row, b.col, a.rotation, a);
+  const newB = _saMakePlacement(b.componentId, a.row, a.col, b.rotation, b);
   if (!newA || !newB) return null;
   if (!_saFitsInGrid(newA, grid) || !_saFitsInGrid(newB, grid)) return null;
 
@@ -95,7 +99,7 @@ function saRotateMove(placements, grid) {
 
   const otherDegs = uniqueDegs.filter(d => d !== target.rotation);
   const newRot = otherDegs[_saRandomInt(otherDegs.length)];
-  const replaced = _saMakePlacement(target.componentId, target.row, target.col, newRot);
+  const replaced = _saMakePlacement(target.componentId, target.row, target.col, newRot, target);
   if (!replaced || !_saFitsInGrid(replaced, grid)) return null;
 
   const next = placements.slice();
@@ -111,7 +115,7 @@ function saShiftMove(placements, grid) {
   const target = placements[i];
   const deltas = [[-1,0],[1,0],[0,-1],[0,1]];
   const [dr, dc] = deltas[_saRandomInt(4)];
-  const moved = _saMakePlacement(target.componentId, target.row + dr, target.col + dc, target.rotation);
+  const moved = _saMakePlacement(target.componentId, target.row + dr, target.col + dc, target.rotation, target);
   if (!moved || !_saFitsInGrid(moved, grid)) return null;
 
   const next = placements.slice();
@@ -150,7 +154,7 @@ function saRelocateMove(placements, grid) {
       if (occupied.has(`${row+r},${col+c}`)) { overlap = true; break; }
     }
     if (overlap) continue;
-    const replaced = _saMakePlacement(target.componentId, row, col, deg);
+    const replaced = _saMakePlacement(target.componentId, row, col, deg, target);
     if (!replaced) continue;
     // _saMakePlacement attaches rotatedPeripheral; verify peripheral fits in
     // grid AND doesn't overlap any other placement's cells.

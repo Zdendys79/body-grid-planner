@@ -534,6 +534,25 @@ window.COMPONENTS_DATA = {
         "note": "Normal electrical port, but only functions when plugged directly into a Bio Generator (any tier). Hard requirement — a layout with a Biocell not port-adjacent to a Bio Generator is invalid. Same shape as Refilling Biocell (not modeled separately — the optimizer doesn't distinguish consumable vs rechargeable)."
       },
       "description": "Biocell, 2 cells (vertical). S on (1,0). Must be port-adjacent to a Bio Generator."
+    },
+    {
+      "id": "upgrader",
+      "name": "Upgrader",
+      "category": "power",
+      "shape": [[0,0],[0,1],[1,0],[1,1]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [1,0], "side": "W"}
+      ],
+      "peripheral": null,
+      "color": "#B39DDB",
+      "bgColor": "#1a1030",
+      "icon": "⬆",
+      "optimizerRules": {
+        "connectsTo": null,
+        "note": "No scoring bonus of its own. Special hard constraint: once manually placed/moved next to another component, it is PINNED to that specific instance (not just its type) — RE-OPTIMIZE and SMART must keep it port-adjacent to that same instance across layout changes, even if the port used changes. If the pinned instance is later removed or becomes unreachable, the pin silently clears and it behaves as a normal, unconstrained component."
+      },
+      "description": "Upgrader, 2x2. W on (0,0) and (1,0). Pins to whatever specific component instance it's touching when placed — must stay connected to that exact instance across re-layouts."
     }
   ]
 }

@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=150',
-  'src/optimizer/rotation.js?v=150',
-  'src/optimizer/bus.js?v=150',
-  'src/optimizer/placement.js?v=150',
-  'src/optimizer/score.js?v=150',
-  'src/optimizer/validate.js?v=150',
-  'src/sa/shell.js?v=150',
-  'src/sa/moves.js?v=150',
-  'src/sa/clusters.js?v=150',
-  'src/sa/greedy.js?v=150',
-  'src/sa/annealer.js?v=150',
-  'optimizer.js?v=150'
+  'src/constants.js?v=151',
+  'src/optimizer/rotation.js?v=151',
+  'src/optimizer/bus.js?v=151',
+  'src/optimizer/placement.js?v=151',
+  'src/optimizer/score.js?v=151',
+  'src/optimizer/validate.js?v=151',
+  'src/sa/shell.js?v=151',
+  'src/sa/moves.js?v=151',
+  'src/sa/clusters.js?v=151',
+  'src/sa/greedy.js?v=151',
+  'src/sa/annealer.js?v=151',
+  'optimizer.js?v=151'
 );
 
 let componentLib = [];
@@ -131,7 +131,8 @@ function runSA(params) {
       row: p.row, col: p.col, rotation: p.rotation,
       rotatedShape: p.rotatedShape,
       rotatedPorts: p.rotatedPorts,
-      rotatedPeripheral: p.rotatedPeripheral
+      rotatedPeripheral: p.rotatedPeripheral,
+      pinTag: p.pinTag, pinnedTags: p.pinnedTags // Upgrader pin identity — see isLayoutValid's _upgraderPinsOk
     }));
     if (_isUserSeedSane(userSeed)) {
       seed = userSeed;

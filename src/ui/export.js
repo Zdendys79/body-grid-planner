@@ -39,10 +39,12 @@ function exportLayout() {
     layout: {
       grid: { rows: state.grid.rows, cols: state.grid.cols, maxRows: state.grid.maxRows, maxCols: state.grid.maxCols },
       nextId: state.nextId,
+      nextPinTag: state.nextPinTag,
       placements: state.placements.map(p => ({
         id: p.id, componentId: p.componentId,
         row: p.row, col: p.col, rotation: p.rotation,
-        autoPlaced: p.autoPlaced || false
+        autoPlaced: p.autoPlaced || false,
+        pinTag: p.pinTag, pinnedTags: p.pinnedTags
       }))
     },
     exportedAt: Date.now()
@@ -130,6 +132,7 @@ function applyImportLayout() {
   }
   state.placements = layoutData.placements.map(rehydratePlacement);
   state.nextId = layoutData.nextId || (state.placements.length + 1);
+  state.nextPinTag = layoutData.nextPinTag || 1;
   stopOptimization();
   optResultsClear();
   saveState();

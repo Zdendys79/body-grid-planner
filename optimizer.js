@@ -297,7 +297,12 @@ function getSpinnerAccessibilityBonus(compDef, energyPorts, row, col, occupiedMa
   return accessible >= 2 ? 3000 : 0;
 }
 
-function findBestPlacement(compDef, state, pendingIds = []) {
+// `upgraderPinnedTags`, if given, is the pinnedTags array carried through
+// from the pre-rebuild Upgrader placement (see optimizeAll in app.js) — the
+// candidate search below only accepts positions satisfying
+// _upgraderPortAssignmentOk (src/optimizer/validate.js) against it. Omit
+// for every other component and for an Upgrader with no active pin.
+function findBestPlacement(compDef, state, pendingIds = [], upgraderPinnedTags = null) {
   const { grid, placements } = state;
   const poweredSet = computePoweredSet(placements, grid.rows, grid.cols);
   const occupiedMap = getOccupiedMap(placements);
@@ -316,6 +321,10 @@ function findBestPlacement(compDef, state, pendingIds = []) {
   const isWire = compDef.id === 'wire';
   const isRepeater = compDef.id === 'repeater_4s' || compDef.id === 'repeater_2s';
   const isBioCell = BIOCELL_IDS.has(compDef.id);
+  const isPinnedUpgrader = compDef.id === 'upgrader' && upgraderPinnedTags && upgraderPinnedTags.length > 0;
+  const upgraderTargetIdxs = isPinnedUpgrader
+    ? upgraderPinnedTags.map(tag => placements.findIndex(pp => pp.pinTag === tag)).filter(idx => idx !== -1)
+    : [];
 
   // Pre-compute unworking Spinner ports for the Repeater hard constraint.
   // Collected once — placements don't change during the search loop.
@@ -397,6 +406,14 @@ function findBestPlacement(compDef, state, pendingIds = []) {
         // ── Hard constraint: Biocell / Disposable Biocell — must be
         //    port-adjacent to a Bio Generator (any tier) to function at all.
         if (isBioCell && !wouldConnectToBioGenerator(energyPorts, row, col, placements)) continue;
+
+        // ── Hard constraint: pinned Upgrader — must land with its pinned
+        //    port(s) adjacent to their exact target instance(s); any other
+        //    port must not touch a different real component.
+        if (isPinnedUpgrader) {
+          if (upgraderTargetIdxs.length !== upgraderPinnedTags.length) continue; // a target vanished — caller should have filtered this out
+          if (!_upgraderPortAssignmentOk(energyPorts, row, col, placements, upgraderTargetIdxs, null)) continue;
+        }
 
         // ── Energy/bio connection priority ────────────────────────────────
         let energyBonus = 0;
