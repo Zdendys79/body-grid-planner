@@ -379,9 +379,12 @@ function computeConcentratorBonus(placements) {
       if (!portMap.has(adjKey)) continue;
       for (const j of portMap.get(adjKey)) {
         if (!CONCENTRATOR_TARGETS.has(placements[j].componentId)) continue;
-        // Keyed by the Concentrator's own port cell (not just i,j) so two
-        // distinct ports linking to the same target both count.
-        const pairKey = `${i},${gr},${gc},${j}`;
+        // Keyed by (i,j) only, like the other amplifier-family bonuses: a
+        // block that touches the Concentrator via 2 of its own ports still
+        // counts once. Rewards the number of DISTINCT connected blocks, not
+        // port-pairs — otherwise 4 double-porting blocks (8 port-pairs) tie
+        // 6 single-porting ones (6 port-pairs) instead of losing to them.
+        const pairKey = `${i},${j}`;
         if (counted.has(pairKey)) continue;
         counted.add(pairKey);
         bonus += scoreWeights.concentrator;

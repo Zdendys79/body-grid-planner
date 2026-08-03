@@ -151,19 +151,21 @@ function getAmplifierConnectionBonus(compDef, energyPorts, row, col, placements)
   if (!isAmplifier && !isTarget) return 0;
 
   let bonus = 0;
+  const counted = new Set();
   for (const { cell, side } of energyPorts) {
     const gr = row + cell[0], gc = col + cell[1];
     const d  = SIDE_DELTA[side];
     const ar = gr + d.dr, ac = gc + d.dc;
-    for (const pp of placements) {
+    for (let j = 0; j < placements.length; j++) {
+      const pp = placements[j];
       const isMatch = isAmplifier
         ? AMPLIFIER_TARGET_IDS.has(pp.componentId)
         : pp.componentId === 'power_amplifier';
-      if (!isMatch) continue;
+      if (!isMatch || counted.has(j)) continue;
       const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
         pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
       );
-      if (connects) bonus += scoreWeights.amplifier;
+      if (connects) { counted.add(j); bonus += scoreWeights.amplifier; }
     }
   }
   return bonus;
@@ -186,19 +188,22 @@ function getBatteryAmplifierConnectionBonus(compDef, energyPorts, row, col, plac
   if (!isAmplifier && !isTarget) return 0;
 
   let bonus = 0;
+  const counted = new Set();
   for (const { cell, side } of energyPorts) {
     const gr = row + cell[0], gc = col + cell[1];
     const d  = SIDE_DELTA[side];
     const ar = gr + d.dr, ac = gc + d.dc;
-    for (const pp of placements) {
+    for (let j = 0; j < placements.length; j++) {
+      const pp = placements[j];
       const isMatch = isAmplifier
         ? _isBatteryTarget(pp.componentId)
         : pp.componentId === 'battery_amplifier';
-      if (!isMatch) continue;
+      if (!isMatch || counted.has(j)) continue;
       const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
         pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
       );
       if (connects) {
+        counted.add(j);
         const area = isAmplifier ? pp.rotatedShape.length : shape.length;
         bonus += scoreWeights.batteryAmplifier * area;
       }
@@ -223,46 +228,54 @@ function getEnergyAmplifierConnectionBonus(compDef, energyPorts, row, col, place
   if (!isAmplifier && !isTarget) return 0;
 
   let bonus = 0;
+  const counted = new Set();
   for (const { cell, side } of energyPorts) {
     const gr = row + cell[0], gc = col + cell[1];
     const d  = SIDE_DELTA[side];
     const ar = gr + d.dr, ac = gc + d.dc;
-    for (const pp of placements) {
+    for (let j = 0; j < placements.length; j++) {
+      const pp = placements[j];
       const isMatch = isAmplifier
         ? ENERGY_AMPLIFIER_TARGETS.has(pp.componentId)
         : pp.componentId === 'energy_amplifier';
-      if (!isMatch) continue;
+      if (!isMatch || counted.has(j)) continue;
       const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
         pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
       );
-      if (connects) bonus += _energyAmpWeightFor(isAmplifier ? pp.componentId : compDef.id);
+      if (connects) { counted.add(j); bonus += _energyAmpWeightFor(isAmplifier ? pp.componentId : compDef.id); }
     }
   }
   return bonus;
 }
 
-// Concentrator <-> Energy Cells, counted per port (not per component pair)
-// — same as computeConcentratorBonus, since its 8 outward ports can land 2
-// simultaneous connections against the same Energy Cells block.
+// Concentrator <-> Energy Cells, counted per DISTINCT connected block (same
+// pairing rule as the other 3 amplifier-family bonuses, and as
+// computeConcentratorBonus in src/optimizer/score.js). A block touching the
+// Concentrator via 2 of its own ports still counts once — otherwise 4
+// double-porting blocks (8 port-pairs) score the same as 6 single-porting
+// ones (6 port-pairs) instead of losing to them, which made SA settle for
+// fewer, denser-wired blocks instead of maximizing distinct connections.
 function getConcentratorConnectionBonus(compDef, energyPorts, row, col, placements) {
   const isAmplifier = compDef.id === 'concentrator';
   const isTarget = CONCENTRATOR_TARGETS.has(compDef.id);
   if (!isAmplifier && !isTarget) return 0;
 
   let bonus = 0;
+  const counted = new Set();
   for (const { cell, side } of energyPorts) {
     const gr = row + cell[0], gc = col + cell[1];
     const d  = SIDE_DELTA[side];
     const ar = gr + d.dr, ac = gc + d.dc;
-    for (const pp of placements) {
+    for (let j = 0; j < placements.length; j++) {
+      const pp = placements[j];
       const isMatch = isAmplifier
         ? CONCENTRATOR_TARGETS.has(pp.componentId)
         : pp.componentId === 'concentrator';
-      if (!isMatch) continue;
+      if (!isMatch || counted.has(j)) continue;
       const connects = pp.rotatedPorts.some(({ cell: pc, side: ps }) =>
         pp.row + pc[0] === ar && pp.col + pc[1] === ac && ps === OPPOSITE[side]
       );
-      if (connects) bonus += scoreWeights.concentrator;
+      if (connects) { counted.add(j); bonus += scoreWeights.concentrator; }
     }
   }
   return bonus;
