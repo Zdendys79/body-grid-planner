@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=153',
-  'src/optimizer/rotation.js?v=153',
-  'src/optimizer/bus.js?v=153',
-  'src/optimizer/placement.js?v=153',
-  'src/optimizer/score.js?v=153',
-  'src/optimizer/validate.js?v=153',
-  'src/sa/shell.js?v=153',
-  'src/sa/moves.js?v=153',
-  'src/sa/clusters.js?v=153',
-  'src/sa/greedy.js?v=153',
-  'src/sa/annealer.js?v=153',
-  'optimizer.js?v=153'
+  'src/constants.js?v=154',
+  'src/optimizer/rotation.js?v=154',
+  'src/optimizer/bus.js?v=154',
+  'src/optimizer/placement.js?v=154',
+  'src/optimizer/score.js?v=154',
+  'src/optimizer/validate.js?v=154',
+  'src/sa/shell.js?v=154',
+  'src/sa/moves.js?v=154',
+  'src/sa/clusters.js?v=154',
+  'src/sa/greedy.js?v=154',
+  'src/sa/annealer.js?v=154',
+  'optimizer.js?v=154'
 );
 
 let componentLib = [];
@@ -126,7 +126,7 @@ function runSA(params) {
   }
 
   if (initialPlacements && initialPlacements.length > 0) {
-    const userSeed = initialPlacements.map(p => ({
+    const userSeedExpanded = initialPlacements.map(p => ({
       componentId: p.componentId,
       row: p.row, col: p.col, rotation: p.rotation,
       rotatedShape: p.rotatedShape,
@@ -134,15 +134,23 @@ function runSA(params) {
       rotatedPeripheral: p.rotatedPeripheral,
       pinTag: p.pinTag, pinnedTags: p.pinnedTags // Upgrader pin identity — see isLayoutValid's _upgraderPinsOk
     }));
-    if (_isUserSeedSane(userSeed)) {
-      seed = userSeed;
-      seedExpanded = userSeed;
-      seedWired = tryAddWires(userSeed, grid);
+    if (_isUserSeedSane(userSeedExpanded)) {
+      // Freeze Upgrader pin-groups and amplifier-family clusters (Concentrator
+      // + connected Energy Cells etc.) into rigid merged blocks BEFORE handing
+      // the seed to SA's move set — see mergeConnectedGroupsIntoBlocks in
+      // src/sa/clusters.js. Stronger than the optional chain-move (v=154):
+      // a merged block is the ONLY placement SA's move set sees for that
+      // group, so no single-piece move can ever break its connections, and
+      // the search operates on far fewer, bigger atoms.
+      const userSeed = mergeConnectedGroupsIntoBlocks(userSeedExpanded);
+      seed = userSeed;             // SA-level (may contain merged blocks)
+      seedExpanded = userSeedExpanded; // individual placements for scoring/wiring
+      seedWired = tryAddWires(userSeedExpanded, grid);
       seedValid = seedWired && isLayoutValid(seedWired, grid);
       seedScore = seedValid ? scoreLayout(seedWired, grid) : -Infinity;
       seedSource = seedValid
-        ? `user layout (${userSeed.length} components, valid)`
-        : `user layout (${userSeed.length} components, invalid — SA will fix)`;
+        ? `user layout (${userSeedExpanded.length} components, valid, ${userSeed.length} atoms after merge)`
+        : `user layout (${userSeedExpanded.length} components, invalid — SA will fix)`;
     }
   }
 
