@@ -553,6 +553,25 @@ window.COMPONENTS_DATA = {
         "note": "No scoring bonus of its own. Special hard constraint: once manually placed/moved next to another component, it is PINNED to that specific instance (not just its type) — RE-OPTIMIZE and SMART must keep it port-adjacent to that same instance across layout changes, even if the port used changes. If the pinned instance is later removed or becomes unreachable, the pin silently clears and it behaves as a normal, unconstrained component."
       },
       "description": "Upgrader, 2x2. W on (0,0) and (1,0). Pins to whatever specific component instance it's touching when placed — must stay connected to that exact instance across re-layouts."
+    },
+    {
+      "id": "cultivator",
+      "name": "Cultivator",
+      "category": "processing",
+      "shape": [[0,0],[0,1],[0,2],[1,1],[1,2],[2,0],[2,1],[2,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [2,0], "side": "S"}
+      ],
+      "peripheral": null,
+      "color": "#8BC34A",
+      "bgColor": "#0f2005",
+      "icon": "⊚",
+      "optimizerRules": {
+        "connectsTo": null,
+        "note": "No special placement requirements — just an awkward 8-cell notched shape (3x3 bounding box missing (1,0))."
+      },
+      "description": "Cultivator, 8 cells (3x3 bounding box, notch at (1,0)). W on (0,0), S on (2,0)."
     }
   ]
 }
