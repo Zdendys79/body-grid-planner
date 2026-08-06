@@ -425,17 +425,17 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "metal_scavenger",
-      "name": "Metal Scavenger",
+      "name": "Scrap Scavenger",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
       "energyPorts": [
-        {"cell": [1,0], "side": "W"}
+        {"cell": [0,0], "side": "W"}
       ],
       "peripheral": null,
       "color": "#B0BEC5",
       "bgColor": "#0e1419",
       "icon": "⊡",
-      "description": "Metal harvester 2x3. W on (1,0)."
+      "description": "Metal harvester 2x3. W on (0,0)."
     },
     {
       "id": "resource_scanner",
@@ -485,7 +485,7 @@ window.COMPONENTS_DATA = {
     },
     {
       "id": "fuser_i",
-      "name": "Fuser (I)",
+      "name": "Fuser",
       "category": "processing",
       "shape": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3],[2,0],[2,1],[2,2],[2,3],[3,0],[3,1],[3,2],[3,3]],
       "energyPorts": [
