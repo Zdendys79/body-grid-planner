@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-08-06
-**Version:** v=156
+**Date:** 2026-08-07
+**Version:** v=157
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=157 | 2026-08-07 | New component: Bio Core — 10-cell shape (1-cell neck + 3x3 base), W+E both on the neck cell (0,0). Energy generator: added to `BIO_GENERATOR_IDS` (validate.js) so Biocell/Disposable Biocell can plug into it like Bio Generator (I)/(II), and to `ENERGY_AMPLIFIER_TARGETS` + the `bioGen` weight category (score.js, optimizer.js) so Energy Amplifier gets a bonus connecting to it. UNLIKE Bio Generator (I)/(II), Bio Core has its own hard requirement in the opposite direction too — confirmed by the user in-game: a Bio Core not port-adjacent to a Biocell/Disposable Biocell is invalid (new `hasBioCores`/`biocellPortKeys` check in `isLayoutValid`, mirroring the existing Biocell-needs-generator check but reversed). No placement-time hard constraint added on the Bio Core side (would create a chicken-and-egg ordering conflict with Biocell's own existing-generator-seeking constraint) — enforced only at final validity, same as the Repeater/Spinner mutual requirement already is |
 | v=156 | 2026-08-06 | Cosmetic renames: "Fuser (I)" → "Fuser", "Metal Scavenger" → "Scrap Scavenger". Bugfix: Scrap Scavenger's W port was on the wrong row — moved from (1,0) to (0,0) per user's corrected in-game shape reference (`=SSS / SSS`, connector on the top row) |
 | v=155 | 2026-08-06 | New component: Cultivator — 8-cell notched shape (3x3 bounding box missing (1,0)), W port on (0,0), S port on (2,0). No special placement rules. |
 | v=154 | 2026-08-03 | Per user request: went beyond v=153's optional chain-move for pin/amplifier groups to a HARD permanent merge. New `mergeConnectedGroupsIntoBlocks`/`buildMergedBlockDef` in `src/sa/clusters.js` detect Upgrader pin-groups and amplifier-family clusters (Concentrator + connected Energy Cells etc., via the v=153 detectors) in the user's own layout at SA-seed time and freeze each into ONE synthetic cluster-like placement (reusing the existing `_isCluster`/`_internalPlacements`/`expandClustersInPlacements` contract built for Spinner-Repeater clusters) — SA's move set then sees a single atom per group and can only shift/rotate/relocate/swap it as a whole, so no move can ever break its internal connections (stronger guarantee than the v=153 chain-move, which only optionally moved a group together some of the time). Wired into `sa-worker.js`'s user-seed path only (the fallback from-scratch greedy path has no existing arrangement to derive blocks from — same scope boundary as pinning itself). Found and fixed a real bug during verification: the merge/expand round-trip silently dropped `pinTag`/`pinnedTags` on internal members (3 separate spots — `buildMergedBlockDef`, `_precomputeRotationVariants`, `expandClusterPlacement` — none carried the fields through), which would have made every pinned Upgrader register as invalid the instant its merged block got expanded back for scoring. Verified on the user's reported layout: 24 components merge into 18 atoms (2× 3-member Upgrader-pin blocks, 1× 3-member Power-Amplifier/Harvester/Salvager block); a full SA run found a genuine improvement (score 46096880 → 48120640) while keeping every merged group's connections intact throughout |

@@ -11,7 +11,7 @@
 //     (any tier) — they have normal electrical ports, but only function
 //     when plugged directly into one
 const BIOCELL_IDS = new Set(['biocell', 'disposable_biocell']);
-const BIO_GENERATOR_IDS = new Set(['bio_generator', 'bio_generator_ii']);
+const BIO_GENERATOR_IDS = new Set(['bio_generator', 'bio_generator_ii', 'bio_core']);
 
 // Upgrader: each of its (up to 2) ports is either PINNED to a specific
 // OTHER placement instance (by `pinTag`, assigned only via direct user
@@ -94,6 +94,7 @@ function isLayoutValid(placements, grid) {
     p.componentId === 'repeater_4s' || p.componentId === 'repeater_2s'
   );
   const hasBiocells = placements.some(p => BIOCELL_IDS.has(p.componentId));
+  const hasBioCores = placements.some(p => p.componentId === 'bio_core');
 
   // Pre-build set of Spinner+Pulser port keys for Repeater "useful-target" check
   let targetPortKeys = null;
@@ -116,6 +117,22 @@ function isLayoutValid(placements, grid) {
       if (!BIO_GENERATOR_IDS.has(p.componentId)) continue;
       for (const port of (p.rotatedPorts || [])) {
         bioGenPortKeys.add(`${p.row+port.cell[0]},${p.col+port.cell[1]},${port.side}`);
+      }
+    }
+  }
+
+  // Pre-build set of Biocell/Disposable Biocell port keys for the Bio Core
+  // "needs a connected Biocell to function" check — the reverse requirement
+  // from Biocell's own (which needs ANY Bio Generator tier, bio_core included
+  // since v=157). Bio Generator (I)/(II) have no such requirement — only
+  // Bio Core does.
+  let biocellPortKeys = null;
+  if (hasBioCores) {
+    biocellPortKeys = new Set();
+    for (const p of placements) {
+      if (!BIOCELL_IDS.has(p.componentId)) continue;
+      for (const port of (p.rotatedPorts || [])) {
+        biocellPortKeys.add(`${p.row+port.cell[0]},${p.col+port.cell[1]},${port.side}`);
       }
     }
   }
@@ -149,6 +166,16 @@ function isLayoutValid(placements, grid) {
         const d = SIDE_DELTA[port.side];
         const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[port.side]}`;
         if (bioGenPortKeys.has(adjKey)) { connected = true; break; }
+      }
+      if (!connected) return false;
+    }
+    if (p.componentId === 'bio_core') {
+      let connected = false;
+      for (const port of (p.rotatedPorts || [])) {
+        const gr = p.row + port.cell[0], gc = p.col + port.cell[1];
+        const d = SIDE_DELTA[port.side];
+        const adjKey = `${gr + d.dr},${gc + d.dc},${OPPOSITE[port.side]}`;
+        if (biocellPortKeys.has(adjKey)) { connected = true; break; }
       }
       if (!connected) return false;
     }

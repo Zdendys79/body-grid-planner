@@ -215,7 +215,7 @@ function getBatteryAmplifierConnectionBonus(compDef, energyPorts, row, col, plac
 // Energy Amplifier <-> Bio Generator/Energy Cells/Spinner/Pulser, one
 // weight per target type (energyAmpBioGen/EnergyCells/Spinner/Pulser).
 function _energyAmpWeightFor(id) {
-  if (id === 'bio_generator' || id === 'bio_generator_ii') return scoreWeights.energyAmpBioGen;
+  if (id === 'bio_generator' || id === 'bio_generator_ii' || id === 'bio_core') return scoreWeights.energyAmpBioGen;
   if (id === 'energy_cells') return scoreWeights.energyAmpEnergyCells;
   if (id === 'spinner') return scoreWeights.energyAmpSpinner;
   if (id === 'pulser') return scoreWeights.energyAmpPulser;

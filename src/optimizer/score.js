@@ -311,7 +311,7 @@ function computeBatteryAmplifierBonus(placements) {
 // here. Optional, like the other amplifiers — not required for layout
 // validity, and independent of the Spinner's separate Repeater
 // working-set requirement.
-const ENERGY_AMPLIFIER_TARGETS = new Set(['bio_generator', 'bio_generator_ii', 'energy_cells', 'spinner', 'pulser']);
+const ENERGY_AMPLIFIER_TARGETS = new Set(['bio_generator', 'bio_generator_ii', 'bio_core', 'energy_cells', 'spinner', 'pulser']);
 
 function computeEnergyAmplifierBonus(placements) {
   const portMap = new Map();
@@ -341,7 +341,7 @@ function computeEnergyAmplifierBonus(placements) {
         const pairKey = `${i},${j}`;
         if (counted.has(pairKey)) continue;
         counted.add(pairKey);
-        if (targetId === 'bio_generator' || targetId === 'bio_generator_ii') counts.bioGen++;
+        if (targetId === 'bio_generator' || targetId === 'bio_generator_ii' || targetId === 'bio_core') counts.bioGen++;
         else if (targetId === 'energy_cells') counts.energyCells++;
         else if (targetId === 'spinner') counts.spinner++;
         else if (targetId === 'pulser') counts.pulser++;
