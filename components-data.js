@@ -209,7 +209,7 @@ window.COMPONENTS_DATA = {
       "bgColor": "#332400",
       "icon": "⚡",
       "optimizerRules": {
-        "connectsTo": ["bio_generator", "bio_generator_ii", "energy_cells", "spinner", "pulser"],
+        "connectsTo": ["bio_generator", "bio_generator_ii", "bio_core", "energy_cells", "spinner", "pulser"],
         "note": "Boosts the efficiency of a port-connected energy producer (Bio Generator, Energy Cells, Spinner, Pulser). Optional — not required for layout validity, but scoreLayout rewards each connection with its own per-target-type weight (Settings → Layout scoring weights → Energy Amp: Bio Generator / Energy Cells / Spinner / Pulser)."
       },
       "description": "Energy Amplifier, 3 cells (vertical). W+E on (2,0). Boosts efficiency of a port-connected energy producer."
@@ -572,6 +572,25 @@ window.COMPONENTS_DATA = {
         "note": "No special placement requirements — just an awkward 8-cell notched shape (3x3 bounding box missing (1,0))."
       },
       "description": "Cultivator, 8 cells (3x3 bounding box, notch at (1,0)). W on (0,0), S on (2,0)."
+    },
+    {
+      "id": "bio_core",
+      "name": "Bio Core",
+      "category": "power",
+      "shape": [[0,0],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,0],[3,1],[3,2]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [0,0], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#43A047",
+      "bgColor": "#062010",
+      "icon": "❋",
+      "optimizerRules": {
+        "connectsTo": ["biocell", "disposable_biocell", "energy_amplifier"],
+        "note": "Energy generator — functions as a Bio Generator for Biocell/Disposable Biocell purposes (hard requirement: a Biocell not port-adjacent to any Bio Generator/Bio Generator (II)/Bio Core is invalid). Also a valid Energy Amplifier target (Settings → Layout scoring weights → Energy Amp: Bio Generator, same category as Bio Generator I/II). UNLIKE Bio Generator (I)/(II), Bio Core itself has a hard requirement too: it does nothing without a connected Biocell/Disposable Biocell — a Bio Core not port-adjacent to one is invalid."
+      },
+      "description": "Bio Core, 10 cells (1-cell neck + 3x3 base). W+E both on (0,0)."
     }
   ]
 }
