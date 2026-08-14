@@ -16,18 +16,18 @@
 //     {type:'error', message}
 
 importScripts(
-  'src/constants.js?v=157',
-  'src/optimizer/rotation.js?v=157',
-  'src/optimizer/bus.js?v=157',
-  'src/optimizer/placement.js?v=157',
-  'src/optimizer/score.js?v=157',
-  'src/optimizer/validate.js?v=157',
-  'src/sa/shell.js?v=157',
-  'src/sa/moves.js?v=157',
-  'src/sa/clusters.js?v=157',
-  'src/sa/greedy.js?v=157',
-  'src/sa/annealer.js?v=157',
-  'optimizer.js?v=157'
+  'src/constants.js?v=158',
+  'src/optimizer/rotation.js?v=158',
+  'src/optimizer/bus.js?v=158',
+  'src/optimizer/placement.js?v=158',
+  'src/optimizer/score.js?v=158',
+  'src/optimizer/validate.js?v=158',
+  'src/sa/shell.js?v=158',
+  'src/sa/moves.js?v=158',
+  'src/sa/clusters.js?v=158',
+  'src/sa/greedy.js?v=158',
+  'src/sa/annealer.js?v=158',
+  'optimizer.js?v=158'
 );
 
 let componentLib = [];
@@ -138,7 +138,7 @@ function runSA(params) {
       // Freeze Upgrader pin-groups and amplifier-family clusters (Concentrator
       // + connected Energy Cells etc.) into rigid merged blocks BEFORE handing
       // the seed to SA's move set — see mergeConnectedGroupsIntoBlocks in
-      // src/sa/clusters.js. Stronger than the optional chain-move (v=157):
+      // src/sa/clusters.js. Stronger than the optional chain-move (v=158):
       // a merged block is the ONLY placement SA's move set sees for that
       // group, so no single-piece move can ever break its connections, and
       // the search operates on far fewer, bigger atoms.

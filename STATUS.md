@@ -1,7 +1,7 @@
 # Body Grid Planner – STATUS
 
-**Date:** 2026-08-07
-**Version:** v=157
+**Date:** 2026-08-14
+**Version:** v=158
 **URL:** https://body-grid-planner.zdendys79.website
 **GitHub:** https://github.com/Zdendys79/body-grid-planner
 
@@ -106,6 +106,7 @@ Click a placed component to lift it; the ghost follows the cursor pixel-by-pixel
 
 | Version | Date | Change |
 |---|---|---|
+| v=158 | 2026-08-14 | New component: Battery (4x2) — 8-cell rectangle (2 rows × 4 cols), W ports on (0,0) and (1,0), E ports on (0,3) and (1,3). Regular battery — `_isBatteryTarget` matches any `battery_*` id, so it's automatically a valid Battery Amplifier target (bonus scaled by its 8-cell area) with no code changes needed beyond the definition itself; also added to `battery_amplifier`'s `optimizerRules.connectsTo` documentation list |
 | v=157 | 2026-08-07 | New component: Bio Core — 10-cell shape (1-cell neck + 3x3 base), W+E both on the neck cell (0,0). Energy generator: added to `BIO_GENERATOR_IDS` (validate.js) so Biocell/Disposable Biocell can plug into it like Bio Generator (I)/(II), and to `ENERGY_AMPLIFIER_TARGETS` + the `bioGen` weight category (score.js, optimizer.js) so Energy Amplifier gets a bonus connecting to it. UNLIKE Bio Generator (I)/(II), Bio Core has its own hard requirement in the opposite direction too — confirmed by the user in-game: a Bio Core not port-adjacent to a Biocell/Disposable Biocell is invalid (new `hasBioCores`/`biocellPortKeys` check in `isLayoutValid`, mirroring the existing Biocell-needs-generator check but reversed). No placement-time hard constraint added on the Bio Core side (would create a chicken-and-egg ordering conflict with Biocell's own existing-generator-seeking constraint) — enforced only at final validity, same as the Repeater/Spinner mutual requirement already is |
 | v=156 | 2026-08-06 | Cosmetic renames: "Fuser (I)" → "Fuser", "Metal Scavenger" → "Scrap Scavenger". Bugfix: Scrap Scavenger's W port was on the wrong row — moved from (1,0) to (0,0) per user's corrected in-game shape reference (`=SSS / SSS`, connector on the top row) |
 | v=155 | 2026-08-06 | New component: Cultivator — 8-cell notched shape (3x3 bounding box missing (1,0)), W port on (0,0), S port on (2,0). No special placement rules. |
