@@ -93,6 +93,23 @@ window.COMPONENTS_DATA = {
       "description": "Battery (3x2). E on (0,2). E on (1,2)."
     },
     {
+      "id": "battery_4x2",
+      "name": "Battery (4x2)",
+      "category": "power",
+      "shape": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3]],
+      "energyPorts": [
+        {"cell": [0,0], "side": "W"},
+        {"cell": [1,0], "side": "W"},
+        {"cell": [0,3], "side": "E"},
+        {"cell": [1,3], "side": "E"}
+      ],
+      "peripheral": null,
+      "color": "#EF5350",
+      "bgColor": "#4a0f0f",
+      "icon": "▓",
+      "description": "Battery (4x2). W on (0,0). W on (1,0). E on (0,3). E on (1,3)."
+    },
+    {
       "id": "sensor",
       "name": "Sensor",
       "category": "detection",
@@ -190,7 +207,7 @@ window.COMPONENTS_DATA = {
       "bgColor": "#332400",
       "icon": "⚡",
       "optimizerRules": {
-        "connectsTo": ["battery_1x1", "battery_1x2", "battery_1x3", "battery_2x2", "battery_3x2"],
+        "connectsTo": ["battery_1x1", "battery_1x2", "battery_1x3", "battery_2x2", "battery_3x2", "battery_4x2"],
         "note": "Boosts the capacity of a port-connected battery, scaled by that battery's cell count — bigger batteries gain proportionally more. Optional — not required for layout validity, but scoreLayout rewards each connection (Settings → Layout scoring weights → Battery Amplifier bonus)."
       },
       "description": "Battery Amplifier, 3 cells. W+E on (1,1). Boosts capacity of a port-connected battery, scaled by its size."
